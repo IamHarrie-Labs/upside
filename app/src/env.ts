@@ -12,6 +12,7 @@ export type Deployment = {
   settlement: Address;
   base: Address;
   router: Address;
+  handles?: Address;
 };
 
 const files = import.meta.glob<Deployment>("../../contracts/deployments/*.json", { eager: true, import: "default" });

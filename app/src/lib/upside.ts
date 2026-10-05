@@ -6,6 +6,7 @@ import {
   DemoRouterAbi,
   DemoTokenAbi,
   FollowVaultAbi,
+  HandlesAbi,
   KeeperPriceSourceAbi,
   VaultFactoryAbi,
 } from "../abi";
@@ -223,6 +224,24 @@ async function buildSwap(vault: Address, sellBase: boolean, amountIn: bigint): P
   return { router: q.transaction.to, data: (raw.startsWith("0x") ? raw : `0x${raw}`) as Hex };
 }
 
+// ----------------------------------------------------------------- handles
+
+export async function getHandles(addresses: Address[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!d.handles) return out;
+  const unique = [...new Set(addresses.map((a) => a.toLowerCase()))];
+  const names = await Promise.all(
+    unique.map((a) =>
+      publicClient.readContract({ address: d.handles!, abi: HandlesAbi, functionName: "handleOf", args: [a as Address] }),
+    ),
+  );
+  unique.forEach((a, i) => names[i] && out.set(a, names[i] as string));
+  return out;
+}
+
+export const toHandle = (name: string) =>
+  name.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 20);
+
 // ----------------------------------------------------------------- writes
 
 async function send(s: Session, req: { address: Address; abi: any; functionName: string; args?: any[] }) {
@@ -300,4 +319,9 @@ export async function withdrawCash(s: Session, vault: Address, amount: bigint) {
     functionName: "withdraw",
     args: [d.settlement, amount, s.account.address],
   });
+}
+
+export async function setHandle(s: Session, handle: string) {
+  if (!d.handles) throw new Error("Handles contract not deployed");
+  return send(s, { address: d.handles, abi: HandlesAbi, functionName: "setHandle", args: [handle] });
 }

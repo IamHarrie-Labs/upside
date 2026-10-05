@@ -20,6 +20,9 @@ import {
   follow,
   getCallerStats,
   getCalls,
+  getHandles,
+  setHandle,
+  toHandle,
   getMid,
   getVault,
   getVaultState,
@@ -40,12 +43,24 @@ type Toast = { kind: "info" | "ok" | "err"; text: string; hash?: string } | null
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const pct = (bps: number, digits = 1) => `${bps >= 0 ? "+" : ""}${(bps / 100).toFixed(digits)}%`;
-const NAMES: Record<string, string> = {
-  "0x70997970c51812dc3a010c7d01b50e0d17dc79c8": "Ada",
-  "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc": "Sybil Farm",
-  "0x90f79bf6eb2c4f870365e785982e1f101e93b906": "Femi",
+// Public handles from the Handles contract, refreshed with the rest of the state.
+let HANDLES = new Map<string, string>();
+const nameOf = (a: string) => {
+  const h = HANDLES.get(a.toLowerCase());
+  return h ? `@${h}` : short(a);
 };
-const nameOf = (a: string) => NAMES[a.toLowerCase()] ?? short(a);
+const go = (hash: string) => (location.hash = hash);
+
+async function share(title: string, text: string, hash: string) {
+  const url = `${location.origin}${location.pathname}${hash}`;
+  try {
+    if (navigator.share) return await navigator.share({ title, text, url });
+    await navigator.clipboard.writeText(`${text} ${url}`);
+    alert("Link copied");
+  } catch {
+    // user cancelled
+  }
+}
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
@@ -74,17 +89,33 @@ export default function App() {
   const [vs, setVs] = useState<VaultState | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [busy, setBusy] = useState(false);
+  const [route, setRoute] = useState(location.hash);
+  const [, setHandleTick] = useState(0);
+
+  useEffect(() => {
+    const on = () => (setRoute(location.hash), window.scrollTo(0, 0));
+    addEventListener("hashchange", on);
+    return () => removeEventListener("hashchange", on);
+  }, []);
 
   const refresh = useCallback(async () => {
     const [m, cs] = await Promise.all([getMid(), getCalls()]);
     setMid(m);
     setCalls(cs);
     setStats(await getCallerStats(cs.map((c) => c.caller)));
+    let state: VaultState | null = null;
     if (session) {
       const v = await getVault(session.account.address);
       setVault(v);
-      setVs(v ? await getVaultState(v) : null);
+      state = v ? await getVaultState(v) : null;
+      setVs(state);
     }
+    HANDLES = await getHandles([
+      ...cs.map((c) => c.caller),
+      ...(session ? [session.account.address] : []),
+      ...(state ? state.positions.map((p) => p.caller) : []),
+    ]);
+    setHandleTick((t) => t + 1);
   }, [session]);
 
   useEffect(() => {
@@ -126,14 +157,43 @@ export default function App() {
       </header>
 
       <main>
-        {tab === "feed" && (
+        {route.startsWith("#/call/") && (
+          <Detail>
+            <Feed
+              calls={calls.filter((c) => String(c.id) === route.slice(7))}
+              stats={stats}
+              mid={mid}
+              vault={vault}
+              vs={vs}
+              session={session}
+              busy={busy}
+              run={run}
+            />
+          </Detail>
+        )}
+        {route.startsWith("#/caller/") && (
+          <Detail>
+            <CallerProfile address={route.slice(9) as Address} stats={stats} />
+            <Feed
+              calls={calls.filter((c) => c.caller.toLowerCase() === route.slice(9).toLowerCase())}
+              stats={stats}
+              mid={mid}
+              vault={vault}
+              vs={vs}
+              session={session}
+              busy={busy}
+              run={run}
+            />
+          </Detail>
+        )}
+        {!route.startsWith("#/") && tab === "feed" && (
           <Feed calls={calls} stats={stats} mid={mid} vault={vault} vs={vs} session={session} busy={busy} run={run} />
         )}
-        {tab === "post" && <Post session={session} mid={mid} stats={stats} busy={busy} run={run} />}
-        {tab === "portfolio" && (
+        {!route.startsWith("#/") && tab === "post" && <Post session={session} mid={mid} stats={stats} busy={busy} run={run} />}
+        {!route.startsWith("#/") && tab === "portfolio" && (
           <Portfolio session={session} vault={vault} vs={vs} mid={mid} calls={calls} stats={stats} busy={busy} run={run} />
         )}
-        {tab === "board" && <Board stats={stats} />}
+        {!route.startsWith("#/") && tab === "board" && <Board stats={stats} />}
       </main>
 
       {toast && (
@@ -160,7 +220,7 @@ export default function App() {
             ["board", "Leaders"],
           ] as [Tab, string][]
         ).map(([t, label]) => (
-          <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
+          <button key={t} className={tab === t && !route.startsWith("#/") ? "on" : ""} onClick={() => (setTab(t), go(""))}>
             {label}
           </button>
         ))}
@@ -175,7 +235,7 @@ function Onboard({ onSession }: { onSession: (s: Session) => void }) {
   const [name, setName] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const go = async (fn: () => Promise<Session>) => {
+  const start = async (fn: () => Promise<Session>) => {
     setBusy(true);
     setErr("");
     try {
@@ -203,13 +263,25 @@ function Onboard({ onSession }: { onSession: (s: Session) => void }) {
       <div className="card">
         <label className="field">
           <span>Display name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Femi" />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. femi" />
+          <small>Becomes your public handle, e.g. @{toHandle(name) || "femi"}</small>
         </label>
-        <button className="primary" disabled={busy} onClick={() => go(() => createPasskeyAccount(name || "Upside user"))}>
+        <button
+          className="primary"
+          disabled={busy}
+          onClick={() =>
+            start(async () => {
+              const s = await createPasskeyAccount(name || "Upside user");
+              await devFundGas(s.account.address);
+              if (toHandle(name).length >= 3) setHandle(s, toHandle(name)).catch(() => {}); // needs gas; best effort
+              return s;
+            })
+          }
+        >
           Create account with a passkey
         </button>
         {hasPasskey() && (
-          <button className="ghost" disabled={busy} onClick={() => go(signInWithPasskey)}>
+          <button className="ghost" disabled={busy} onClick={() => start(signInWithPasskey)}>
             Sign in with your passkey
           </button>
         )}
@@ -268,7 +340,7 @@ function Feed(props: {
   const { calls, stats, mid, session, busy, run } = props;
   const now = useNow();
   const [amount, setAmount] = useState("50");
-  if (!calls.length) return <Empty text="No calls yet. Post the first one." />;
+  if (!calls.length) return <Empty text="No calls here yet." />;
 
   return (
     <div className="list">
@@ -289,7 +361,10 @@ function Feed(props: {
             <div className="row">
               <div>
                 <div className="who">
-                  {nameOf(c.caller)} <CallerBadge s={s} />
+                  <a className="link" href={`#/caller/${c.caller}`}>
+                    {nameOf(c.caller)}
+                  </a>{" "}
+                  <CallerBadge s={s} />
                 </div>
                 <Record s={s} />
               </div>
@@ -302,7 +377,10 @@ function Feed(props: {
             </div>
             <div className="row foot">
               <span className="sub">
-                Call #{c.id} · committed {new Date(c.postedAt * 1000).toLocaleTimeString()} ·{" "}
+                <a className="link" href={`#/call/${c.id}`}>
+                  Call #{c.id}
+                </a>{" "}
+                · committed {new Date(c.postedAt * 1000).toLocaleTimeString()} ·{" "}
                 {c.scored ? "scored" : countdown(c.expiry - now)}
               </span>
               {c.scored ? (
@@ -311,6 +389,18 @@ function Feed(props: {
                 live !== null && <span className={live >= 0 ? "up" : "down"}>{pct(live)} now</span>
               )}
             </div>
+            <button
+              className="share"
+              onClick={() =>
+                share(
+                  `Upside call #${c.id}`,
+                  `${nameOf(c.caller)} called LONG ${BASE_SYMBOL} at ${humanPrice(c.entryMid).toFixed(4)}, target ${humanPrice(c.targetMid).toFixed(4)}. Committed onchain; you only pay if you profit.`,
+                  `#/call/${c.id}`,
+                )
+              }
+            >
+              Share
+            </button>
             {active && c.caller.toLowerCase() !== session.account.address.toLowerCase() && (
               <button
                 className="primary"
@@ -449,6 +539,7 @@ function Portfolio(props: {
 
   return (
     <div className="list">
+      <HandleCard session={session} run={run} busy={busy} />
       <div className="card">
         <div className="row">
           <div>
@@ -599,4 +690,79 @@ function Board({ stats }: { stats: Map<Address, CallerStats> }) {
 
 function Empty({ text }: { text: string }) {
   return <div className="empty">{text}</div>;
+}
+
+function Detail({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="list">
+      <button className="back" onClick={() => go("")}>
+        ← Back
+      </button>
+      {children}
+    </div>
+  );
+}
+
+function CallerProfile({ address, stats }: { address: Address; stats: Map<Address, CallerStats> }) {
+  const s = [...stats.values()].find((x) => x.address.toLowerCase() === address.toLowerCase());
+  return (
+    <div className="card profile">
+      <div className="row">
+        <div>
+          <h2>{nameOf(address)}</h2>
+          <div className="sub mono">{short(address)}</div>
+        </div>
+        <CallerBadge s={s} />
+      </div>
+      {s && (
+        <div className="stats">
+          <div>
+            <b className={s.avgReturnBps >= 0 ? "up" : "down"}>{s.scored ? pct(s.avgReturnBps) : "—"}</b>
+            <span>avg return</span>
+          </div>
+          <div>
+            <b>{s.scored ? `${Math.round((s.wins / s.scored) * 100)}%` : "—"}</b>
+            <span>hit rate</span>
+          </div>
+          <div>
+            <b>{s.posted}</b>
+            <span>calls posted</span>
+          </div>
+        </div>
+      )}
+      <p className="sub">Every call this address ever posted is below, losers included. Calls cannot be deleted.</p>
+      <button
+        className="ghost"
+        onClick={() =>
+          share(
+            `${nameOf(address)} on Upside`,
+            `${nameOf(address)}: full, undeletable trading record on Upside.`,
+            `#/caller/${address}`,
+          )
+        }
+      >
+        Share profile
+      </button>
+    </div>
+  );
+}
+
+function HandleCard({ session, run, busy }: { session: Session; run: Runner; busy: boolean }) {
+  const current = HANDLES.get(session.account.address.toLowerCase());
+  const [v, setV] = useState(current ?? "");
+  return (
+    <div className="card">
+      <div className="sub">Public handle</div>
+      <div className="row handle-row">
+        <input className="inline" value={v} onChange={(e) => setV(toHandle(e.target.value))} placeholder="your_handle" />
+        <button
+          className="ghost"
+          disabled={busy || v.length < 3 || v === current}
+          onClick={() => run("Saving handle", () => setHandle(session, v))}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
 }

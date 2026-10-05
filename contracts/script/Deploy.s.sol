@@ -5,6 +5,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {CallBook} from "../src/CallBook.sol";
 import {UpsideConfig} from "../src/UpsideConfig.sol";
 import {VaultFactory} from "../src/VaultFactory.sol";
+import {Handles} from "../src/Handles.sol";
 import {AttestedGate} from "../src/AttestedGate.sol";
 import {KeeperPriceSource} from "../src/KeeperPriceSource.sol";
 import {DemoRouter} from "../src/demo/DemoRouter.sol";
@@ -55,9 +56,10 @@ contract Deploy is Script {
         config.setRouter(router, true);
 
         VaultFactory factory = new VaultFactory(config);
+        Handles handles = new Handles();
         vm.stopBroadcast();
 
-        _write(demo, [address(gate), address(prices), address(book), address(config), address(factory), settlement, base, router]);
+        _write(demo, [address(gate), address(prices), address(book), address(config), address(factory), settlement, base, router, address(handles)]);
 
         console2.log("AttestedGate     ", address(gate));
         console2.log("KeeperPriceSource", address(prices));
@@ -69,7 +71,7 @@ contract Deploy is Script {
         console2.log("Router           ", router);
     }
 
-    function _write(bool demo, address[8] memory a) internal {
+    function _write(bool demo, address[9] memory a) internal {
         string memory k = "deployment";
         vm.serializeBool(k, "demo", demo);
         vm.serializeUint(k, "chainId", block.chainid);
@@ -81,7 +83,8 @@ contract Deploy is Script {
         vm.serializeAddress(k, "factory", a[4]);
         vm.serializeAddress(k, "settlement", a[5]);
         vm.serializeAddress(k, "base", a[6]);
-        string memory json = vm.serializeAddress(k, "router", a[7]);
+        vm.serializeAddress(k, "router", a[7]);
+        string memory json = vm.serializeAddress(k, "handles", a[8]);
         vm.writeJson(json, string.concat("./deployments/", vm.toString(block.chainid), ".json"));
     }
 }
