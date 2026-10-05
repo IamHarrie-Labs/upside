@@ -78,16 +78,25 @@ cd ../app && VITE_CHAIN_ID=10143 npm run dev
 
 Testnet uses demo tokens and a `DemoRouter` that fills at the keeper's mid, so the full loop can be shown without testnet liquidity. Fund the deployer with testnet MON first. Passkeys need HTTPS or `localhost`; for phones, deploy the built `app/dist` to any HTTPS host.
 
+## Mainnet fork check (real Kuru liquidity, no real money)
+
+```bash
+anvil --fork-url https://rpc.monad.xyz --chain-id 31338 --port 8548
+cd contracts && DEMO=false SETTLEMENT_TOKEN=0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a   BASE_TOKEN=0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A ROUTER=0xb3e6778480b2E488385E8205eA05E20060B813cb   forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8548 --broadcast --slow --private-key <anvil key 0>
+cd .. && node scripts/export-abi.mjs
+cd keeper && CHAIN_ID=31338 RPC_URL=http://127.0.0.1:8548 KEEPER_KEY=<anvil key 0> npx tsx src/fork-test.ts
+```
+
 ## Mainnet
 
-`DEMO=false` with `SETTLEMENT_TOKEN` (AUSD `0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a`), `BASE_TOKEN` and `ROUTER` (the Kuru Flow router address returned in its quotes). Then run the keeper with `PRICE_MODE=kuru`, and point the app at a small server that proxies Kuru Flow `/quote` (Kuru Flow uses JWT auth) via `VITE_KURU_PROXY`.
+`DEMO=false` with `SETTLEMENT_TOKEN` (AUSD `0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a`), `BASE_TOKEN` and `ROUTER` (`0xb3e6778480b2E488385E8205eA05E20060B813cb`, the Kuru Flow router). Base token WMON is `0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A`. The keeper then prices from Kuru quotes and serves a quote proxy on `:8788` (Kuru Flow needs a JWT per address, 1 request/second); set `VITE_KURU_PROXY` to its public URL.
 
 ## Sponsor integrations
 
 | Sponsor | Where | Status |
 | --- | --- | --- |
 | **Agora (AUSD)** | Settlement token for every vault, fee and payout | Contracts parameterised on AUSD; demo uses a 6-decimal stand-in |
-| **Kuru** | Spot execution via Kuru Flow quotes; mid used for scoring | Router path written for mainnet, not yet run end to end. Testnet uses DemoRouter. |
+| **Kuru** | Spot execution via Kuru Flow quotes (router `0xb3e6778480b2E488385E8205eA05E20060B813cb`); mid used for scoring | **Verified on a mainnet fork:** a FollowVault bought 322.2 WMON for 10 AUSD and sold back for 9.993 AUSD with live Kuru Flow calldata (`keeper/src/fork-test.ts`). Testnet uses DemoRouter. |
 | **Mera (Monad Foundation)** | Passkey sign-up and sign-in; PRF output → BIP-44 account → `toViemAccount` signing session | Implemented (`app/src/lib/account.ts`) |
 | **Cleanverse** | `AttestedGate`: the keeper attests callers with an active A-Pass (`keeper/src/attest.ts`, `CLEANVERSE_MODE=api`) | API path written, untested without credentials; `mock` mode for demos |
 | **Envio** | `indexer/` config, schema and handlers | Written; run `envio codegen` and fill addresses |

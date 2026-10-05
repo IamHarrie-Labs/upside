@@ -203,7 +203,8 @@ async function buildSwap(vault: Address, sellBase: boolean, amountIn: bigint): P
       }),
     };
   }
-  const api = import.meta.env.VITE_KURU_PROXY ?? "/kuru";
+  // The keeper proxies Kuru Flow (JWT per user address, 1 request/second).
+  const api = import.meta.env.VITE_KURU_PROXY ?? "http://localhost:8788";
   const res = await fetch(`${api}/quote`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -212,13 +213,14 @@ async function buildSwap(vault: Address, sellBase: boolean, amountIn: bigint): P
       tokenIn: sellBase ? d.base : d.settlement,
       tokenOut: sellBase ? d.settlement : d.base,
       amount: amountIn.toString(),
-      autoSlippage: true,
     }),
   });
-  if (!res.ok) throw new Error(`Kuru Flow quote failed (${res.status})`);
   const q = await res.json();
-  const tx = q.transaction ?? q.tx ?? q;
-  return { router: tx.to, data: tx.data ?? tx.calldata };
+  if (!res.ok || q.status !== "success") throw new Error(`Kuru Flow quote failed: ${q.message ?? res.status}`);
+  if (BigInt(q.transaction.value || "0") !== 0n) throw new Error("Unexpected native value in swap");
+  // Kuru Flow returns calldata without the 0x prefix.
+  const raw: string = q.transaction.calldata;
+  return { router: q.transaction.to, data: (raw.startsWith("0x") ? raw : `0x${raw}`) as Hex };
 }
 
 // ----------------------------------------------------------------- writes

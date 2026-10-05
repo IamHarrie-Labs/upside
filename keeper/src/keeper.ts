@@ -7,10 +7,11 @@
 import { formatUnits, parseUnits, type Address } from "viem";
 import { CallBookAbi, KeeperPriceSourceAbi, DemoTokenAbi } from "./abi.js";
 import { account, deployment, publicClient, walletClient } from "./env.js";
+import { kuruQuote } from "./kuru.js";
+import { startQuoteProxy } from "./proxy.js";
 
 const PRICE_MODE = process.env.PRICE_MODE ?? (deployment.demo ? "demo" : "kuru");
 const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? 5_000);
-const KURU_FLOW_URL = process.env.KURU_FLOW_URL ?? "https://ws.kuru.io";
 
 const read = <T>(address: Address, abi: any, functionName: string, args: any[] = []) =>
   publicClient.readContract({ address, abi, functionName, args }) as Promise<T>;
@@ -34,38 +35,14 @@ function nextDemoPrice(): number {
   return demoPrice;
 }
 
-let kuruToken: string | undefined;
 async function kuruMid(): Promise<number> {
-  // Kuru Flow quotes are executable prices; the mid is the average of a tiny buy and a tiny sell.
-  if (!kuruToken) {
-    const res = await fetch(`${KURU_FLOW_URL}/api/generate-token`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ user_address: account.address }),
-    });
-    kuruToken = (await res.json()).token;
-  }
-  const quote = async (tokenIn: Address, tokenOut: Address, amount: bigint) => {
-    const res = await fetch(`${KURU_FLOW_URL}/api/quote`, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${kuruToken}` },
-      body: JSON.stringify({
-        userAddress: account.address,
-        tokenIn,
-        tokenOut,
-        amount: amount.toString(),
-        autoSlippage: true,
-      }),
-    });
-    const body = await res.json();
-    return BigInt(body.output ?? body.amountOut);
-  };
-  const oneQuote = parseUnits("1", quoteDec);
-  const oneBase = parseUnits("1", baseDec);
-  const baseForQuote = await quote(deployment.settlement, deployment.base, oneQuote); // buy
-  const quoteForBase = await quote(deployment.base, deployment.settlement, oneBase); // sell
-  const ask = 1 / Number(formatUnits(baseForQuote, baseDec));
-  const bid = Number(formatUnits(quoteForBase, quoteDec));
+  // Kuru Flow quotes are executable prices; the mid is the average of a small buy and a small sell.
+  const oneQuote = parseUnits("10", quoteDec);
+  const oneBase = parseUnits("100", baseDec);
+  const buy = await kuruQuote(account.address, deployment.settlement, deployment.base, oneQuote);
+  const sell = await kuruQuote(account.address, deployment.base, deployment.settlement, oneBase);
+  const ask = 10 / Number(formatUnits(buy.output, baseDec));
+  const bid = Number(formatUnits(sell.output, quoteDec)) / 100;
   return (ask + bid) / 2;
 }
 
@@ -104,6 +81,7 @@ async function scoreExpired() {
   return scored;
 }
 
+if (!deployment.demo) startQuoteProxy();
 console.log(`keeper ${account.address} · chain ${deployment.chainId} · price mode ${PRICE_MODE}`);
 for (;;) {
   try {
