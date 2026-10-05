@@ -1,6 +1,6 @@
 // Upside indexer: turns CallBook, VaultFactory, FollowVault and AttestedGate events into a queryable feed,
 // caller records and per-follow settlement history.
-import { AttestedGate, CallBook, FollowVault, VaultFactory, type Caller } from "generated";
+import { indexer, type Caller } from "envio";
 
 const emptyCaller = (id: string): Caller => ({
   id,
@@ -13,7 +13,7 @@ const emptyCaller = (id: string): Caller => ({
   followersPaid: 0,
 });
 
-CallBook.CallPosted.handler(async ({ event, context }) => {
+indexer.onEvent({ contract: "CallBook", event: "CallPosted" }, async ({ event, context }) => {
   const callerId = event.params.caller.toLowerCase();
   const caller = (await context.Caller.get(callerId)) ?? emptyCaller(callerId);
   context.Caller.set({ ...caller, posted: caller.posted + 1 });
@@ -38,7 +38,7 @@ CallBook.CallPosted.handler(async ({ event, context }) => {
   });
 });
 
-CallBook.CallScored.handler(async ({ event, context }) => {
+indexer.onEvent({ contract: "CallBook", event: "CallScored" }, async ({ event, context }) => {
   const call = await context.Call.get(event.params.id.toString());
   if (call) context.Call.set({ ...call, scored: true, exitMid: event.params.exitMid, returnBps: event.params.returnBps });
   const callerId = event.params.caller.toLowerCase();
@@ -51,11 +51,11 @@ CallBook.CallScored.handler(async ({ event, context }) => {
   });
 });
 
-VaultFactory.VaultCreated.contractRegister(({ event, context }) => {
-  context.addFollowVault(event.params.vault);
+indexer.contractRegister({ contract: "VaultFactory", event: "VaultCreated" }, ({ event, context }) => {
+  context.chain.FollowVault.add(event.params.vault);
 });
 
-VaultFactory.VaultCreated.handler(async ({ event, context }) => {
+indexer.onEvent({ contract: "VaultFactory", event: "VaultCreated" }, async ({ event, context }) => {
   context.Vault.set({
     id: event.params.vault.toLowerCase(),
     owner: event.params.owner.toLowerCase(),
@@ -63,7 +63,7 @@ VaultFactory.VaultCreated.handler(async ({ event, context }) => {
   });
 });
 
-FollowVault.Followed.handler(async ({ event, context }) => {
+indexer.onEvent({ contract: "FollowVault", event: "Followed" }, async ({ event, context }) => {
   const vault = event.srcAddress.toLowerCase();
   const callId = event.params.callId.toString();
   context.Follow.set({
@@ -86,7 +86,7 @@ FollowVault.Followed.handler(async ({ event, context }) => {
     context.Call.set({ ...call, follows: call.follows + 1, followedVolume: call.followedVolume + event.params.amountIn });
 });
 
-FollowVault.Closed.handler(async ({ event, context }) => {
+indexer.onEvent({ contract: "FollowVault", event: "Closed" }, async ({ event, context }) => {
   const id = `${event.srcAddress.toLowerCase()}-${event.params.positionId}`;
   const follow = await context.Follow.get(id);
   if (follow)
@@ -110,7 +110,7 @@ FollowVault.Closed.handler(async ({ event, context }) => {
   }
 });
 
-AttestedGate.Attested.handler(async ({ event, context }) => {
+indexer.onEvent({ contract: "AttestedGate", event: "Attested" }, async ({ event, context }) => {
   const callerId = event.params.account.toLowerCase();
   const caller = (await context.Caller.get(callerId)) ?? emptyCaller(callerId);
   context.Caller.set({ ...caller, verifiedUntil: event.params.until });

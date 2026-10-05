@@ -1,9 +1,8 @@
 # Envio HyperIndex config for Upside.
-# Fill the addresses from contracts/deployments/<chainId>.json after deploying, then:
-#   pnpm envio codegen && pnpm envio dev
+# Envio HyperIndex v3. Fill the addresses from contracts/deployments/<chainId>.json after deploying, then:
+#   npm install && npx envio codegen && npx envio dev   (Linux/macOS/WSL; the CLI has no native Windows build)
 name: upside
-unordered_multichain_mode: false
-networks:
+chains:
   - id: 10143 # Monad testnet (use 143 for mainnet)
     start_block: 0 # set to deployments/<chainId>.json "startBlock"
     contracts:

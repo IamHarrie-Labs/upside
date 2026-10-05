@@ -99,7 +99,7 @@ cd keeper && CHAIN_ID=31338 RPC_URL=http://127.0.0.1:8548 KEEPER_KEY=<anvil key 
 | **Kuru** | Spot execution via Kuru Flow quotes (router `0xb3e6778480b2E488385E8205eA05E20060B813cb`); mid used for scoring | **Verified on a mainnet fork:** a FollowVault bought 322.2 WMON for 10 AUSD and sold back for 9.993 AUSD with live Kuru Flow calldata (`keeper/src/fork-test.ts`). Testnet uses DemoRouter. |
 | **Mera (Monad Foundation)** | Passkey sign-up and sign-in; PRF output → BIP-44 account → `toViemAccount` signing session | Implemented (`app/src/lib/account.ts`) |
 | **Cleanverse** | `AttestedGate`: the keeper attests callers with an active A-Pass (`keeper/src/attest.ts`, `CLEANVERSE_MODE=api`) | API path written, untested without credentials; `mock` mode for demos |
-| **Envio** | `indexer/` config, schema and handlers | Written; run `envio codegen` and fill addresses |
+| **Envio** | `indexer/` (HyperIndex v3): calls, caller records, vaults, follows and settlements; vaults registered dynamically from `VaultCreated` | Written for v3; `node scripts/indexer-config.mjs <chainId>` fills addresses. Not yet run: the Envio CLI has no native Windows build, so run it in WSL or Envio's hosted service |
 | Perpl, Nansen, MetaMask agent plugin | Planned stretch | Not started |
 
 ## Known limits (honest list)

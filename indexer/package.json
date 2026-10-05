@@ -1,0 +1,12 @@
+{
+  "name": "upside-indexer",
+  "private": true,
+  "scripts": {
+    "codegen": "envio codegen",
+    "dev": "envio dev",
+    "start": "envio start"
+  },
+  "dependencies": {
+    "envio": "3.12.1"
+  }
+}
