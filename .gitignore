@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+
+# foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/31337/
+contracts/deployments/31337.json
+
+# envio
+indexer/generated/
+
+# dependencies (reinstall: see README)
+contracts/lib/
+.claude/

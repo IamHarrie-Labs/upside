@@ -1,0 +1,52 @@
+type Caller {
+  id: ID! # address
+  verifiedUntil: BigInt!
+  posted: Int!
+  scored: Int!
+  wins: Int!
+  sumReturnBps: BigInt!
+  feesEarned: BigInt!
+  followersPaid: Int!
+}
+
+type Call {
+  id: ID! # call id
+  caller: Caller!
+  side: Int!
+  feeBps: Int!
+  verifiedAtPost: Boolean!
+  postedAt: Int!
+  postedBlock: Int!
+  postedTx: String!
+  expiry: BigInt!
+  entryMid: BigInt!
+  targetMid: BigInt!
+  stopMid: BigInt!
+  scored: Boolean!
+  exitMid: BigInt
+  returnBps: BigInt
+  follows: Int!
+  followedVolume: BigInt!
+}
+
+type Vault {
+  id: ID! # vault address
+  owner: String!
+  maxExposure: BigInt!
+}
+
+type Follow {
+  id: ID! # vault-positionId
+  vault: Vault!
+  call: Call!
+  caller: Caller!
+  amountIn: BigInt!
+  baseOut: BigInt!
+  open: Boolean!
+  proceeds: BigInt
+  pnl: BigInt
+  callerFee: BigInt
+  protocolFee: BigInt
+  openedTx: String!
+  closedTx: String
+}

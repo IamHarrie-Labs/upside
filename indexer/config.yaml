@@ -1,0 +1,30 @@
+# Envio HyperIndex config for Upside.
+# Fill the addresses from contracts/deployments/<chainId>.json after deploying, then:
+#   pnpm envio codegen && pnpm envio dev
+name: upside
+unordered_multichain_mode: false
+networks:
+  - id: 10143 # Monad testnet (use 143 for mainnet)
+    start_block: 0 # set to deployments/<chainId>.json "startBlock"
+    contracts:
+      - name: CallBook
+        address: ["0x0000000000000000000000000000000000000000"]
+        handler: src/EventHandlers.ts
+        events:
+          - event: CallPosted(uint256 indexed id, address indexed caller, address base, address quote, uint8 side, uint256 entryMid, uint256 targetMid, uint256 stopMid, uint16 feeBps, uint40 expiry, bool verified)
+          - event: CallScored(uint256 indexed id, address indexed caller, uint256 exitMid, int256 returnBps)
+      - name: VaultFactory
+        address: ["0x0000000000000000000000000000000000000000"]
+        handler: src/EventHandlers.ts
+        events:
+          - event: VaultCreated(address indexed owner, address vault, uint256 maxExposure)
+      - name: FollowVault # addresses registered dynamically from VaultCreated
+        handler: src/EventHandlers.ts
+        events:
+          - event: Followed(uint256 indexed positionId, uint256 indexed callId, address indexed caller, uint256 amountIn, uint256 baseOut)
+          - event: Closed(uint256 indexed positionId, uint256 indexed callId, address indexed caller, uint256 proceeds, int256 pnl, uint256 callerFee, uint256 protocolFee)
+      - name: AttestedGate
+        address: ["0x0000000000000000000000000000000000000000"]
+        handler: src/EventHandlers.ts
+        events:
+          - event: Attested(address indexed account, uint64 until, bytes32 credentialRef)
