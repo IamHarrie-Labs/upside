@@ -485,3 +485,6 @@ input.inline {
   padding: 10px 12px;
   font-size: 16px;
 }
+.center-btn {
+  align-self: center;
+}

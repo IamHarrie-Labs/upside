@@ -32,6 +32,8 @@ export type Call = {
   stopMid: bigint;
   exitMid: bigint;
   returnBps: number;
+  followers: number;
+  followedVolume: bigint;
 };
 
 export type CallerStats = {
@@ -90,6 +92,7 @@ export async function getCalls(): Promise<Call[]> {
       publicClient.readContract({ address: d.callBook, abi: CallBookAbi, functionName: "getCall", args: [BigInt(i)] }),
     ),
   );
+  const flow = await getFollowFlow();
   return raw
     .map((c: any, i) => ({
       id: i,
@@ -105,8 +108,38 @@ export async function getCalls(): Promise<Call[]> {
       stopMid: c.stopMid,
       exitMid: c.exitMid,
       returnBps: Number(c.returnBps),
+      followers: flow.get(i)?.followers ?? 0,
+      followedVolume: flow.get(i)?.volume ?? 0n,
     }))
     .reverse();
+}
+
+const FOLLOWED = {
+  type: "event",
+  name: "Followed",
+  inputs: [
+    { name: "positionId", type: "uint256", indexed: true },
+    { name: "callId", type: "uint256", indexed: true },
+    { name: "caller", type: "address", indexed: true },
+    { name: "amountIn", type: "uint256", indexed: false },
+    { name: "baseOut", type: "uint256", indexed: false },
+  ],
+} as const;
+
+/** Follower count and volume per call, from Followed events of every vault. The indexer serves this at scale. */
+async function getFollowFlow(): Promise<Map<number, { followers: number; volume: bigint }>> {
+  const out = new Map<number, { followers: number; volume: bigint }>();
+  try {
+    const logs = await publicClient.getLogs({ event: FOLLOWED, fromBlock: BigInt(d.startBlock), toBlock: "latest" });
+    for (const l of logs) {
+      const id = Number(l.args.callId);
+      const cur = out.get(id) ?? { followers: 0, volume: 0n };
+      out.set(id, { followers: cur.followers + 1, volume: cur.volume + (l.args.amountIn ?? 0n) });
+    }
+  } catch {
+    // RPC log range limits: counts are optional
+  }
+  return out;
 }
 
 export async function getCallerStats(addresses: Address[]): Promise<Map<Address, CallerStats>> {

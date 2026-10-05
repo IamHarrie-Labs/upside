@@ -81,6 +81,7 @@ function countdown(sec: number) {
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
+  const [browsing, setBrowsing] = useState(() => location.hash.startsWith("#/"));
   const [tab, setTab] = useState<Tab>("feed");
   const [mid, setMid] = useState<bigint | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
@@ -138,7 +139,8 @@ export default function App() {
     }
   };
 
-  if (!session) return <Onboard onSession={setSession} />;
+  if (!session && !browsing) return <Onboard onSession={setSession} onBrowse={() => setBrowsing(true)} />;
+  const signIn = () => setBrowsing(false);
 
   return (
     <div className="shell">
@@ -151,9 +153,15 @@ export default function App() {
           <b>{mid ? humanPrice(mid).toFixed(4) : "—"}</b>
           {!mid && <span className="warn"> stale</span>}
         </div>
-        <button className="chip" onClick={() => (session.end(), setSession(null))} title="Switch account">
-          {session.label.split(" ")[0]} · {short(session.account.address)}
-        </button>
+        {session ? (
+          <button className="chip" onClick={() => (session.end(), setSession(null), setBrowsing(false))} title="Switch account">
+            {session.label.split(" ")[0]} · {short(session.account.address)}
+          </button>
+        ) : (
+          <button className="chip" onClick={signIn}>
+            Sign in
+          </button>
+        )}
       </header>
 
       <main>
@@ -166,6 +174,7 @@ export default function App() {
               vault={vault}
               vs={vs}
               session={session}
+              signIn={signIn}
               busy={busy}
               run={run}
             />
@@ -181,17 +190,23 @@ export default function App() {
               vault={vault}
               vs={vs}
               session={session}
+              signIn={signIn}
               busy={busy}
               run={run}
             />
           </Detail>
         )}
         {!route.startsWith("#/") && tab === "feed" && (
-          <Feed calls={calls} stats={stats} mid={mid} vault={vault} vs={vs} session={session} busy={busy} run={run} />
+          <Feed calls={calls} stats={stats} mid={mid} vault={vault} vs={vs} session={session} signIn={signIn} busy={busy} run={run} />
         )}
-        {!route.startsWith("#/") && tab === "post" && <Post session={session} mid={mid} stats={stats} busy={busy} run={run} />}
+        {!route.startsWith("#/") && tab === "post" &&
+          (session ? <Post session={session} mid={mid} stats={stats} busy={busy} run={run} /> : <SignInPrompt signIn={signIn} what="post a call" />)}
         {!route.startsWith("#/") && tab === "portfolio" && (
-          <Portfolio session={session} vault={vault} vs={vs} mid={mid} calls={calls} stats={stats} busy={busy} run={run} />
+          session ? (
+            <Portfolio session={session} vault={vault} vs={vs} mid={mid} calls={calls} stats={stats} busy={busy} run={run} />
+          ) : (
+            <SignInPrompt signIn={signIn} what="see your portfolio" />
+          )
         )}
         {!route.startsWith("#/") && tab === "board" && <Board stats={stats} />}
       </main>
@@ -231,7 +246,7 @@ export default function App() {
 
 // ----------------------------------------------------------------- onboarding
 
-function Onboard({ onSession }: { onSession: (s: Session) => void }) {
+function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onBrowse: () => void }) {
   const [name, setName] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -298,6 +313,9 @@ function Onboard({ onSession }: { onSession: (s: Session) => void }) {
           ))}
         </div>
       )}
+      <button className="back center-btn" onClick={onBrowse}>
+        Just browse calls →
+      </button>
       <p className="fine center">
         Chain {deployment.chainId}
         {deployment.demo ? " · demo venue (test tokens)" : ""}
@@ -333,7 +351,8 @@ function Feed(props: {
   mid: bigint | null;
   vault: Address | null;
   vs: VaultState | null;
-  session: Session;
+  session: Session | null;
+  signIn: () => void;
   busy: boolean;
   run: Runner;
 }) {
@@ -368,7 +387,11 @@ function Feed(props: {
                 </div>
                 <Record s={s} />
               </div>
-              <div className="fee">{c.feeBps / 100}% of net gains</div>
+              <div className="fee">
+                {c.feeBps / 100}% of net gains
+                <br />
+                {c.followers} {c.followers === 1 ? "follower" : "followers"} · ${fmtQuote(c.followedVolume, 0)}
+              </div>
             </div>
             <div className="thesis">
               <span className="long">LONG</span> {BASE_SYMBOL}/{QUOTE_SYMBOL} from <b>{humanPrice(c.entryMid).toFixed(4)}</b>
@@ -401,7 +424,12 @@ function Feed(props: {
             >
               Share
             </button>
-            {active && c.caller.toLowerCase() !== session.account.address.toLowerCase() && (
+            {active && !session && (
+              <button className="primary" onClick={props.signIn}>
+                Sign in to follow
+              </button>
+            )}
+            {active && session && c.caller.toLowerCase() !== session.account.address.toLowerCase() && (
               <button
                 className="primary"
                 disabled={busy || !mid}
@@ -763,6 +791,18 @@ function HandleCard({ session, run, busy }: { session: Session; run: Runner; bus
           Save
         </button>
       </div>
+    </div>
+  );
+}
+
+function SignInPrompt({ signIn, what }: { signIn: () => void; what: string }) {
+  return (
+    <div className="card form">
+      <h2>Sign in to {what}</h2>
+      <p className="sub">A passkey creates your Monad account in seconds. No seed phrase.</p>
+      <button className="primary" onClick={signIn}>
+        Sign in
+      </button>
     </div>
   );
 }
