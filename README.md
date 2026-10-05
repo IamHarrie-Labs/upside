@@ -14,7 +14,8 @@ Paid signal groups charge whether you win or lose, and their track records are s
 | Folder | What it is |
 | --- | --- |
 | `contracts/` | Foundry project: `CallBook`, `FollowVault`, `VaultFactory`, `UpsideConfig`, `AttestedGate`, `KeeperPriceSource`, plus testnet-only `demo/` contracts. 15 tests. |
-| `app/` | Mobile-first web app (Vite + React + viem). Passkey accounts via [Mera](https://mera.category.xyz). |
+| `app/` | Mobile-first web app (Vite + React + viem). Passkey accounts via [Mera](https://mera.category.xyz). Also hosts the passkey association files. |
+| `mobile/` | Native iOS/Android app (Expo SDK 57) sharing the same contract logic; installable Android APK via EAS. See `mobile/README.md`. |
 | `keeper/` | Keeps the order-book mid fresh onchain, scores expired calls, and attests verified callers. |
 | `indexer/` | Envio HyperIndex config, schema and handlers for the feed, caller records and settlements. |
 | `scripts/` | ABI export and the one-command local setup. |

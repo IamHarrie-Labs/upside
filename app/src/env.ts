@@ -38,3 +38,6 @@ export const chain = defineChain({
 });
 
 export const publicClient = createPublicClient({ chain, transport: http(RPC_URL), pollingInterval: 500 });
+
+/** Keeper endpoint that proxies Kuru Flow quotes (mainnet deployments only). */
+export const KURU_PROXY: string = import.meta.env.VITE_KURU_PROXY ?? "http://localhost:8788";
