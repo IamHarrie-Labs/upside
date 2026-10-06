@@ -16,6 +16,7 @@ import {
 import type { Address } from "viem";
 import { deployment, EXPLORER, IS_LOCAL, WEB_URL } from "./src/env";
 import { getPerplPositions, perplEnabled, perplUrl, type PerplPosition } from "./src/lib/perpl";
+import { getNansen, type NansenInfo } from "./src/lib/nansen";
 import {
   createPasskeyAccount,
   describeError,
@@ -78,6 +79,8 @@ const pct = (bps: number, digits = 1) => `${bps >= 0 ? "+" : ""}${(bps / 100).to
 let HANDLES = new Map<string, string>();
 // Callers' current MON positions on Perpl (null = none), refreshed with the rest of the state.
 let PERPL = new Map<string, PerplPosition | null>();
+// Nansen labels per caller (Smart Money etc.), via the keeper.
+let NANSEN = new Map<string, NansenInfo | null>();
 const nameOf = (a: string) => {
   const h = HANDLES.get(a.toLowerCase());
   return h ? `@${h}` : short(a);
@@ -160,7 +163,10 @@ export default function App() {
       ...(session ? [session.account.address] : []),
       ...(state ? state.positions.map((p) => p.caller) : []),
     ]);
-    PERPL = await getPerplPositions(cs.map((c) => c.caller));
+    [PERPL, NANSEN] = await Promise.all([
+      getPerplPositions(cs.map((c) => c.caller)),
+      getNansen(cs.map((c) => c.caller)),
+    ]);
     setTick((t) => t + 1);
   }, [session]);
 
@@ -491,6 +497,7 @@ function Feed(props: {
                     {nameOf(c.caller)}
                   </Text>
                   <Badge st={st} />
+                  <NansenChip caller={c.caller} />
                 </View>
                 <RecordLine st={st} />
               </View>
@@ -846,6 +853,7 @@ function CallerProfile({ address, stats }: { address: Address; stats: Map<Addres
           <Stat value={String(st.posted)} label="calls posted" />
         </View>
       )}
+      <NansenChip caller={address} all />
       <PerplBadge caller={address} side={0} profile />
       <Text style={s.muted}>Every call this address ever posted is below, losers included. Calls cannot be deleted.</Text>
       <Btn
@@ -862,6 +870,22 @@ function Stat({ value, label, color }: { value: string; label: string; color?: s
     <View style={s.stat}>
       <Text style={{ color: color ?? C.ink, fontSize: 18, fontWeight: "800" }}>{value}</Text>
       <Text style={s.small}>{label}</Text>
+    </View>
+  );
+}
+
+/** Nansen label chip(s) for a caller: their Smart Money label, or all labels on the profile. */
+function NansenChip({ caller, all }: { caller: Address; all?: boolean }) {
+  const n = NANSEN.get(caller.toLowerCase());
+  if (!n || !n.labels.length) return null;
+  const shown = all ? n.labels.slice(0, 6) : [n.labels.find((l) => /smart|fund|trader/i.test(l)) ?? n.labels[0]];
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+      {shown.map((l) => (
+        <View key={l} style={[s.badge, { borderColor: "rgba(139,123,255,0.5)" }]}>
+          <Text style={[s.badgeText, { color: C.accent }]}>Nansen · {l}</Text>
+        </View>
+      ))}
     </View>
   );
 }

@@ -510,3 +510,14 @@ input.inline {
   color: var(--muted);
   margin-top: 10px;
 }
+.badge.nansen {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.nansen-labels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}

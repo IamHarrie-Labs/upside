@@ -1,10 +1,12 @@
 // Small HTTP API the apps use for things browsers can't call directly:
 //   POST /quote                Kuru Flow quote for a vault (JWT per address, 1 request/second; mainnet only)
 //   GET  /perpl/context?net=   Perpl's public market context (no CORS headers upstream), cached for 15 seconds
+//   GET  /nansen?addresses=a,b Nansen labels / Smart Money status for callers (see nansen.ts)
 import { createServer } from "node:http";
 import { getAddress, type Address } from "viem";
 import { deployment } from "./env.js";
 import { kuruQuote } from "./kuru.js";
+import { nansenFor, nansenMode } from "./nansen.js";
 
 const PORT = Number(process.env.PROXY_PORT ?? 8788);
 const allowed = new Set([deployment.base.toLowerCase(), deployment.settlement.toLowerCase()]);
@@ -38,6 +40,10 @@ export function startApi() {
     try {
       if (req.method === "GET" && url.pathname === "/perpl/context") {
         return res.end(await perplContext(url.searchParams.get("net") ?? "mainnet"));
+      }
+      if (req.method === "GET" && url.pathname === "/nansen") {
+        const addresses = (url.searchParams.get("addresses") ?? "").split(",").filter((a) => /^0x[0-9a-fA-F]{40}$/.test(a));
+        return res.end(JSON.stringify({ mode: nansenMode, data: await nansenFor(addresses) }));
       }
       if (req.method === "POST" && url.pathname === "/quote") {
         if (deployment.demo) throw new Error("quotes are for mainnet deployments; demo uses DemoRouter");

@@ -37,6 +37,7 @@ import {
 } from "./lib/upside";
 import { deployment, EXPLORER, IS_LOCAL } from "./env";
 import { getPerplPositions, perplEnabled, perplUrl, type PerplPosition } from "./lib/perpl";
+import { getNansen, type NansenInfo } from "./lib/nansen";
 
 type Tab = "feed" | "post" | "portfolio" | "board";
 type VaultState = Awaited<ReturnType<typeof getVaultState>>;
@@ -48,6 +49,8 @@ const pct = (bps: number, digits = 1) => `${bps >= 0 ? "+" : ""}${(bps / 100).to
 let HANDLES = new Map<string, string>();
 // Callers' current MON positions on Perpl (null = none), refreshed with the rest of the state.
 let PERPL = new Map<string, PerplPosition | null>();
+// Nansen labels per caller (Smart Money etc.), via the keeper.
+let NANSEN = new Map<string, NansenInfo | null>();
 const nameOf = (a: string) => {
   const h = HANDLES.get(a.toLowerCase());
   return h ? `@${h}` : short(a);
@@ -119,7 +122,10 @@ export default function App() {
       ...(session ? [session.account.address] : []),
       ...(state ? state.positions.map((p) => p.caller) : []),
     ]);
-    PERPL = await getPerplPositions(cs.map((c) => c.caller));
+    [PERPL, NANSEN] = await Promise.all([
+      getPerplPositions(cs.map((c) => c.caller)),
+      getNansen(cs.map((c) => c.caller)),
+    ]);
     setHandleTick((t) => t + 1);
   }, [session]);
 
@@ -388,6 +394,7 @@ function Feed(props: {
                     {nameOf(c.caller)}
                   </a>{" "}
                   <CallerBadge s={s} />
+                  <NansenChip caller={c.caller} />
                 </div>
                 <Record s={s} />
               </div>
@@ -763,6 +770,7 @@ function CallerProfile({ address, stats }: { address: Address; stats: Map<Addres
           </div>
         </div>
       )}
+      <NansenLabels caller={address} />
       <PerplBadge caller={address} side={0} profile />
       <p className="sub">Every call this address ever posted is below, losers included. Calls cannot be deleted.</p>
       <button
@@ -834,5 +842,32 @@ function PerplBadge({ caller, side, profile }: { caller: Address; side: number; 
       </span>
       {!sameWay && !profile && " · opposite of this call"}
     </a>
+  );
+}
+
+/** Compact Nansen chip next to a caller's name: their Smart Money label, if any. */
+function NansenChip({ caller }: { caller: Address }) {
+  const n = NANSEN.get(caller.toLowerCase());
+  if (!n || !n.labels.length) return null;
+  const top = n.labels.find((l) => /smart|fund|trader/i.test(l)) ?? n.labels[0];
+  return (
+    <span className="badge nansen" title={`Nansen: ${n.labels.join(", ")}`}>
+      Nansen · {top}
+    </span>
+  );
+}
+
+function NansenLabels({ caller }: { caller: Address }) {
+  const n = NANSEN.get(caller.toLowerCase());
+  if (!n || !n.labels.length) return null;
+  return (
+    <div className="nansen-labels">
+      <span className="sub">Nansen labels</span>
+      {n.labels.slice(0, 6).map((l) => (
+        <span key={l} className="badge nansen">
+          {l}
+        </span>
+      ))}
+    </div>
   );
 }
