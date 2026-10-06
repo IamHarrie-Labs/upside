@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createPublicClient, createWalletClient, http, type Address, type Hex, type PublicClient } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { foundry } from "viem/chains";
 import { CallBookAbi } from "../src/abi.js";
 import {
@@ -29,11 +29,12 @@ const RPC = process.env.UPSIDE_RPC_URL ?? "http://127.0.0.1:8547";
 const d = JSON.parse(readFileSync(new URL("../../contracts/deployments/31337.json", import.meta.url), "utf8")) as Deployment;
 process.env.UPSIDE_STATE_DIR = mkdtempSync(join(tmpdir(), "upside-pilot-"));
 
-// Anvil's public test keys: #1 Ada (verified caller), #2 Sybil Farm (unverified), #4 the agent's wallet.
+// Anvil's public test keys: #1 Ada (verified caller), #2 Sybil Farm (unverified). The agent's wallet is a fresh
+// key each run, so every run starts without a vault.
 const KEYS = {
   ada: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
   sybil: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
-  agent: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a",
+  agent: generatePrivateKey(),
 } as const;
 
 const read = createPublicClient({ chain: foundry, transport: http(RPC) }) as PublicClient;
@@ -79,6 +80,7 @@ const kinds = (acts: PilotAction[], callId: number) => acts.filter((a) => "callI
 
 async function main() {
   if (!(await getMid(host))) throw new Error("No fresh mid onchain: start the keeper first.");
+  await read.request({ method: "anvil_setBalance" as any, params: [host.account, "0x56BC75E2D63100000"] as any });
   console.log(`agent wallet ${host.account}\n`);
 
   // Two calls at the same moment: a verified caller and an unverified farm.
@@ -94,8 +96,8 @@ async function main() {
   const before = await getVaultState(host, vault);
   console.log(`vault ${vault}: cash ${fmtQuote(before.cash)}, cap ${fmtQuote(before.maxExposure)}, open ${fmtQuote(before.openCost)}\n`);
 
-  // Only calls from this run (posted in the last 2 minutes); the record thresholds are 0 because the local chain is fresh.
-  const rules = { ...DEFAULT_RULES, perCall: parseQuote("10"), minScored: 0, minWinRate: 0, maxFeeBps: 2000, maxAgeSec: 120 };
+  // Only calls from this run (posted in the last 45 seconds); record thresholds are off because the local chain's record is whatever earlier runs left.
+  const rules = { ...DEFAULT_RULES, perCall: parseQuote("10"), minScored: 0, minWinRate: 0, minAvgReturnBps: -10_000, maxFeeBps: 2000, maxAgeSec: 45 };
   const opts = { rules, dailyBudget: parseQuote("50"), closeExpired: true, dryRun: false };
 
   // Dry run sends nothing.
@@ -128,6 +130,19 @@ async function main() {
   const longPos = (await getVaultState(host, vault)).positions.find((p) => p.callId === adaLong && p.open)!;
   await close(host, vault, longPos);
   check(!(await getVaultState(host, vault)).positions.find((p) => p.id === longPos.id)!.open, `closes position #${longPos.id}`);
+
+  // Nansen Smart Money rule (x402 lookup stubbed here; scripts/identity-x402-test.ts covers the payment).
+  const smartRules = { ...opts, dryRun: true, rules: { ...rules, requireSmartMoney: true } };
+  const notSmart = await autopilotPass(host, { ...smartRules, smartMoney: async () => new Map() });
+  const ns = notSmart.find((a) => a.kind === "skipped" && a.callId === third) as Extract<PilotAction, { kind: "skipped" }> | undefined;
+  check(!!ns?.reasons.some((r) => r.includes("Nansen")), `--smart-money-only skips call #${third} when Nansen doesn't list the caller`);
+  let lookups = 0;
+  const ada = privateKeyToAccount(KEYS.ada).address.toLowerCase();
+  const smart = await autopilotPass(host, {
+    ...smartRules,
+    smartMoney: async () => (lookups++, new Map([[ada, { label: "30D Smart Trader" }]])),
+  });
+  check(kinds(smart, third).includes("followed") && lookups === 1, `--smart-money-only follows a listed caller, with one paid lookup per pass`);
 
   // Close on expiry: wait for Ada's short call to expire, then a pass closes it.
   console.log(`\nwaiting for call #${adaShort} to expire…`);

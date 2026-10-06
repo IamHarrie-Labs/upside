@@ -1,7 +1,8 @@
 import { type CommandIO, InputFieldType, type InputSchema, PluginCommand, schemaToArgs, schemaToFlags } from "@metamask/agent-wallet/plugin";
 import { autopilotPass, fmtQuote, type PilotAction } from "../../core.js";
 import { asCommandError, chainIdFrom, chainInput, keeperInput, walletHost } from "../../host.js";
-import { amountFrom, ruleInputs, rulesFrom } from "../../rules.js";
+import { amountFrom, maxPriceFrom, ruleInputs, rulesFrom } from "../../rules.js";
+import { nansenSmartMoney } from "../../x402.js";
 
 const inputs = {
   perCall: { type: InputFieldType.Text, flag: "per-call", message: "AUSD per followed call (default 10)", required: false, prompt: false },
@@ -49,15 +50,22 @@ export default class UpsideAutopilot extends PluginCommand<Result> {
       const rules = rulesFrom(i, perCall);
       const h = await walletHost(this.ctx, io, this.pluginCommandId, chainIdFrom(i.chainId), i.keeperApi as string | undefined);
       const intervalMs = Math.max(5, Number(i.interval ?? 30)) * 1000;
+      const maxUsd = maxPriceFrom(i);
+      // Paid per pass with USDC on Monad via x402, signed by the Agent Wallet; skipped when no call needs it.
+      const smartMoney = rules.requireSmartMoney
+        ? async () =>
+            (await nansenSmartMoney({ address: h.account, signTypedData: h.signTypedData! }, { maxUsd, log: (m) => io.emit(m) }))
+              .smartMoney
+        : undefined;
       const all: PilotAction[] = [];
       let passes = 0;
       io.emit(
-        `Autopilot for ${h.account} on chain ${h.chainId}: ${fmtQuote(perCall)} AUSD per call, ${fmtQuote(dailyBudget)} AUSD/day, ` +
+        `Autopilot for ${h.account}${h.agentId != null ? ` (ERC-8004 agent #${h.agentId})` : ""} on chain ${h.chainId}: ${fmtQuote(perCall)} AUSD per call, ${fmtQuote(dailyBudget)} AUSD/day, ` +
           `${rules.verifiedOnly ? "verified callers only" : "any caller"}, at least ${rules.minScored} scored calls and ${rules.minWinRate * 100}% wins, ` +
-          `fee at most ${rules.maxFeeBps / 100}%${i.dryRun ? " (dry run)" : ""}`,
+          `fee at most ${rules.maxFeeBps / 100}%${rules.requireSmartMoney ? ", Nansen Smart Money only" : ""}${i.dryRun ? " (dry run)" : ""}`,
       );
       do {
-        const acts = await autopilotPass(h, { rules, dailyBudget, closeExpired: i.keepExpired !== true, dryRun: i.dryRun === true });
+        const acts = await autopilotPass(h, { rules, dailyBudget, closeExpired: i.keepExpired !== true, dryRun: i.dryRun === true, smartMoney });
         passes++;
         for (const a of acts) {
           all.push(a);

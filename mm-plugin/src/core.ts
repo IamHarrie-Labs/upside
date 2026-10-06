@@ -70,6 +70,10 @@ export type Host = {
   submit(tx: Tx, summary: string): Promise<{ hash?: Hex; status: string }>;
   keeperApi?: string;
   log?: (msg: string) => void;
+  /** EIP-712 signing (x402 payments). In mm this is the wallet executor's typed-data request. */
+  signTypedData?: (td: { domain: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, unknown> }) => Promise<Hex>;
+  /** ERC-8004 agent id acting for this wallet, if registered; shown in transaction intents. */
+  agentId?: number | null;
 };
 
 export class UpsideError extends Error {
@@ -275,6 +279,7 @@ export type Rules = {
   minTimeLeftSec: number; // skip calls about to expire
   maxAgeSec: number; // skip calls posted too long ago: a late follower gets a worse entry than the caller
   callers?: Address[]; // optional allowlist
+  requireSmartMoney?: boolean; // caller must be a Nansen Smart Money wallet active on Monad (paid lookup, x402)
 };
 
 export const DEFAULT_RULES: Rules = {
@@ -343,6 +348,7 @@ async function buildSwap(h: Host, vault: Address, sellBase: boolean, amountIn: b
 // ----------------------------------------------------------------- writes
 
 async function send(h: Host, tx: Tx, summary: string) {
+  if (h.agentId != null) summary = `[ERC-8004 agent #${h.agentId}] ${summary}`;
   h.log?.(`→ ${summary}`);
   const r = await h.submit(tx, summary);
   if (r.status !== "confirmed" && r.status !== "success")
@@ -468,7 +474,14 @@ export type PilotAction =
  */
 export async function autopilotPass(
   h: Host,
-  opts: { rules: Rules; dailyBudget: bigint; closeExpired: boolean; dryRun: boolean },
+  opts: {
+    rules: Rules;
+    dailyBudget: bigint;
+    closeExpired: boolean;
+    dryRun: boolean;
+    /** Nansen Smart Money lookup, called at most once per pass and only if a call passes every other rule. */
+    smartMoney?: () => Promise<Map<string, { label: string }>>;
+  },
 ): Promise<PilotAction[]> {
   const actions: PilotAction[] = [];
   const state = loadState(h);
@@ -500,6 +513,7 @@ export async function autopilotPass(
   const records = await getCallerRecords(h, candidates.map((c) => c.caller));
   let openCost = vs.openCost;
   let cash = vs.cash;
+  let smart: Map<string, { label: string }> | null | undefined; // undefined: not fetched yet; null: lookup failed
 
   for (const c of candidates) {
     const reasons = checkCall(c, records.get(c.caller.toLowerCase() as Address), opts.rules);
@@ -507,6 +521,18 @@ export async function autopilotPass(
     if (spent + amt > opts.dailyBudget) reasons.push(`daily budget reached (${fmtQuote(spent)} of ${fmtQuote(opts.dailyBudget)} AUSD)`);
     if (openCost + amt > vs.maxExposure) reasons.push(`vault exposure cap ${fmtQuote(vs.maxExposure)} AUSD would be exceeded`);
     if (cash < amt) reasons.push(`vault holds ${fmtQuote(cash)} AUSD; follow needs ${fmtQuote(amt)}`);
+    if (!reasons.length && opts.rules.requireSmartMoney) {
+      if (smart === undefined) {
+        try {
+          smart = opts.smartMoney ? await opts.smartMoney() : null;
+        } catch (e) {
+          h.log?.(`Nansen lookup failed: ${(e as Error).message}`);
+          smart = null;
+        }
+      }
+      if (smart === null) reasons.push("Nansen Smart Money check unavailable");
+      else if (!smart.has(c.caller.toLowerCase())) reasons.push("caller is not a Nansen Smart Money wallet on Monad");
+    }
     if (reasons.length) {
       actions.push({ kind: "skipped", callId: c.id, caller: c.caller, reasons });
       continue;

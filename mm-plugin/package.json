@@ -1,14 +1,16 @@
 {
   "name": "mm-plugin-upside",
   "version": "0.1.0",
-  "description": "MetaMask Agent Wallet plugin for Upside on Monad: let an AI agent follow verified traders' onchain calls within limits you set, and pay them only from profit.",
+  "description": "MetaMask Agent Wallet plugin for Upside on Monad: an AI agent with an ERC-8004 identity follows verified traders within limits you set, pays for Nansen intel over x402, and pays callers only from profit.",
   "license": "MIT",
   "type": "module",
   "keywords": [
     "oclif-plugin",
     "metamask",
     "agent-wallet",
-    "monad"
+    "monad",
+    "erc-8004",
+    "x402"
   ],
   "files": [
     "dist",
@@ -28,6 +30,9 @@
     "topics": {
       "upside": {
         "description": "Follow verified traders' calls on Monad through Upside vaults"
+      },
+      "upside:agent": {
+        "description": "ERC-8004 identity for your Upside follow agent"
       }
     }
   },
@@ -127,10 +132,48 @@
           143,
           10143
         ]
+      },
+      {
+        "id": "upside:agent:register",
+        "capabilities": [
+          "wallet-read",
+          "wallet-submit"
+        ],
+        "dataAccess": [
+          "accounts"
+        ],
+        "targetChains": [
+          143,
+          10143
+        ]
+      },
+      {
+        "id": "upside:agent:show",
+        "capabilities": [],
+        "dataAccess": [],
+        "targetChains": [
+          143,
+          10143
+        ]
+      },
+      {
+        "id": "upside:intel",
+        "capabilities": [
+          "wallet-read",
+          "wallet-submit"
+        ],
+        "dataAccess": [
+          "accounts"
+        ],
+        "targetChains": [
+          143
+        ]
       }
     ]
   },
   "dependencies": {
+    "@x402/core": "^2.28.0",
+    "@x402/evm": "^2.28.0",
     "viem": "^2.57.3"
   },
   "peerDependencies": {

@@ -3,6 +3,7 @@
 import { CommandError, type CommandIO, InputFieldType, type PluginCommandContext } from "@metamask/agent-wallet/plugin";
 import { isAddress, type Address, type Hex, type PublicClient } from "viem";
 import { deploymentFor, EXPLORER, publicReader, UpsideError, type Host } from "./core.js";
+import { savedAgentId } from "./erc8004.js";
 
 export const chainInput = {
   chainId: {
@@ -98,6 +99,8 @@ export async function walletHost(
     d,
     read,
     account,
+    agentId: savedAgentId({ chainId, account }),
+    signTypedData: typedDataSigner(executor, io, chainId),
     keeperApi: keeperApi ?? process.env.UPSIDE_KEEPER_API,
     log: (m) => io.emit(m),
     async submit(tx, summary) {
@@ -127,3 +130,41 @@ export async function walletHost(
     },
   };
 }
+
+/** EIP-712 signing through MetaMask's wallet executor (policy-checked, may ask for approval). */
+function typedDataSigner(executor: any, io: CommandIO, defaultChainId: number) {
+  return async (td: { domain: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, unknown> }): Promise<Hex> => {
+    // The domain's chainId names the chain the signature is for (x402 payments: Monad mainnet).
+    const sigChain = Number((td.domain as any).chainId ?? defaultChainId);
+    const r = await executor(
+      { kind: "typed-data", chainId: sigChain, typedData: jsonSafe(td), intent: { action: "custom", summary: describeTypedData(td) } },
+      { signal: io.signal },
+    );
+    const sig: Hex | undefined = r?.kind === "signature" ? r.signature : undefined;
+    if (!sig) {
+      const status = String(r?.status ?? "unknown").toLowerCase();
+      throw new UpsideError(`SIGN_${status.toUpperCase()}`, `Signature ${status}: ${r?.failureDescription ?? ""}`.trim(), "Your Agent Wallet policy or approver rejected the payment.");
+    }
+    return sig;
+  };
+}
+
+/** Just the wallet address and a typed-data signer, for commands that pay (x402) but don't touch Upside contracts. */
+export async function walletSigner(ctx: PluginCommandContext, io: CommandIO, commandId: string, chainId: number) {
+  const executor: any = await ctx.walletExecutor(io, commandId);
+  return { address: selectedAddress(ctx), signTypedData: typedDataSigner(executor, io, chainId) };
+}
+
+/** bigint -> decimal string, so typed data survives JSON transport to the signer. */
+function jsonSafe<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v, (_, x) => (typeof x === "bigint" ? x.toString() : x)));
+}
+
+/** Plain-words summary for the approval prompt, e.g. "x402 payment: 0.05 USDC to 0xabc…". */
+function describeTypedData(td: { domain: Record<string, unknown>; primaryType: string; message: Record<string, unknown> }) {
+  const m = td.message as any;
+  if (/TransferWithAuthorization/i.test(td.primaryType) && m?.value !== undefined)
+    return `x402 payment: ${(Number(m.value) / 1e6).toFixed(2)} ${td.domain.name ?? "USDC"} to ${m.to}`;
+  return `Sign ${td.primaryType} for ${td.domain.name ?? "an app"}`;
+}
+

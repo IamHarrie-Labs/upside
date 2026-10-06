@@ -11,6 +11,11 @@ Copy trading usually means handing an agent your keys and hoping. Here an agent 
 
 The caller is paid only from your cumulative net profit above a high-water mark, so a follower who is down pays nothing.
 
+Two more pieces make the agent accountable and better informed:
+
+- **ERC-8004 identity.** `mm upside agent register` gives the agent an identity in the official ERC-8004 IdentityRegistry on Monad. Its registration file publishes the agent's mandate: per-call size, daily budget, rules and vault. Anyone can read it with `mm upside agent show <id>` and compare it with what the agent does onchain. Autopilot then labels every transaction intent with the agent id.
+- **x402 payments.** `mm upside intel <caller>` and the `--smart-money-only` rule check callers against Nansen's Smart Money wallets on Monad. Nansen charges $0.05 per request, paid with USDC on Monad over x402. The EIP-712 payment authorization is signed by your Agent Wallet, so it passes your policy like any other action, and a price cap (`--max-price`, default $0.10) is checked before signing.
+
 ## Commands
 
 ```
@@ -20,7 +25,10 @@ mm upside vault                          your vault, cap and positions
 mm upside deposit --amount 50            create and fund your vault (testnet: mints test AUSD)
 mm upside follow <callId> --amount 10    follow one call, if it passes your rules
 mm upside close <positionId>             sell back to AUSD
-mm upside autopilot --per-call 10 --daily-budget 50 [--watch] [--dry-run]
+mm upside autopilot --per-call 10 --daily-budget 50 [--watch] [--dry-run] [--smart-money-only]
+mm upside agent register --name "Ada follower" --per-call 10 --daily-budget 50    ERC-8004 identity + mandate
+mm upside agent show <agentId>           owner, agent wallet, decoded registration and mandate
+mm upside intel <address>                Nansen Smart Money check, paid $0.05 USDC on Monad via x402
 ```
 
 Rule flags for `follow` and `autopilot`:
@@ -34,6 +42,8 @@ Rule flags for `follow` and `autopilot`:
 | `--max-age-min` | 15 |
 | `--callers` | no allowlist |
 | `--allow-unverified` | off |
+| `--smart-money-only` | off (Nansen lookup via x402; once per autopilot pass, only when a call passes every other rule) |
+| `--max-price` | $0.10 per x402 request |
 
 All commands take `--chain-id 10143` (testnet, default) or `143` (mainnet) and `--json`. On mainnet, swaps go through Kuru Flow. Quotes come from the Upside keeper, set with `--keeper-api` or `UPSIDE_KEEPER_API`.
 
@@ -66,6 +76,16 @@ All commands target only Monad (143, 10143).
 - Writes go through `ctx.walletExecutor(io, "<command id>")`: `{ kind: "transaction", chainId, transaction, intent: { action: "custom", summary } }`. The summary is what you see when approving, e.g. "Follow Upside call #12: buy MON with 10.00 AUSD (caller earns 15% of net profit only)". The plugin then waits for the receipt and reports the explorer link.
 - Reads use `ctx.publicClient(chainId)` when the command has `wallet-read`, and Monad's public RPC otherwise.
 - The acting address comes from `ctx.walletStateManager` (the selected EVM wallet).
+- **ERC-8004** (`src/erc8004.ts`) uses the official ABI:
+  - `register(string agentURI)` with a base64 `data:application/json` registration (registration-v1, plus an `upside` mandate field). The agent id comes from the `Registered` event.
+  - `setAgentURI` then adds the agent's own `registrations` entry.
+  - `agent show` reads `ownerOf`, `tokenURI` (decoded) and `getAgentWallet`.
+  - Registries: mainnet `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`, testnet `0x8004A818BFB912233c491871b3d84c89A494BD9e`.
+  - The registry mints with `_safeMint`, so `register` simulates first. It refuses, with a clear error, a wallet whose contract code (e.g. an EIP-7702 delegation) won't accept ERC-721s.
+- **x402** (`src/x402.ts`) uses `x402HTTPClient` from `@x402/core` and `registerExactEvmScheme` from `@x402/evm`:
+  - The signer's `signTypedData` is the wallet executor's `{ kind: "typed-data" }` request, with a readable intent such as "x402 payment: 0.05 USDC to 0x9305...".
+  - Only `eip155:143` (USDC on Monad) offers are accepted.
+  - The settlement result is reported back.
 - Errors are `CommandError`s with stable codes (`RULES_REFUSED`, `STALE_PRICE`, `TX_DENIED`, …) and a hint.
 
 All logic lives in `src/core.ts`; the commands are thin adapters. The autopilot remembers followed calls and daily spend in `~/.upside/`.
@@ -84,7 +104,23 @@ This runs the core end to end on a local Anvil chain, with a local signer in pla
 - sends nothing on a dry run;
 - closes positions when their call expires.
 
+```bash
+anvil --fork-url https://testnet-rpc.monad.xyz --chain-id 10143 --port 8549
+npx tsx scripts/identity-x402-test.ts
+```
+
+This registers an agent in the real ERC-8004 registry on a fork of Monad testnet, then reads it back:
+- the id comes from the `Registered` event;
+- owner and agent wallet are correct;
+- the registration and its mandate round-trip;
+- a wallet with code is refused before anything is sent.
+
+It then makes a real x402 request to Nansen with an empty throwaway key:
+- the price cap refuses before signing;
+- exactly one USDC authorization is signed;
+- Nansen's facilitator rejects it only for insufficient funds.
+
 Verified so far:
-- The plugin installs into `mm` 7.0.0, and `mm upside calls` and `mm upside caller` run there against live chain data.
+- The plugin installs into `mm` 7.0.0, and `mm upside calls`, `mm upside caller` and `mm upside agent show` run there against live chain data. `agent show 2014 --chain-id 10143` decodes a real agent on the Monad testnet registry.
 - Wallet commands correctly require `mm login`.
 - Signing through a real Agent Wallet needs your own sign-in.

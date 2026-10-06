@@ -32,6 +32,9 @@ Use testnet unless the user clearly asks for mainnet.
 | `mm upside follow <callId> --amount <AUSD> [rules] [--dry-run]` | yes | Follows one call if it passes the rules |
 | `mm upside close <positionId>` | yes | Sells the position back to AUSD in the vault |
 | `mm upside autopilot [rules] [--per-call] [--daily-budget] [--watch] [--dry-run]` | yes | Follows qualifying calls and closes expired ones |
+| `mm upside agent register --name <n> [--per-call] [--daily-budget] [rules]` | gas only | Registers the agent's ERC-8004 identity and publishes its mandate |
+| `mm upside agent show <agentId>` | no | Reads an ERC-8004 agent: owner, agent wallet, registration, mandate |
+| `mm upside intel <address> [--max-price]` | $0.05 USDC | Nansen Smart Money check on Monad, paid over x402 |
 
 Rule flags, shared by `follow` and `autopilot`:
 
@@ -42,6 +45,9 @@ Rule flags, shared by `follow` and `autopilot`:
 - `--max-age-min` (15): only follow calls posted within this many minutes, so the entry is close to the caller's.
 - `--callers`: comma-separated allowlist of caller addresses.
 - `--allow-unverified`: include callers without an A-Pass. Off by default.
+- `--smart-money-only`: only callers Nansen lists as Smart Money on Monad. Costs $0.05 USDC per autopilot pass
+  (x402, Monad mainnet), only when some call passes every other rule.
+- `--max-price` (0.10): most USD per x402 request; higher prices are refused before signing.
 
 ## How to act
 
@@ -58,7 +64,12 @@ Rule flags, shared by `follow` and `autopilot`:
 5. **Autopilot needs explicit limits from the user.** Ask for `--per-call` and `--daily-budget` and
    confirm them. The vault's `--max-exposure` cap is enforced by the contract and is the hard ceiling,
    whatever the agent does. Suggest a cap no larger than the user is willing to lose.
-6. **Report outcomes faithfully**, with transaction links from the output. If a transaction is denied by
+6. **Identity before autonomy.** Before a long-running `autopilot --watch`, offer to register the agent with
+   `mm upside agent register`, using the same limits the user agreed to, so its mandate is public. Its
+   transactions are then labelled with the agent id.
+7. **Paid lookups cost real money.** `intel` and `--smart-money-only` pay USDC on Monad mainnet. Say so
+   before the first paid request, and never raise `--max-price` unless the user asks.
+8. **Report outcomes faithfully**, with transaction links from the output. If a transaction is denied by
    policy or expires waiting for approval (`TX_DENIED`, `TX_EXPIRED`), say so and stop. Don't retry in a loop.
 
 ## Errors
@@ -71,6 +82,9 @@ Rule flags, shared by `follow` and `autopilot`:
 | `NO_KEEPER_API` | Mainnet swap without a quote source | Ask the user for the keeper URL |
 | `INSUFFICIENT_AUSD` | Wallet lacks AUSD for a mainnet deposit | Tell the user; don't bridge or swap unless asked |
 | `AUTH_FAILED` | Not signed in to Agent Wallet | Ask the user to run `mm login` |
+| `PRICE_TOO_HIGH` | An x402 seller asks more than `--max-price` | Report the price; raise only if the user agrees |
+| `X402_REJECTED` | Payment not accepted (usually no USDC on Monad mainnet) | Tell the user to fund the wallet with a little USDC |
+| `AGENT_WALLET_CANNOT_RECEIVE_NFT` | The wallet's code rejects the ERC-8004 identity NFT | Register from another account |
 
 ## Example
 

@@ -1,7 +1,7 @@
 // Follow rules as command inputs, shared by `mm upside follow` and `mm upside autopilot`.
 import { CommandError, InputFieldType } from "@metamask/agent-wallet/plugin";
 import { isAddress, type Address } from "viem";
-import { DEFAULT_RULES, parseQuote, type Rules } from "./core.js";
+import { DEFAULT_RULES, fmtQuote, parseQuote, type Rules } from "./core.js";
 
 const text = (flag: string, message: string) =>
   ({ type: InputFieldType.Text, flag, message, required: false, prompt: false }) as const;
@@ -13,6 +13,14 @@ export const ruleInputs = {
   minAvgReturnPct: text("min-avg-return-pct", "Caller's minimum average return per scored call in percent (default 0)"),
   maxAgeMin: text("max-age-min", `Only follow calls posted within this many minutes (default ${DEFAULT_RULES.maxAgeSec / 60})`),
   callers: text("callers", "Only follow these callers (comma-separated addresses)"),
+  smartMoneyOnly: {
+    type: InputFieldType.Boolean,
+    flag: "smart-money-only",
+    message: "Only follow callers Nansen labels Smart Money on Monad (paid lookup: $0.05 USDC per pass via x402)",
+    required: false,
+    prompt: false,
+  },
+  maxPrice: text("max-price", "Most USD to pay per x402 request (default 0.10)"),
   allowUnverified: {
     type: InputFieldType.Boolean,
     flag: "allow-unverified",
@@ -60,5 +68,25 @@ export function rulesFrom(i: Record<string, unknown>, perCall: bigint): Rules {
     maxAgeSec: Math.round(num(i.maxAgeMin, "max-age-min", DEFAULT_RULES.maxAgeSec / 60) * 60),
     verifiedOnly: i.allowUnverified !== true,
     callers: callers as Address[] | undefined,
+    requireSmartMoney: i.smartMoneyOnly === true,
   };
 }
+
+export const maxPriceFrom = (i: Record<string, unknown>) => num(i.maxPrice, "max-price", 0.1);
+
+/** The rules as published in an ERC-8004 registration (human units). */
+export function mandateOf(rules: Rules, dailyBudget: bigint) {
+  return {
+    perCall: fmtQuote(rules.perCall),
+    dailyBudget: fmtQuote(dailyBudget),
+    maxFeePct: rules.maxFeeBps / 100,
+    minScored: rules.minScored,
+    minWinRatePct: rules.minWinRate * 100,
+    minAvgReturnPct: rules.minAvgReturnBps / 100,
+    maxAgeMin: rules.maxAgeSec / 60,
+    verifiedOnly: rules.verifiedOnly,
+    ...(rules.requireSmartMoney ? { nansenSmartMoneyOnly: true } : {}),
+    ...(rules.callers?.length ? { callers: rules.callers } : {}),
+  };
+}
+
