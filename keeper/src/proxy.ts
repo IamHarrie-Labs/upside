@@ -2,6 +2,7 @@
 //   POST /quote                Kuru Flow quote for a vault (JWT per address, 1 request/second; mainnet only)
 //   GET  /perpl/context?net=   Perpl's public market context (no CORS headers upstream), cached for 15 seconds
 //   GET  /nansen?addresses=a,b Nansen labels / Smart Money status for callers (see nansen.ts)
+//   POST /poke                 an app is open: keep the onchain price fresh for the next few minutes
 import { createServer } from "node:http";
 import { getAddress, type Address } from "viem";
 import { deployment } from "./env.js";
@@ -30,7 +31,7 @@ async function perplContext(net: string): Promise<string> {
   return body;
 }
 
-export function startApi() {
+export function startApi(hooks: { onPoke?: () => void } = {}) {
   createServer(async (req, res) => {
     res.setHeader("access-control-allow-origin", process.env.ALLOWED_ORIGIN ?? "*");
     res.setHeader("access-control-allow-headers", "content-type");
@@ -40,6 +41,10 @@ export function startApi() {
     try {
       if (req.method === "GET" && url.pathname === "/perpl/context") {
         return res.end(await perplContext(url.searchParams.get("net") ?? "mainnet"));
+      }
+      if (req.method === "POST" && url.pathname === "/poke") {
+        hooks.onPoke?.();
+        return res.end(JSON.stringify({ ok: true }));
       }
       if (req.method === "GET" && url.pathname === "/nansen") {
         const addresses = (url.searchParams.get("addresses") ?? "").split(",").filter((a) => /^0x[0-9a-fA-F]{40}$/.test(a));

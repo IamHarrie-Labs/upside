@@ -158,7 +158,10 @@ export type CallerRecord = {
   avgReturnBps: number | null;
 };
 
-export async function getMid(h: Pick<Host, "read" | "d">): Promise<bigint | null> {
+/** The keeper API for a chain: --keeper-api / UPSIDE_KEEPER_API, else the hosted default for that chain. */
+export const DEFAULT_KEEPER_API: Record<number, string> = {};
+
+async function readMid(h: Pick<Host, "read" | "d">): Promise<bigint | null> {
   try {
     return (await h.read.readContract({
       address: h.d.priceSource,
@@ -169,6 +172,22 @@ export async function getMid(h: Pick<Host, "read" | "d">): Promise<bigint | null
   } catch {
     return null; // stale: no fresh keeper price
   }
+}
+
+/**
+ * Onchain mid. The keeper pushes prices on demand to save gas, so this pings it (POST /poke) and, if the price
+ * is stale, waits up to ~20s for the next push.
+ */
+export async function getMid(h: Pick<Host, "read" | "d"> & { keeperApi?: string; chainId?: number }): Promise<bigint | null> {
+  const api = h.keeperApi ?? (h.chainId !== undefined ? DEFAULT_KEEPER_API[h.chainId] : undefined);
+  const poke = () => (api ? fetch(`${api}/poke`, { method: "POST" }).catch(() => {}) : Promise.resolve());
+  await poke();
+  let mid = await readMid(h);
+  for (let i = 0; !mid && api && i < 4; i++) {
+    await new Promise((r) => setTimeout(r, 5_000));
+    mid = await readMid(h);
+  }
+  return mid;
 }
 
 export async function getCalls(h: Pick<Host, "read" | "d">, opts: { limit?: number } = {}): Promise<Call[]> {

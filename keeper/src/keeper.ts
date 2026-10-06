@@ -3,6 +3,12 @@
 //   PRICE_MODE=demo  random walk around DEMO_START_PRICE (testnet / local demos)
 //   PRICE_MODE=kuru  mid from two tiny Kuru Flow quotes (mainnet; needs KURU_FLOW_URL reachable)
 //
+// Prices are pushed on demand, because every push costs gas (about 0.005 MON on testnet):
+//   - every PUSH_MS (default 30s) while an app or the MetaMask plugin has pinged POST /poke in the last ACTIVE_MS (5 min);
+//   - right before scoring a call whose horizon has passed;
+//   - ALWAYS_ON=1 restores a push every PUSH_MS regardless (local demos).
+// With nobody using Upside, the keeper sends nothing.
+//
 // Usage: KEEPER_KEY=0x... RPC_URL=... CHAIN_ID=... npm start
 import { formatUnits, parseUnits, type Address } from "viem";
 import { CallBookAbi, KeeperPriceSourceAbi, DemoTokenAbi } from "./abi.js";
@@ -11,7 +17,10 @@ import { kuruQuote } from "./kuru.js";
 import { startApi } from "./proxy.js";
 
 const PRICE_MODE = process.env.PRICE_MODE ?? (deployment.demo ? "demo" : "kuru");
-const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? 5_000);
+const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? 5_000); // how often to check; checks are free reads
+const PUSH_MS = Number(process.env.PUSH_MS ?? 30_000);
+const ACTIVE_MS = Number(process.env.ACTIVE_MS ?? 5 * 60_000);
+const ALWAYS_ON = process.env.ALWAYS_ON === "1" || deployment.chainId === 31337;
 
 const read = <T>(address: Address, abi: any, functionName: string, args: any[] = []) =>
   publicClient.readContract({ address, abi, functionName, args }) as Promise<T>;
@@ -28,6 +37,13 @@ function toPriceX18(human: number): bigint {
 }
 
 let demoPrice = Number(process.env.DEMO_START_PRICE ?? 2);
+// Continue the walk from the price already onchain, so a keeper restart doesn't jump the price.
+try {
+  const onchain = await read<bigint>(deployment.priceSource, KeeperPriceSourceAbi, "midPrice", [deployment.base, deployment.settlement]);
+  if (onchain > 0n) demoPrice = Number(formatUnits((onchain * 10n ** BigInt(baseDec)) / 10n ** 18n, quoteDec));
+} catch {
+  // stale or never pushed: start from DEMO_START_PRICE
+}
 function nextDemoPrice(): number {
   // gentle random walk with occasional jumps so calls resolve both ways
   const shock = (Math.random() - 0.5) * 0.01 + (Math.random() < 0.05 ? (Math.random() - 0.5) * 0.06 : 0);
@@ -58,13 +74,28 @@ async function pushPrice() {
   return human;
 }
 
-async function scoreExpired() {
+/** Ids of calls past their horizon and not yet scored. Scans from the first unscored call onward. */
+let firstUnscored = 0n;
+async function expiredCalls(): Promise<bigint[]> {
   const count = await read<bigint>(deployment.callBook, CallBookAbi, "callCount");
   const now = BigInt(Math.floor(Date.now() / 1000));
-  const scored: number[] = [];
-  for (let id = 0n; id < count; id++) {
+  const due: bigint[] = [];
+  let allScoredSoFar = true;
+  for (let id = firstUnscored; id < count; id++) {
     const c = await read<any>(deployment.callBook, CallBookAbi, "getCall", [id]);
-    if (c.scored || BigInt(c.expiry) > now) continue;
+    if (c.scored) {
+      if (allScoredSoFar) firstUnscored = id + 1n;
+      continue;
+    }
+    allScoredSoFar = false;
+    if (BigInt(c.expiry) <= now) due.push(id);
+  }
+  return due;
+}
+
+async function scoreExpired(due: bigint[]) {
+  const scored: number[] = [];
+  for (const id of due) {
     try {
       const hash = await walletClient.writeContract({
         address: deployment.callBook,
@@ -81,15 +112,25 @@ async function scoreExpired() {
   return scored;
 }
 
-startApi();
-console.log(`keeper ${account.address} · chain ${deployment.chainId} · price mode ${PRICE_MODE}`);
+startApi({ onPoke: () => (lastPoke = Date.now()) });
+console.log(
+  `keeper ${account.address} · chain ${deployment.chainId} · price mode ${PRICE_MODE} · ` +
+    (ALWAYS_ON ? `push every ${PUSH_MS / 1000}s` : `push every ${PUSH_MS / 1000}s while apps are open, else only to score`),
+);
+let lastPush = 0;
+let lastPoke = Date.now(); // treat startup as activity, so the price is fresh right away
 for (;;) {
   try {
-    const p = await pushPrice();
-    const scored = await scoreExpired();
-    console.log(
-      `${new Date().toISOString()} mid ${p.toFixed(4)}${scored.length ? ` · scored calls ${scored.join(", ")}` : ""}`,
-    );
+    const due = await expiredCalls();
+    const active = ALWAYS_ON || Date.now() - lastPoke < ACTIVE_MS;
+    if (due.length || (active && Date.now() - lastPush >= PUSH_MS)) {
+      const p = await pushPrice();
+      lastPush = Date.now();
+      const scored = due.length ? await scoreExpired(due) : [];
+      console.log(
+        `${new Date().toISOString()} mid ${p.toFixed(4)}${scored.length ? ` · scored calls ${scored.join(", ")}` : ""}`,
+      );
+    }
   } catch (e) {
     console.error("tick failed:", (e as Error).message);
   }

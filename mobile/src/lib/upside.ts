@@ -70,7 +70,16 @@ export const parseQuote = (s: string) => parseUnits(s || "0", QUOTE_DECIMALS);
 
 // ----------------------------------------------------------------- reads
 
+/** Tells the keeper an app is open so it keeps the onchain price fresh (it pushes on demand to save gas). */
+let lastPoke = 0;
+export function pokeKeeper() {
+  if (Date.now() - lastPoke < 60_000) return;
+  lastPoke = Date.now();
+  fetch(`${KEEPER_API}/poke`, { method: "POST" }).catch(() => {});
+}
+
 export async function getMid(): Promise<bigint | null> {
+  pokeKeeper();
   try {
     return (await publicClient.readContract({
       address: d.priceSource,
