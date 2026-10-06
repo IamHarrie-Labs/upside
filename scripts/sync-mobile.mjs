@@ -2,6 +2,7 @@
 //   app/src/lib/upside.ts  -> mobile/src/lib/upside.ts   (contract reads/writes)
 //   app/src/abi.ts         -> mobile/src/abi.ts
 //   contracts/deployments  -> mobile/src/deployments.ts  (Metro can't glob outside the project)
+//   app/src/abi.ts + public deployments -> mm-plugin/src/ (MetaMask Agent Wallet plugin)
 // Run after deploying or editing app/src/lib/upside.ts:  node scripts/sync-mobile.mjs
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -31,3 +32,15 @@ writeFileSync(
   header("contracts/deployments/*.json") + `export const deployments: Record<string, any> = ${JSON.stringify(all, null, 2)};\n`,
 );
 console.log("synced mobile/src/deployments.ts with chains", Object.keys(all).join(", "));
+
+// The MetaMask Agent Wallet plugin (mm-plugin/) ships the same ABIs and the public deployments only.
+const LOCAL = new Set(["31337", "31338"]);
+const published = Object.fromEntries(Object.entries(all).filter(([id]) => !LOCAL.has(id)));
+mkdirSync(join(root, "mm-plugin/src"), { recursive: true });
+writeFileSync(join(root, "mm-plugin/src/abi.ts"), header("app/src/abi.ts") + readFileSync(join(root, "app/src/abi.ts"), "utf8"));
+writeFileSync(
+  join(root, "mm-plugin/src/deployments.ts"),
+  header("contracts/deployments/*.json (public chains only)") +
+    `export const deployments: Record<string, any> = ${JSON.stringify(published, null, 2)};\n`,
+);
+console.log("synced mm-plugin/src/{abi,deployments}.ts with chains", Object.keys(published).join(", ") || "(none yet)");

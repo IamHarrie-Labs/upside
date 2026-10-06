@@ -1,0 +1,145 @@
+{
+  "name": "mm-plugin-upside",
+  "version": "0.1.0",
+  "description": "MetaMask Agent Wallet plugin for Upside on Monad: let an AI agent follow verified traders' onchain calls within limits you set, and pay them only from profit.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "oclif-plugin",
+    "metamask",
+    "agent-wallet",
+    "monad"
+  ],
+  "files": [
+    "dist",
+    "oclif.manifest.json",
+    "skills"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && oclif manifest",
+    "prepack": "npm run build",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "test:local": "tsx scripts/local-test.ts"
+  },
+  "oclif": {
+    "bin": "mm",
+    "commands": "./dist/commands",
+    "topicSeparator": " ",
+    "topics": {
+      "upside": {
+        "description": "Follow verified traders' calls on Monad through Upside vaults"
+      }
+    }
+  },
+  "mm": {
+    "schemaVersion": 1,
+    "minCliVersion": "^6.2.0 || ^7.0.0",
+    "capabilities": [],
+    "commands": [
+      {
+        "id": "upside:calls",
+        "capabilities": [],
+        "dataAccess": [],
+        "targetChains": [
+          143,
+          10143
+        ]
+      },
+      {
+        "id": "upside:caller",
+        "capabilities": [],
+        "dataAccess": [],
+        "targetChains": [
+          143,
+          10143
+        ]
+      },
+      {
+        "id": "upside:vault",
+        "capabilities": [
+          "wallet-read"
+        ],
+        "dataAccess": [
+          "accounts",
+          "balances"
+        ],
+        "targetChains": [
+          143,
+          10143
+        ]
+      },
+      {
+        "id": "upside:deposit",
+        "capabilities": [
+          "wallet-read",
+          "wallet-submit"
+        ],
+        "dataAccess": [
+          "accounts",
+          "balances"
+        ],
+        "targetChains": [
+          143,
+          10143
+        ]
+      },
+      {
+        "id": "upside:follow",
+        "capabilities": [
+          "wallet-read",
+          "wallet-submit"
+        ],
+        "dataAccess": [
+          "accounts",
+          "balances"
+        ],
+        "targetChains": [
+          143,
+          10143
+        ]
+      },
+      {
+        "id": "upside:close",
+        "capabilities": [
+          "wallet-read",
+          "wallet-submit"
+        ],
+        "dataAccess": [
+          "accounts",
+          "balances"
+        ],
+        "targetChains": [
+          143,
+          10143
+        ]
+      },
+      {
+        "id": "upside:autopilot",
+        "capabilities": [
+          "wallet-read",
+          "wallet-submit"
+        ],
+        "dataAccess": [
+          "accounts",
+          "balances"
+        ],
+        "targetChains": [
+          143,
+          10143
+        ]
+      }
+    ]
+  },
+  "dependencies": {
+    "viem": "^2.57.3"
+  },
+  "peerDependencies": {
+    "@metamask/agent-wallet": "^6.2.0 || ^7.0.0"
+  },
+  "devDependencies": {
+    "@metamask/agent-wallet": "^7.0.0",
+    "oclif": "^4.24.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}

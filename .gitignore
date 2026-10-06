@@ -18,3 +18,7 @@ indexer/generated/
 # dependencies (reinstall: see README)
 contracts/lib/
 .claude/
+
+# MetaMask plugin build output
+mm-plugin/oclif.manifest.json
+mm-plugin/*.tgz
