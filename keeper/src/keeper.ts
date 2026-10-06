@@ -22,6 +22,7 @@ import { CallBookAbi, KeeperPriceSourceAbi, DemoTokenAbi } from "./abi.js";
 import { account, deployment, publicClient, walletClient } from "./env.js";
 import { kuruQuote } from "./kuru.js";
 import { startApi } from "./proxy.js";
+import { syncFlow } from "./flow.js";
 
 const PRICE_MODE = process.env.PRICE_MODE ?? (deployment.demo ? "demo" : "kuru");
 const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? 5_000); // how often to check; checks are free reads
@@ -171,6 +172,7 @@ let cappedLogged = "";
 let lastPush = 0;
 let lastPoke = Date.now(); // treat startup as activity, so the price is fresh right away
 for (;;) {
+  void syncFlow(); // follower counts for GET /flow (free reads, 100-block chunks)
   try {
     const due = await expiredCalls();
     const active = ALWAYS_ON || Date.now() - lastPoke < ACTIVE_MS;

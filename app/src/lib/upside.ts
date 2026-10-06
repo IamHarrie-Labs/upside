@@ -138,6 +138,18 @@ const FOLLOWED = {
 /** Follower count and volume per call, from Followed events of every vault. The indexer serves this at scale. */
 async function getFollowFlow(): Promise<Map<number, { followers: number; volume: bigint }>> {
   const out = new Map<number, { followers: number; volume: bigint }>();
+  if (!IS_LOCAL) {
+    // Public Monad RPCs cap eth_getLogs at 100 blocks; the keeper scans in chunks and serves the totals.
+    try {
+      const res = await fetch(`${KEEPER_API}/flow`);
+      const body = await res.json();
+      for (const [id, f] of Object.entries<any>(body.flow ?? {}))
+        out.set(Number(id), { followers: f.followers, volume: BigInt(f.volume) });
+    } catch {
+      // keeper unreachable: counts are optional
+    }
+    return out;
+  }
   try {
     const logs = await publicClient.getLogs({ event: FOLLOWED, fromBlock: BigInt(d.startBlock), toBlock: "latest" });
     for (const l of logs) {

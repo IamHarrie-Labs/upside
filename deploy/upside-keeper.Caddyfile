@@ -1,0 +1,11 @@
+# Upside keeper API (Kuru quotes, Perpl context, Nansen labels, /poke). Copied to /etc/caddy/sites/.
+# The host is substituted by deploy/deploy-keeper.sh (KEEPER_HOST).
+KEEPER_HOST {
+  encode zstd gzip
+  header {
+    -Server
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+  }
+  reverse_proxy 127.0.0.1:8788
+}

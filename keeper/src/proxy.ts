@@ -3,11 +3,13 @@
 //   GET  /perpl/context?net=   Perpl's public market context (no CORS headers upstream), cached for 15 seconds
 //   GET  /nansen?addresses=a,b Nansen labels / Smart Money status for callers (see nansen.ts)
 //   POST /poke                 an app is open: keep the onchain price fresh for the next few minutes
+//   GET  /flow                 follower count and volume per call (see flow.ts)
 import { createServer } from "node:http";
 import { getAddress, type Address } from "viem";
 import { deployment } from "./env.js";
 import { kuruQuote } from "./kuru.js";
 import { nansenFor, nansenMode } from "./nansen.js";
+import { flowSnapshot } from "./flow.js";
 
 const PORT = Number(process.env.PROXY_PORT ?? 8788);
 const allowed = new Set([deployment.base.toLowerCase(), deployment.settlement.toLowerCase()]);
@@ -45,6 +47,9 @@ export function startApi(hooks: { onPoke?: () => void; status?: () => Record<str
       if (req.method === "POST" && url.pathname === "/poke") {
         hooks.onPoke?.();
         return res.end(JSON.stringify({ ok: true, ...hooks.status?.() }));
+      }
+      if (req.method === "GET" && url.pathname === "/flow") {
+        return res.end(JSON.stringify(flowSnapshot()));
       }
       if (req.method === "GET" && url.pathname === "/nansen") {
         const addresses = (url.searchParams.get("addresses") ?? "").split(",").filter((a) => /^0x[0-9a-fA-F]{40}$/.test(a));

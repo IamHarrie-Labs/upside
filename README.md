@@ -78,6 +78,8 @@ cd keeper && RPC_URL=https://testnet-rpc.monad.xyz CHAIN_ID=10143 KEEPER_KEY=$DE
 cd ../app && VITE_CHAIN_ID=10143 npm run dev
 ```
 
+**Live:** web app https://upside-monad.vercel.app · keeper API https://keeper.38.49.210.22.sslip.io (Docker + Caddy on a VPS; `deploy/deploy-keeper.sh`).
+
 **Live on Monad testnet** (chain 10143): CallBook `0x618861b1935bc2C2dB6d7F75cA6F3dfC81aac317`, VaultFactory `0x056426DE47B68b55D9049F373a5bF72436D8ab49`, AttestedGate `0x4894539218Fa5D838Bef29B7658f959aFB63F99b`, KeeperPriceSource `0x1255E1b9bc0351ea4527aE54dF182aec39f9A941`. All addresses are in `contracts/deployments/10143.json`.
 
 The keeper pushes prices on demand, because each push costs gas (about 0.005 MON on testnet). It pushes every `PUSH_MS` (30s) while an app or the MetaMask plugin has pinged `POST /poke` in the last 5 minutes, and otherwise only right before scoring an expired call. With nobody using Upside it sends nothing. `ALWAYS_ON=1` restores constant pushing. `MAX_DAILY_MON` (default 1) caps the gas spent on these activity pushes per UTC day; pushes needed to score expired calls always go through. On testnet the demo price walks by elapsed time, so a call that expires while nobody is watching still sees a realistic move.
