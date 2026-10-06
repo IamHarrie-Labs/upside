@@ -31,7 +31,7 @@ async function perplContext(net: string): Promise<string> {
   return body;
 }
 
-export function startApi(hooks: { onPoke?: () => void } = {}) {
+export function startApi(hooks: { onPoke?: () => void; status?: () => Record<string, unknown> } = {}) {
   createServer(async (req, res) => {
     res.setHeader("access-control-allow-origin", process.env.ALLOWED_ORIGIN ?? "*");
     res.setHeader("access-control-allow-headers", "content-type");
@@ -44,7 +44,7 @@ export function startApi(hooks: { onPoke?: () => void } = {}) {
       }
       if (req.method === "POST" && url.pathname === "/poke") {
         hooks.onPoke?.();
-        return res.end(JSON.stringify({ ok: true }));
+        return res.end(JSON.stringify({ ok: true, ...hooks.status?.() }));
       }
       if (req.method === "GET" && url.pathname === "/nansen") {
         const addresses = (url.searchParams.get("addresses") ?? "").split(",").filter((a) => /^0x[0-9a-fA-F]{40}$/.test(a));

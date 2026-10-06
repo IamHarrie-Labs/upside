@@ -9,8 +9,15 @@
 //   - ALWAYS_ON=1 restores a push every PUSH_MS regardless (local demos).
 // With nobody using Upside, the keeper sends nothing.
 //
+// MAX_DAILY_MON (default 1; unlimited on a local chain) caps gas for activity pushes per UTC day, since anyone can
+// call /poke. Pushes needed to score expired calls are always sent: once capped, the price goes stale, so no new
+// calls can be posted and that work is bounded by the calls already open.
+//
+// Demo prices move by elapsed time, not by number of pushes: after a quiet hour the walk takes an hour of steps,
+// so calls that expire while nobody is watching still see a realistic move.
+//
 // Usage: KEEPER_KEY=0x... RPC_URL=... CHAIN_ID=... npm start
-import { formatUnits, parseUnits, type Address } from "viem";
+import { encodeAbiParameters, formatEther, formatUnits, keccak256, parseEther, parseUnits, type Address } from "viem";
 import { CallBookAbi, KeeperPriceSourceAbi, DemoTokenAbi } from "./abi.js";
 import { account, deployment, publicClient, walletClient } from "./env.js";
 import { kuruQuote } from "./kuru.js";
@@ -21,6 +28,11 @@ const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? 5_000); // how often to ch
 const PUSH_MS = Number(process.env.PUSH_MS ?? 30_000);
 const ACTIVE_MS = Number(process.env.ACTIVE_MS ?? 5 * 60_000);
 const ALWAYS_ON = process.env.ALWAYS_ON === "1" || deployment.chainId === 31337;
+const MAX_DAILY = process.env.MAX_DAILY_MON
+  ? parseEther(process.env.MAX_DAILY_MON)
+  : deployment.chainId === 31337
+    ? null
+    : parseEther("1");
 
 const read = <T>(address: Address, abi: any, functionName: string, args: any[] = []) =>
   publicClient.readContract({ address, abi, functionName, args }) as Promise<T>;
@@ -36,20 +48,54 @@ function toPriceX18(human: number): bigint {
   return (quotePerBase * 10n ** 18n) / 10n ** BigInt(baseDec);
 }
 
-let demoPrice = Number(process.env.DEMO_START_PRICE ?? 2);
-// Continue the walk from the price already onchain, so a keeper restart doesn't jump the price.
-try {
-  const onchain = await read<bigint>(deployment.priceSource, KeeperPriceSourceAbi, "midPrice", [deployment.base, deployment.settlement]);
-  if (onchain > 0n) demoPrice = Number(formatUnits((onchain * 10n ** BigInt(baseDec)) / 10n ** 18n, quoteDec));
-} catch {
-  // stale or never pushed: start from DEMO_START_PRICE
+/**
+ * Last pushed quote, read from storage so it works even when midPrice() reverts as stale.
+ * KeeperPriceSource layout: _quotes is the mapping at slot 2; Quote packs priceX18 (low 192 bits) and updatedAt.
+ */
+async function lastQuote(): Promise<{ priceX18: bigint; updatedAt: number } | null> {
+  const key = keccak256(encodeAbiParameters([{ type: "address" }, { type: "address" }], [deployment.base, deployment.settlement]));
+  const slot = keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "uint256" }], [key, 2n]));
+  const raw = BigInt((await publicClient.getStorageAt({ address: deployment.priceSource, slot })) ?? "0x0");
+  const priceX18 = raw & ((1n << 192n) - 1n);
+  return priceX18 ? { priceX18, updatedAt: Number(raw >> 192n) } : null;
 }
+
+const DEMO_STEP_MS = 5_000; // one random-walk step per 5s of elapsed time
+let demoPrice = Number(process.env.DEMO_START_PRICE ?? 2);
+let lastStepAt = Date.now();
+// Continue from the price already onchain, and walk through the time since it was pushed.
+const prev = await lastQuote().catch(() => null);
+if (prev) {
+  demoPrice = Number(formatUnits((prev.priceX18 * 10n ** BigInt(baseDec)) / 10n ** 18n, quoteDec));
+  lastStepAt = prev.updatedAt * 1000;
+}
+
 function nextDemoPrice(): number {
-  // gentle random walk with occasional jumps so calls resolve both ways
-  const shock = (Math.random() - 0.5) * 0.01 + (Math.random() < 0.05 ? (Math.random() - 0.5) * 0.06 : 0);
-  demoPrice = Math.max(0.2, demoPrice * (1 + shock));
+  // Gentle random walk with occasional jumps so calls resolve both ways; one step per 5s elapsed, capped at 30 days.
+  const steps = Math.min(Math.max(1, Math.round((Date.now() - lastStepAt) / DEMO_STEP_MS)), (30 * 86_400_000) / DEMO_STEP_MS);
+  for (let i = 0; i < steps; i++) {
+    const shock = (Math.random() - 0.5) * 0.01 + (Math.random() < 0.05 ? (Math.random() - 0.5) * 0.06 : 0);
+    demoPrice = Math.min(50, Math.max(0.2, demoPrice * (1 + shock)));
+  }
+  lastStepAt = Date.now();
   return demoPrice;
 }
+
+// Gas spent per UTC day, measured from the keeper's balance around each transaction (Monad bills the gas limit).
+let spentDay = "";
+let spentToday = 0n;
+async function metered<T>(fn: () => Promise<T>): Promise<T> {
+  const before = await publicClient.getBalance({ address: account.address });
+  try {
+    return await fn();
+  } finally {
+    const after = await publicClient.getBalance({ address: account.address }).catch(() => before);
+    const day = new Date().toISOString().slice(0, 10);
+    if (day !== spentDay) (spentDay = day), (spentToday = 0n);
+    if (before > after) spentToday += before - after;
+  }
+}
+const capped = () => MAX_DAILY !== null && spentDay === new Date().toISOString().slice(0, 10) && spentToday >= MAX_DAILY;
 
 async function kuruMid(): Promise<number> {
   // Kuru Flow quotes are executable prices; the mid is the average of a small buy and a small sell.
@@ -112,23 +158,35 @@ async function scoreExpired(due: bigint[]) {
   return scored;
 }
 
-startApi({ onPoke: () => (lastPoke = Date.now()) });
+startApi({
+  onPoke: () => (lastPoke = Date.now()),
+  status: () => ({ capped: capped(), spentTodayMon: formatEther(spentToday), maxDailyMon: MAX_DAILY === null ? null : formatEther(MAX_DAILY) }),
+});
 console.log(
   `keeper ${account.address} · chain ${deployment.chainId} · price mode ${PRICE_MODE} · ` +
-    (ALWAYS_ON ? `push every ${PUSH_MS / 1000}s` : `push every ${PUSH_MS / 1000}s while apps are open, else only to score`),
+    (ALWAYS_ON ? `push every ${PUSH_MS / 1000}s` : `push every ${PUSH_MS / 1000}s while apps are open, else only to score`) +
+    (MAX_DAILY === null ? "" : ` · activity pushes capped at ${formatEther(MAX_DAILY)} MON/day`),
 );
+let cappedLogged = "";
 let lastPush = 0;
 let lastPoke = Date.now(); // treat startup as activity, so the price is fresh right away
 for (;;) {
   try {
     const due = await expiredCalls();
     const active = ALWAYS_ON || Date.now() - lastPoke < ACTIVE_MS;
-    if (due.length || (active && Date.now() - lastPush >= PUSH_MS)) {
-      const p = await pushPrice();
+    const wantActivityPush = active && Date.now() - lastPush >= PUSH_MS;
+    if (wantActivityPush && !due.length && capped()) {
+      if (cappedLogged !== spentDay) {
+        cappedLogged = spentDay;
+        console.warn(`daily gas cap reached (${formatEther(spentToday)} MON): activity pushes paused until 00:00 UTC; scoring continues`);
+      }
+    } else if (due.length || wantActivityPush) {
+      const p = await metered(pushPrice);
       lastPush = Date.now();
-      const scored = due.length ? await scoreExpired(due) : [];
+      const scored = due.length ? await metered(() => scoreExpired(due)) : [];
       console.log(
-        `${new Date().toISOString()} mid ${p.toFixed(4)}${scored.length ? ` · scored calls ${scored.join(", ")}` : ""}`,
+        `${new Date().toISOString()} mid ${p.toFixed(4)}${scored.length ? ` · scored calls ${scored.join(", ")}` : ""}` +
+          (MAX_DAILY === null ? "" : ` · today ${Number(formatEther(spentToday)).toFixed(3)}/${formatEther(MAX_DAILY)} MON`),
       );
     }
   } catch (e) {
