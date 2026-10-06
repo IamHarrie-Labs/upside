@@ -8,7 +8,7 @@ import { formatUnits, parseUnits, type Address } from "viem";
 import { CallBookAbi, KeeperPriceSourceAbi, DemoTokenAbi } from "./abi.js";
 import { account, deployment, publicClient, walletClient } from "./env.js";
 import { kuruQuote } from "./kuru.js";
-import { startQuoteProxy } from "./proxy.js";
+import { startApi } from "./proxy.js";
 
 const PRICE_MODE = process.env.PRICE_MODE ?? (deployment.demo ? "demo" : "kuru");
 const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? 5_000);
@@ -81,7 +81,7 @@ async function scoreExpired() {
   return scored;
 }
 
-if (!deployment.demo) startQuoteProxy();
+startApi();
 console.log(`keeper ${account.address} · chain ${deployment.chainId} · price mode ${PRICE_MODE}`);
 for (;;) {
   try {

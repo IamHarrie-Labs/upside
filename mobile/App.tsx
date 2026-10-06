@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import type { Address } from "viem";
 import { deployment, EXPLORER, IS_LOCAL, WEB_URL } from "./src/env";
+import { getPerplPositions, perplEnabled, perplUrl, type PerplPosition } from "./src/lib/perpl";
 import {
   createPasskeyAccount,
   describeError,
@@ -75,6 +76,8 @@ type Runner = (label: string, fn: () => Promise<string | void>) => Promise<void>
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const pct = (bps: number, digits = 1) => `${bps >= 0 ? "+" : ""}${(bps / 100).toFixed(digits)}%`;
 let HANDLES = new Map<string, string>();
+// Callers' current MON positions on Perpl (null = none), refreshed with the rest of the state.
+let PERPL = new Map<string, PerplPosition | null>();
 const nameOf = (a: string) => {
   const h = HANDLES.get(a.toLowerCase());
   return h ? `@${h}` : short(a);
@@ -157,6 +160,7 @@ export default function App() {
       ...(session ? [session.account.address] : []),
       ...(state ? state.positions.map((p) => p.caller) : []),
     ]);
+    PERPL = await getPerplPositions(cs.map((c) => c.caller));
     setTick((t) => t + 1);
   }, [session]);
 
@@ -506,6 +510,7 @@ function Feed(props: {
                 target {humanPrice(c.targetMid).toFixed(4)} · stop {humanPrice(c.stopMid).toFixed(4)}
               </Text>
             </View>
+            <PerplBadge caller={c.caller} side={c.side} />
             <View style={s.row}>
               <Text style={[s.small, { flex: 1 }]}>
                 Call #{c.id} · {new Date(c.postedAt * 1000).toLocaleTimeString()} · {c.scored ? "scored" : countdown(c.expiry - now)}
@@ -841,6 +846,7 @@ function CallerProfile({ address, stats }: { address: Address; stats: Map<Addres
           <Stat value={String(st.posted)} label="calls posted" />
         </View>
       )}
+      <PerplBadge caller={address} side={0} profile />
       <Text style={s.muted}>Every call this address ever posted is below, losers included. Calls cannot be deleted.</Text>
       <Btn
         ghost
@@ -857,6 +863,29 @@ function Stat({ value, label, color }: { value: string; label: string; color?: s
       <Text style={{ color: color ?? C.ink, fontSize: 18, fontWeight: "800" }}>{value}</Text>
       <Text style={s.small}>{label}</Text>
     </View>
+  );
+}
+
+/** Whether the caller holds the same trade on Perpl right now, read from Perpl's Exchange contract. */
+function PerplBadge({ caller, side, profile }: { caller: Address; side: number; profile?: boolean }) {
+  if (!perplEnabled) return null;
+  const key = caller.toLowerCase();
+  if (!PERPL.has(key)) return null;
+  const p = PERPL.get(key);
+  if (!p) return profile ? <Text style={s.muted}>No MON position on Perpl right now</Text> : null;
+  const sameWay = (p.side === "long") === (side === 0);
+  const size = p.size >= 1000 ? `${(p.size / 1000).toFixed(1)}k` : p.size.toFixed(0);
+  return (
+    <Pressable onPress={() => Linking.openURL(perplUrl)} style={[s.perpl, sameWay ? s.perplAligned : s.perplAgainst]}>
+      <Text style={{ color: sameWay ? C.ink : C.warn, fontSize: 12.5 }}>
+        {sameWay ? "Skin in the game: " : "Warning: "}
+        {p.side} {size} MON on Perpl from {p.entry.toFixed(4)}
+        <Text style={{ color: p.pnlPct >= 0 ? C.up : C.down }}>
+          {" "}({p.pnlPct >= 0 ? "+" : ""}{p.pnlPct.toFixed(1)}%)
+        </Text>
+        {!sameWay && !profile ? " · opposite of this call" : ""}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -899,6 +928,9 @@ const s = StyleSheet.create({
   meter: { height: 6, backgroundColor: C.panel2, borderRadius: 99, overflow: "hidden" },
   closedRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line },
   leader: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: C.panel, borderColor: C.line, borderWidth: 1, borderRadius: 14, padding: 12 },
+  perpl: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 },
+  perplAligned: { borderColor: "rgba(61,220,151,0.4)", backgroundColor: "rgba(61,220,151,0.08)" },
+  perplAgainst: { borderColor: "rgba(255,200,87,0.5)", backgroundColor: "rgba(255,200,87,0.10)" },
   stat: { flex: 1, backgroundColor: C.panel2, borderRadius: 10, padding: 10, gap: 2 },
   tabs: {
     position: "absolute",

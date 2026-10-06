@@ -488,3 +488,25 @@ input.inline {
 .center-btn {
   align-self: center;
 }
+.perpl {
+  display: block;
+  font-size: 12.5px;
+  border-radius: 10px;
+  padding: 7px 10px;
+  text-decoration: none;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.perpl.aligned {
+  border-color: color-mix(in srgb, var(--up) 40%, transparent);
+  background: color-mix(in srgb, var(--up) 8%, transparent);
+}
+.perpl.against {
+  border-color: color-mix(in srgb, var(--warn) 50%, transparent);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  color: var(--warn);
+}
+.perpl.none {
+  color: var(--muted);
+  margin-top: 10px;
+}

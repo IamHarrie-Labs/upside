@@ -36,6 +36,7 @@ import {
   type CallerStats,
 } from "./lib/upside";
 import { deployment, EXPLORER, IS_LOCAL } from "./env";
+import { getPerplPositions, perplEnabled, perplUrl, type PerplPosition } from "./lib/perpl";
 
 type Tab = "feed" | "post" | "portfolio" | "board";
 type VaultState = Awaited<ReturnType<typeof getVaultState>>;
@@ -45,6 +46,8 @@ const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const pct = (bps: number, digits = 1) => `${bps >= 0 ? "+" : ""}${(bps / 100).toFixed(digits)}%`;
 // Public handles from the Handles contract, refreshed with the rest of the state.
 let HANDLES = new Map<string, string>();
+// Callers' current MON positions on Perpl (null = none), refreshed with the rest of the state.
+let PERPL = new Map<string, PerplPosition | null>();
 const nameOf = (a: string) => {
   const h = HANDLES.get(a.toLowerCase());
   return h ? `@${h}` : short(a);
@@ -116,6 +119,7 @@ export default function App() {
       ...(session ? [session.account.address] : []),
       ...(state ? state.positions.map((p) => p.caller) : []),
     ]);
+    PERPL = await getPerplPositions(cs.map((c) => c.caller));
     setHandleTick((t) => t + 1);
   }, [session]);
 
@@ -398,6 +402,7 @@ function Feed(props: {
               <span className="lv"> target {humanPrice(c.targetMid).toFixed(4)}</span>
               <span className="lv"> stop {humanPrice(c.stopMid).toFixed(4)}</span>
             </div>
+            <PerplBadge caller={c.caller} side={c.side} />
             <div className="row foot">
               <span className="sub">
                 <a className="link" href={`#/call/${c.id}`}>
@@ -758,6 +763,7 @@ function CallerProfile({ address, stats }: { address: Address; stats: Map<Addres
           </div>
         </div>
       )}
+      <PerplBadge caller={address} side={0} profile />
       <p className="sub">Every call this address ever posted is below, losers included. Calls cannot be deleted.</p>
       <button
         className="ghost"
@@ -804,5 +810,29 @@ function SignInPrompt({ signIn, what }: { signIn: () => void; what: string }) {
         Sign in
       </button>
     </div>
+  );
+}
+
+/** Whether the caller holds the same trade on Perpl right now, read from Perpl's Exchange contract. */
+function PerplBadge({ caller, side, profile }: { caller: Address; side: number; profile?: boolean }) {
+  if (!perplEnabled) return null;
+  const key = caller.toLowerCase();
+  if (!PERPL.has(key)) return null; // not loaded or unknown
+  const p = PERPL.get(key);
+  if (!p)
+    return profile ? <div className="perpl none">No MON position on Perpl right now</div> : null;
+  const sameWay = (p.side === "long") === (side === 0);
+  const size = p.size >= 1000 ? `${(p.size / 1000).toFixed(1)}k` : p.size.toFixed(0);
+  return (
+    <a className={`perpl ${sameWay ? "aligned" : "against"}`} href={perplUrl} target="_blank" rel="noreferrer">
+      {sameWay ? "Skin in the game: " : "Warning: "}
+      {p.side} {size} MON on Perpl from {p.entry.toFixed(4)}
+      <span className={p.pnlPct >= 0 ? "up" : "down"}>
+        {" "}
+        ({p.pnlPct >= 0 ? "+" : ""}
+        {p.pnlPct.toFixed(1)}%)
+      </span>
+      {!sameWay && !profile && " · opposite of this call"}
+    </a>
   );
 }

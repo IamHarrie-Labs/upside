@@ -37,8 +37,12 @@ export const EXPLORER =
 /** Domain the passkey belongs to. Must serve the iOS/Android association files (see mobile/README.md). */
 export const RP_ID: string = process.env.EXPO_PUBLIC_RP_ID ?? (Platform.OS === "web" ? globalThis.location?.hostname ?? "localhost" : "");
 
-/** Keeper endpoint that proxies Kuru Flow quotes (mainnet deployments only). */
-export const KURU_PROXY: string = process.env.EXPO_PUBLIC_KURU_PROXY ?? `http://${HOST}:8788`;
+/** Keeper API: Kuru Flow quotes (mainnet) and Perpl market context. */
+export const KEEPER_API: string = process.env.EXPO_PUBLIC_KEEPER_API ?? `http://${HOST}:8788`;
+
+/** Which Perpl exchange to read caller positions from. Defaults to the one on the same chain; off for local demos. */
+export const PERPL_NETWORK: "mainnet" | "testnet" | "off" = ((process.env.EXPO_PUBLIC_PERPL_NETWORK as any) ??
+  (CHAIN_ID === 143 ? "mainnet" : CHAIN_ID === 10143 ? "testnet" : "off"));
 
 /** Public web app URL, used in share links so anyone can open a call without the app. */
 export const WEB_URL: string = process.env.EXPO_PUBLIC_WEB_URL ?? "http://localhost:5173";

@@ -90,7 +90,7 @@ cd keeper && CHAIN_ID=31338 RPC_URL=http://127.0.0.1:8548 KEEPER_KEY=<anvil key 
 
 ## Mainnet
 
-`DEMO=false` with `SETTLEMENT_TOKEN` (AUSD `0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a`), `BASE_TOKEN` and `ROUTER` (`0xb3e6778480b2E488385E8205eA05E20060B813cb`, the Kuru Flow router). Base token WMON is `0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A`. The keeper then prices from Kuru quotes and serves a quote proxy on `:8788` (Kuru Flow needs a JWT per address, 1 request/second); set `VITE_KURU_PROXY` to its public URL.
+`DEMO=false` with `SETTLEMENT_TOKEN` (AUSD `0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a`), `BASE_TOKEN` and `ROUTER` (`0xb3e6778480b2E488385E8205eA05E20060B813cb`, the Kuru Flow router). Base token WMON is `0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A`. The keeper then prices from Kuru quotes and serves a quote proxy on `:8788` (Kuru Flow needs a JWT per address, 1 request/second); set `VITE_KEEPER_API` (web) / `EXPO_PUBLIC_KEEPER_API` (mobile) to its public URL. The same API serves Perpl's market context; `VITE_PERPL_NETWORK` / `EXPO_PUBLIC_PERPL_NETWORK` choose which Perpl exchange the badge reads (defaults to the deployment's chain).
 
 ## Sponsor integrations
 
@@ -101,7 +101,8 @@ cd keeper && CHAIN_ID=31338 RPC_URL=http://127.0.0.1:8548 KEEPER_KEY=<anvil key 
 | **Mera (Monad Foundation)** | Passkey sign-up and sign-in; PRF output → BIP-44 account → `toViemAccount` signing session | Implemented (`app/src/lib/account.ts`) |
 | **Cleanverse** | `AttestedGate`: the keeper attests callers with an active A-Pass (`keeper/src/attest.ts`, `CLEANVERSE_MODE=api`) | API path written, untested without credentials; `mock` mode for demos |
 | **Envio** | `indexer/` (HyperIndex v3): calls, caller records, vaults, follows and settlements; vaults registered dynamically from `VaultCreated` | Written for v3; `node scripts/indexer-config.mjs <chainId>` fills addresses. Not yet run: the Envio CLI has no native Windows build, so run it in WSL or Envio's hosted service |
-| Perpl, Nansen, MetaMask agent plugin | Planned stretch | Not started |
+| **Perpl** | "Skin in the game" badge on every call and caller profile: whether the caller holds MON on Perpl right now, long or short, entry and P&L, flagged when it's the opposite of their public call. Market metadata from Perpl's public API (`/api/v1/pub/context`, via the keeper because it lacks CORS); positions read from Perpl's Exchange contract (`getAccountByAddr`, `getPosition`) | **Verified against Perpl mainnet:** real long and short MON positions render in both apps (`app/src/lib/perpl.ts`) |
+| Nansen, MetaMask agent plugin | Planned stretch | Not started |
 
 ## Known limits (honest list)
 

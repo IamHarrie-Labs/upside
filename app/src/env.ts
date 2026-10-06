@@ -39,5 +39,9 @@ export const chain = defineChain({
 
 export const publicClient = createPublicClient({ chain, transport: http(RPC_URL), pollingInterval: 500 });
 
-/** Keeper endpoint that proxies Kuru Flow quotes (mainnet deployments only). */
-export const KURU_PROXY: string = import.meta.env.VITE_KURU_PROXY ?? "http://localhost:8788";
+/** Keeper API: Kuru Flow quotes (mainnet) and Perpl market context. */
+export const KEEPER_API: string = import.meta.env.VITE_KEEPER_API ?? import.meta.env.VITE_KURU_PROXY ?? "http://localhost:8788";
+
+/** Which Perpl exchange to read caller positions from. Defaults to the one on the same chain; off for local demos. */
+export const PERPL_NETWORK: "mainnet" | "testnet" | "off" =
+  import.meta.env.VITE_PERPL_NETWORK ?? (CHAIN_ID === 143 ? "mainnet" : CHAIN_ID === 10143 ? "testnet" : "off");

@@ -11,7 +11,7 @@ import {
   KeeperPriceSourceAbi,
   VaultFactoryAbi,
 } from "../abi";
-import { deployment as d, IS_LOCAL, KURU_PROXY, publicClient } from "../env";
+import { deployment as d, IS_LOCAL, KEEPER_API, publicClient } from "../env";
 import type { Session } from "./account";
 
 export const QUOTE_DECIMALS = 6; // AUSD
@@ -239,7 +239,7 @@ async function buildSwap(vault: Address, sellBase: boolean, amountIn: bigint): P
     };
   }
   // The keeper proxies Kuru Flow (JWT per user address, 1 request/second).
-  const res = await fetch(`${KURU_PROXY}/quote`, {
+  const res = await fetch(`${KEEPER_API}/quote`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

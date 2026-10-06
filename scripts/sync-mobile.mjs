@@ -13,6 +13,7 @@ mkdirSync(join(root, "mobile/src/lib"), { recursive: true });
 
 for (const [src, dst] of [
   ["app/src/lib/upside.ts", "mobile/src/lib/upside.ts"],
+  ["app/src/lib/perpl.ts", "mobile/src/lib/perpl.ts"],
   ["app/src/abi.ts", "mobile/src/abi.ts"],
 ]) {
   writeFileSync(join(root, dst), header(src) + readFileSync(join(root, src), "utf8"));

@@ -17,7 +17,7 @@
         "EXPO_PUBLIC_CHAIN_ID": "143",
         "EXPO_PUBLIC_RP_ID": "upside.example.com",
         "EXPO_PUBLIC_WEB_URL": "https://upside.example.com",
-        "EXPO_PUBLIC_KURU_PROXY": "https://keeper.upside.example.com"
+        "EXPO_PUBLIC_KEEPER_API": "https://keeper.upside.example.com"
       }
     }
   }
