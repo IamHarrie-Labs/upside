@@ -13,11 +13,12 @@
 // call /poke. Pushes needed to score expired calls are always sent: once capped, the price goes stale, so no new
 // calls can be posted and that work is bounded by the calls already open.
 //
-// Demo prices move by elapsed time, not by number of pushes: after a quiet hour the walk takes an hour of steps,
-// so calls that expire while nobody is watching still see a realistic move.
+// Demo prices move by elapsed time, not by number of pushes (DEMO_DAILY_VOL, default 8% a day), so calls that
+// expire while nobody is watching still see a realistic move.
 //
 // Usage: KEEPER_KEY=0x... RPC_URL=... CHAIN_ID=... npm start
 import { encodeAbiParameters, formatEther, formatUnits, keccak256, parseEther, parseUnits, type Address } from "viem";
+import { readFileSync, writeFileSync } from "node:fs";
 import { CallBookAbi, KeeperPriceSourceAbi, DemoTokenAbi } from "./abi.js";
 import { account, deployment, publicClient, walletClient } from "./env.js";
 import { kuruQuote } from "./kuru.js";
@@ -61,7 +62,13 @@ async function lastQuote(): Promise<{ priceX18: bigint; updatedAt: number } | nu
   return priceX18 ? { priceX18, updatedAt: Number(raw >> 192n) } : null;
 }
 
-const DEMO_STEP_MS = 5_000; // one random-walk step per 5s of elapsed time
+// Demo price: a random walk calibrated in time, so its volatility doesn't depend on how often the keeper pushes.
+// Daily volatility DEMO_DAILY_VOL (default 8%) plus occasional jumps (about 2 a day of up to ±1.5%), so short
+// calls resolve both ways and long ones see realistic moves. Bounded to [DEMO_MIN, DEMO_MAX].
+const DAILY_VOL = Number(process.env.DEMO_DAILY_VOL ?? 0.08);
+const JUMPS_PER_DAY = Number(process.env.DEMO_JUMPS_PER_DAY ?? 2);
+const DEMO_MIN = Number(process.env.DEMO_MIN ?? 0.5);
+const DEMO_MAX = Number(process.env.DEMO_MAX ?? 5);
 let demoPrice = Number(process.env.DEMO_START_PRICE ?? 2);
 let lastStepAt = Date.now();
 // Continue from the price already onchain, and walk through the time since it was pushed.
@@ -70,21 +77,32 @@ if (prev) {
   demoPrice = Number(formatUnits((prev.priceX18 * 10n ** BigInt(baseDec)) / 10n ** 18n, quoteDec));
   lastStepAt = prev.updatedAt * 1000;
 }
+if (process.env.DEMO_RESET_PRICE) demoPrice = Number(process.env.DEMO_RESET_PRICE); // one-off re-anchor
+
+const gauss = () => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random());
 
 function nextDemoPrice(): number {
-  // Gentle random walk with occasional jumps so calls resolve both ways; one step per 5s elapsed, capped at 30 days.
-  const steps = Math.min(Math.max(1, Math.round((Date.now() - lastStepAt) / DEMO_STEP_MS)), (30 * 86_400_000) / DEMO_STEP_MS);
-  for (let i = 0; i < steps; i++) {
-    const shock = (Math.random() - 0.5) * 0.01 + (Math.random() < 0.05 ? (Math.random() - 0.5) * 0.06 : 0);
-    demoPrice = Math.min(50, Math.max(0.2, demoPrice * (1 + shock)));
-  }
+  const days = Math.min(Math.max(Date.now() - lastStepAt, 1_000) / 86_400_000, 30);
+  let logReturn = DAILY_VOL * Math.sqrt(days) * gauss();
+  // Poisson number of jumps over the elapsed time
+  let k = 0;
+  for (let l = Math.exp(-JUMPS_PER_DAY * days), p = Math.random(); p > l && k < 50; k++) p *= Math.random();
+  for (let i = 0; i < k; i++) logReturn += (Math.random() - 0.5) * 0.03;
+  demoPrice = Math.min(DEMO_MAX, Math.max(DEMO_MIN, demoPrice * Math.exp(logReturn)));
   lastStepAt = Date.now();
   return demoPrice;
 }
 
 // Gas spent per UTC day, measured from the keeper's balance around each transaction (Monad bills the gas limit).
+// Saved to SPEND_STATE (if set) so a restart doesn't reset the daily cap.
+const SPEND_STATE = process.env.SPEND_STATE;
 let spentDay = "";
 let spentToday = 0n;
+try {
+  if (SPEND_STATE) ({ day: spentDay, wei: spentToday } = ((s) => ({ day: s.day as string, wei: BigInt(s.wei) }))(JSON.parse(readFileSync(SPEND_STATE, "utf8"))));
+} catch {
+  // first run
+}
 async function metered<T>(fn: () => Promise<T>): Promise<T> {
   const before = await publicClient.getBalance({ address: account.address });
   try {
@@ -94,6 +112,11 @@ async function metered<T>(fn: () => Promise<T>): Promise<T> {
     const day = new Date().toISOString().slice(0, 10);
     if (day !== spentDay) (spentDay = day), (spentToday = 0n);
     if (before > after) spentToday += before - after;
+    try {
+      if (SPEND_STATE) writeFileSync(SPEND_STATE, JSON.stringify({ day: spentDay, wei: spentToday.toString() }));
+    } catch {
+      // state is best-effort
+    }
   }
 }
 const capped = () => MAX_DAILY !== null && spentDay === new Date().toISOString().slice(0, 10) && spentToday >= MAX_DAILY;
