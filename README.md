@@ -5,11 +5,15 @@
 Paid signal groups charge whether you win or lose, and their track records are screenshots. On Upside:
 
 1. **Every call is committed onchain before the move.** It can't be edited, backdated or deleted, and it expires.
-2. **Callers are paid only from a follower's net gains.** Each follower trades through their own vault. When they close, the caller gets a share of the follower's *cumulative* net gain with that caller above a high-water mark. A follower who is still down with a caller pays nothing.
+2. **Callers are paid from new realized gains.** Each follower trades through their own vault. Closing a position first recovers earlier realized losses with that caller, then charges the call's agreed rate above the previous realized peak. Open losses, network gas and earlier performance fees are excluded; paid fees are not refunded.
 3. **Scores come from market prices, not followers.** A call is scored from the mid when posted to the mid when scored after expiry, losers included. Follower count and reviews are not score inputs; this does not make reputation manipulation impossible.
 4. **Only attested callers rank and earn.** The contract checks a current gate attestation. Demo deployments use test attestations; the intended Cleanverse A-Pass API integration still needs credential-backed verification.
 
 The interface has an original paper, ink and copper identity across web and Expo. See the [brand guide](brand/README.md), [page-by-page review and evidence](docs/design/README.md), and [QA instructions](scripts/qa/README.md).
+
+The web and Expo flows prepare a quote without sending transactions, present the amounts, minimum output, exposure, fee boundaries and setup actions, then require confirmation. Closed-position receipts show actual proceeds, loss carry-forward, caller/protocol payouts and the transaction. Incomplete history is labelled as indexing.
+
+See [priority work and remaining release checks](docs/priority-work-status.md), [hosted testnet transaction proof](docs/design/hosted-testnet-results.json), [keeper and exit trust boundaries](docs/keeper-score-exit-decision.md), [phone test plan](docs/phone-test.md), and [submission draft](docs/submission.md). The [local demo recording](docs/demo/round-trip-local.webm) uses actual Anvil transactions and test tokens. Hardware passkeys, actual Agent Wallet signing, funded Nansen settlement and user interviews remain unverified.
 
 ## What's here
 

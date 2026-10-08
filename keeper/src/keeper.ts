@@ -18,7 +18,7 @@
 //
 // Usage: KEEPER_KEY=0x... RPC_URL=... CHAIN_ID=... npm start
 import { encodeAbiParameters, formatEther, formatUnits, keccak256, parseEther, parseUnits, type Address } from "viem";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync } from "node:fs";
 import { CallBookAbi, KeeperPriceSourceAbi, DemoTokenAbi } from "./abi.js";
 import { account, deployment, publicClient, walletClient } from "./env.js";
 import { kuruQuote } from "./kuru.js";
@@ -100,8 +100,8 @@ let spentDay = "";
 let spentToday = 0n;
 try {
   if (SPEND_STATE) ({ day: spentDay, wei: spentToday } = ((s) => ({ day: s.day as string, wei: BigInt(s.wei) }))(JSON.parse(readFileSync(SPEND_STATE, "utf8"))));
-} catch {
-  // first run
+} catch (e:any) {
+  if(e.code!=="ENOENT") throw new Error("Spend state is unreadable; restore it before restarting the keeper.");
 }
 async function metered<T>(fn: () => Promise<T>): Promise<T> {
   const before = await publicClient.getBalance({ address: account.address });
@@ -113,9 +113,10 @@ async function metered<T>(fn: () => Promise<T>): Promise<T> {
     if (day !== spentDay) (spentDay = day), (spentToday = 0n);
     if (before > after) spentToday += before - after;
     try {
-      if (SPEND_STATE) writeFileSync(SPEND_STATE, JSON.stringify({ day: spentDay, wei: spentToday.toString() }));
+      if (SPEND_STATE) {writeFileSync(`${SPEND_STATE}.tmp`, JSON.stringify({ day: spentDay, wei: spentToday.toString() }));renameSync(`${SPEND_STATE}.tmp`,SPEND_STATE);}
     } catch {
-      // state is best-effort
+      console.error("Could not persist keeper spend state; stopping to preserve the daily allowance.");
+      process.exit(1);
     }
   }
 }

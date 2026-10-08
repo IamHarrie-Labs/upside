@@ -31,13 +31,14 @@ if ! ssh_ 'grep -q "^KEEPER_KEY=0x[0-9a-fA-F]\{64\}" /etc/upside/keeper.env'; th
   echo "  stored KEEPER_KEY (not printed)"
 fi
 # Non-secret settings are rewritten on every deploy.
-ssh_ "sed -i '/^\(CHAIN_ID\|RPC_URL\|ALLOWED_ORIGIN\|MAX_DAILY_MON\|FLOW_STATE\|SPEND_STATE\)=/d' /etc/upside/keeper.env && cat >> /etc/upside/keeper.env" <<EOF
+ssh_ "sed -i '/^\(CHAIN_ID\|RPC_URL\|ALLOWED_ORIGIN\|MAX_DAILY_MON\|FLOW_STATE\|SPEND_STATE\|NANSEN_STATE\)=/d' /etc/upside/keeper.env && cat >> /etc/upside/keeper.env" <<EOF
 CHAIN_ID=$CHAIN_ID
 RPC_URL=$RPC_URL
 ALLOWED_ORIGIN=$ALLOWED_ORIGIN
 MAX_DAILY_MON=$MAX_DAILY_MON
 FLOW_STATE=/data/flow-$CHAIN_ID.json
 SPEND_STATE=/data/spend-$CHAIN_ID.json
+NANSEN_STATE=/data/nansen-usdc.json
 EOF
 # Keeper state (follower-count scan cursor) survives restarts; the container runs as uid 1000 (node).
 ssh_ 'mkdir -p /opt/upside/data && chown 1000:1000 /opt/upside/data'

@@ -7,10 +7,7 @@
 //                           minutes, gives the set of Smart Money wallets trading on Monad and their labels.
 //                           The paying wallet is NANSEN_PAY_KEY (defaults to KEEPER_KEY) and needs USDC on Monad.
 // Labels endpoints are API-key only; Smart Money endpoints accept x402 (Nansen docs, verified 2026-10-06).
-import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
-import { ExactEvmScheme } from "@x402/evm";
-import type { Hex } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import {paidNansen} from "./payments.js";
 import { deployment } from "./env.js";
 
 const API = "https://api.nansen.ai";
@@ -23,26 +20,13 @@ export type NansenInfo = { labels: string[]; smartMoney: boolean; source: "label
 const MOCK = deployment.chainId === 31337 ? process.env.NANSEN_MOCK : undefined;
 export const nansenMode: "labels" | "x402" | "mock" | "off" = API_KEY ? "labels" : PAY ? "x402" : MOCK ? "mock" : "off";
 
-// Only Monad USDC is registered, so x402 always settles on Monad.
-const paidFetch =
-  nansenMode === "x402"
-    ? wrapFetchWithPaymentFromConfig(fetch, {
-        schemes: [
-          {
-            network: "eip155:143",
-            client: new ExactEvmScheme(privateKeyToAccount((process.env.NANSEN_PAY_KEY ?? process.env.KEEPER_KEY) as Hex)),
-          },
-        ],
-      })
-    : null;
-
 async function post(path: string, body: unknown) {
   const init = {
     method: "POST",
     headers: { "content-type": "application/json", ...(API_KEY ? { apikey: API_KEY } : {}) },
     body: JSON.stringify(body),
   };
-  const res = await (paidFetch ?? fetch)(`${API}${path}`, init);
+  const res = await (nansenMode === "x402" ? paidNansen : fetch)(`${API}${path}`, {...init,signal:AbortSignal.timeout(30_000)});
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`Nansen ${res.status}: ${json.message ?? json.error ?? "request failed"}`);
   return json;
@@ -72,6 +56,7 @@ async function labelsFor(address: string): Promise<NansenInfo> {
 // --- x402 mode: Smart Money wallets active on Monad, refreshed periodically
 let smartMoney = new Map<string, string>(); // address -> Nansen label
 let refreshedAt = 0;
+let attemptedAt = 0;
 let refreshing: Promise<void> | null = null;
 
 async function refreshSmartMoney() {
@@ -113,14 +98,15 @@ export async function nansenFor(addresses: string[]): Promise<Record<string, Nan
       }),
     );
   } else if (nansenMode === "x402") {
-    if (Date.now() - refreshedAt > REFRESH_MS) {
+    if (Date.now() - attemptedAt > REFRESH_MS) {
+      attemptedAt=Date.now();
       refreshing ??= refreshSmartMoney()
         .catch((e) => console.error("Nansen refresh failed:", (e as Error).message))
         .finally(() => (refreshing = null));
       await refreshing;
     }
     for (const a of unique) {
-      const label = smartMoney.get(a);
+      const label = Date.now()-refreshedAt<=REFRESH_MS ? smartMoney.get(a) : undefined;
       out[a] = label ? { labels: [label], smartMoney: true, source: "smart-money-trades" } : null;
     }
   }

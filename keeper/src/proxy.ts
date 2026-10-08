@@ -10,6 +10,7 @@ import { deployment } from "./env.js";
 import { kuruQuote } from "./kuru.js";
 import { nansenFor, nansenMode } from "./nansen.js";
 import { flowSnapshot } from "./flow.js";
+import {receiptsFor} from "./receipts.js";
 
 const PORT = Number(process.env.PROXY_PORT ?? 8788);
 const allowed = new Set([deployment.base.toLowerCase(), deployment.settlement.toLowerCase()]);
@@ -18,13 +19,17 @@ const PERPL_API: Record<string, string> = {
   testnet: "https://testnet.perpl.xyz",
 };
 const perplCache = new Map<string, { at: number; body: string }>();
+const requests=new Map<string,{at:number;count:number}>();
+export function readBodyLimit(req:AsyncIterable<Buffer|string>,limit=16_384) {
+  return (async()=>{let bytes=0;let body="";for await(const chunk of req){bytes+=Buffer.byteLength(chunk);if(bytes>limit)throw Error("Request body exceeds 16 KiB limit");body+=chunk;}return body;})();
+}
 
 async function perplContext(net: string): Promise<string> {
   const base = PERPL_API[net];
   if (!base) throw new Error("net must be mainnet or testnet");
   const hit = perplCache.get(net);
   if (hit && Date.now() - hit.at < 15_000) return hit.body;
-  const res = await fetch(`${base}/api/v1/pub/context`);
+  const res = await fetch(`${base}/api/v1/pub/context`,{signal:AbortSignal.timeout(10_000)});
   if (!res.ok) throw new Error(`Perpl context ${res.status}`);
   const full = await res.json();
   // Only what the apps need: the exchange address and the market list with marks.
@@ -39,7 +44,12 @@ export function startApi(hooks: { onPoke?: () => void; status?: () => Record<str
     res.setHeader("access-control-allow-headers", "content-type");
     res.setHeader("content-type", "application/json");
     if (req.method === "OPTIONS") return res.end();
-    const url = new URL(req.url ?? "/", "http://x");
+    let url:URL;
+    try{url=new URL(req.url??"/","http://x");}catch{res.statusCode=400;return res.end(JSON.stringify({message:"Invalid request URL"}));}
+    const ip=req.socket.remoteAddress??"unknown", now=Date.now();
+    for(const [key,value] of requests) if(now-value.at>60_000)requests.delete(key);
+    const window=requests.get(ip)??{at:now,count:0};requests.set(ip,window);
+    if(++window.count>600||requests.size>2000){res.statusCode=429;res.setHeader("retry-after","60");return res.end(JSON.stringify({message:"Too many requests; retry shortly"}));}
     try {
       if (req.method === "GET" && url.pathname === "/perpl/context") {
         return res.end(await perplContext(url.searchParams.get("net") ?? "mainnet"));
@@ -51,15 +61,20 @@ export function startApi(hooks: { onPoke?: () => void; status?: () => Record<str
       if (req.method === "GET" && url.pathname === "/flow") {
         return res.end(JSON.stringify(flowSnapshot()));
       }
+      if (req.method === "GET" && url.pathname === "/receipts") {
+        const vault=url.searchParams.get("vault")??"";
+        if (!/^0x[0-9a-fA-F]{40}$/.test(vault)) throw new Error("Invalid vault address.");
+        return res.end(JSON.stringify(await receiptsFor(vault)));
+      }
       if (req.method === "GET" && url.pathname === "/nansen") {
         const addresses = (url.searchParams.get("addresses") ?? "").split(",").filter((a) => /^0x[0-9a-fA-F]{40}$/.test(a));
         return res.end(JSON.stringify({ mode: nansenMode, data: await nansenFor(addresses) }));
       }
       if (req.method === "POST" && url.pathname === "/quote") {
         if (deployment.demo) throw new Error("quotes are for mainnet deployments; demo uses DemoRouter");
-        let body = "";
-        for await (const chunk of req) body += chunk;
+        const body = await readBodyLimit(req);
         const { userAddress, tokenIn, tokenOut, amount } = JSON.parse(body);
+        if(!/^\d{1,40}$/.test(String(amount))||BigInt(amount)<=0n)throw Error("Amount must be a positive token quantity");
         if (!allowed.has(String(tokenIn).toLowerCase()) || !allowed.has(String(tokenOut).toLowerCase()))
           throw new Error("pair not allowed");
         const q = await kuruQuote(getAddress(userAddress) as Address, tokenIn, tokenOut, BigInt(amount));
@@ -78,5 +93,5 @@ export function startApi(hooks: { onPoke?: () => void; status?: () => Record<str
       res.statusCode = 400;
       res.end(JSON.stringify({ status: "error", message: (e as Error).message }));
     }
-  }).listen(PORT, () => console.log(`keeper API on :${PORT}`));
+  }).setTimeout(15_000).listen(PORT, () => console.log(`keeper API on :${PORT}`));
 }

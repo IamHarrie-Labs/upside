@@ -1,0 +1,20 @@
+# Priority work status — 8 October 2026
+
+The scope follows the eight priorities in the project review. “Prepared” or “pending” is not a claim that external verification happened.
+
+| Priority | Result | Evidence / remaining work |
+|---|---|---|
+| 1. Review, disclosure, receipt | Implemented in web and Expo | Read-only preparation, explicit confirmation, no writes on cancel. Complete Closed-event receipt with loss carry-forward, actual payout and fee exclusions. Local transaction loop passed. |
+| 2. Small correctness fixes | Implemented | Explicit verification mode; mock refused for mainnet/non-demo. Counts say follows, not unique followers. Held calls older than the latest 50 are checked directly. Index backfill shows an indexing state. |
+| 3. Intelligence and agent budgets | Implemented and fixture-tested | 35 regression checks: wrong asset/network/price, corruption, locking, cache, reconstructed spend, pending refusal and no paid dry run. Actual MetaMask host policy and funded x402 settlement remain pending. |
+| 4. Keeper/score/exit decision | Documented and reflected in guide | Retain fail-closed preview; no rushed emergency exit. Admin dependencies, stale-exit lock, scoring time and activity-cap exception are explicit. See `keeper-score-exit-decision.md`. |
+| 5. Domain and Android build | Domain/config ready; Expo signed in and project linked | `upside-monad.vercel.app` is live. Actual EAS project `285477d2-32f0-4c89-893c-a1f25288b4bd` belongs to `@iamharrie/upside`. Build archive inspection and signed Android build are underway. Genuine certificate association and hardware tests remain pending; Android and iPhone test sheet prepared. |
+| 6. Hosted flow and sponsor proof | Testnet flow passed; evidence matrix prepared | Call 11 follow/close/withdraw on chain 10143. DemoRouter and generated prices labelled. Sponsors requiring paid/API/native/actual host proof remain marked unverified. |
+| 7. Original artwork and validation | Artwork shipped; interview sprint prepared | Independently generated cabin/traders/clouds asset with prompt provenance. Five actual interviews require participants; no findings fabricated and no outreach sent. |
+| 8. Submission/video/rehearsal | Materials and fallback recording prepared | Submission draft, three-minute narration/shot list and real local browser recording. Public repository, actual narrated take, final portal selection and submission remain external work. |
+
+Builds, type checks and lint cover web, native, keeper and plugin. The contract suite passed 21 tests. UI fixtures reviewed 54 web states and 22 Expo-web states with no runtime errors or transaction writes. Changed-account, expired-quote and zero-gas confirmations refuse before writes. Motion, Grotesk loading, sticky-section behavior and keyboard checks passed. The isolated local UI transaction loop verified a 2 AUSD fee (1.8 caller / 0.2 protocol), withdrawal and loss recovery with zero new fees. Agent local transaction checks passed, including reconstruction after missing state. Bounded receipt backfill resumption and refusal of incomplete history passed. The final hosted browser check verified the original artwork, test-token calls, guide disclosure and the exact complete testnet receipt. This is prototype evidence, not a production security audit.
+
+The first testnet attempts exposed funding propagation and an inadequate 0.10 MON gas reserve. One temporary account retains 0.10 test MON because its in-memory key was discarded after the first failed attempt; another attempt left a demo-token open position. Subsequent attempts returned unused test MON, and the final complete flow used a bounded 0.20 test MON reserve and returned the remainder. These experiments used test tokens and remain visible in the immutable testnet history. The harness now records progress and performs best-effort gas recovery on failure.
+
+Current usability and engineering gains do not remove the production blockers from the original review. Finish actual phone authentication, actual MetaMask policy approval and any sponsor execution being claimed before presenting those rows as complete.

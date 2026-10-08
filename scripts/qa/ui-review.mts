@@ -63,14 +63,15 @@ const shots:any[]=[];
 async function snap(name:string){await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(150);const styled=await page.evaluate(()=>getComputedStyle(document.body).backgroundColor==='rgb(244, 238, 229)');if(!styled)throw new Error(name+': stylesheet did not apply');const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/${name}.png`,fullPage:true});shots.push({name,overflow});}
 for(const width of [1440,390,320]){
   mode='normal';await page.setViewportSize({width,height:900});await page.goto('http://127.0.0.1:5173/');await page.getByRole('heading',{name:'Good calls. Shared upside.'}).waitFor();await snap(`landing-${width}`);
-  if(width===1440){await page.locator('.crew-art .motion-toggle').evaluate(el=>el.style.visibility='hidden');await page.locator('.crew-art').screenshot({path:'mobile/assets/community-strip.png'});await page.locator('.crew-art .motion-toggle').evaluate(el=>el.style.visibility='');await page.getByRole('button',{name:'Resume motion'}).click();await page.getByRole('button',{name:'Pause motion'}).waitFor();}
+  if(width===1440){await page.getByRole('button',{name:'Resume motion'}).click();await page.getByRole('button',{name:'Pause motion'}).waitFor();}
   await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Create account with a passkey'}).waitFor();await snap(`onboarding-${width}`);
   await page.getByRole('button',{name:'Femi (follower)'}).click();await page.locator('.call').first().waitFor();await snap(`calls-${width}`);
+  const beforeReview=writes;await page.getByRole('button',{name:'Follow $50',exact:true}).first().click();await page.getByRole('dialog').waitFor();await snap(`trade-review-${width}`);await page.getByRole('button',{name:'Cancel',exact:true}).click();if(writes!==beforeReview)throw Error('Canceled review sent a transaction');
   await page.getByRole('button',{name:'Live',exact:true}).click();if(await page.locator('.call').count()!==2)throw new Error('Live filter failed');
   await page.getByRole('button',{name:'Scored',exact:true}).click();if(await page.locator('.call').count()!==2)throw new Error('Scored filter failed');
   await page.getByRole('button',{name:'All calls',exact:true}).click();await page.getByRole('searchbox').fill('not-present');await page.getByRole('heading',{name:'Nothing in this view yet.'}).waitFor();await page.getByRole('button',{name:'Show all calls'}).click();
   await page.getByRole('button',{name:'Create',exact:true}).click();await page.getByRole('heading',{name:'Post a call',exact:true}).waitFor();await snap(`create-${width}`);
-  await page.getByLabel('Your fee, % of net gains').fill('31');if(!await page.getByRole('button',{name:'Commit call onchain'}).isDisabled())throw new Error('Invalid fee accepted');await page.getByLabel('Your fee, % of net gains').fill('20');
+  await page.getByLabel('Your fee, % of new realized gains').fill('31');if(!await page.getByRole('button',{name:'Commit call onchain'}).isDisabled())throw new Error('Invalid fee accepted');await page.getByLabel('Your fee, % of new realized gains').fill('20');
   await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();await snap(`vault-${width}`);
   await page.getByTitle('Switch account').click();await page.getByRole('button',{name:'Ada (verified caller)'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
   await page.getByTitle('Switch account').click();await page.getByRole('button',{name:'Femi (follower)'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
@@ -91,7 +92,18 @@ for(const state of ['empty','stale','error','new-vault','loading']){
  if(state==='new-vault'){await page.locator('.call').first().waitFor();await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getByRole('heading',{name:'Your vault',exact:true}).waitFor()}
  await snap(`state-${state}`);
 }
+const reviewGuards=await page.evaluate(async()=>{
+  const {confirmFollow}=await import('/src/lib/upside.ts');
+  const owner='0x1111111111111111111111111111111111111111';
+  const base={owner,createdAt:Date.now(),gasBalance:1n};
+  const cases=[{name:'changed account',session:{account:{address:'0x2222222222222222222222222222222222222222'}},review:base,message:'Account changed'},
+    {name:'expired quote',session:{account:{address:owner}},review:{...base,createdAt:Date.now()-61_000},message:'Quote expired'},
+    {name:'no gas',session:{account:{address:owner}},review:{...base,gasBalance:0n},message:'needs MON'}];
+  const results=[];
+  for(const c of cases){let refused=false;try{await confirmFollow(c.session,c.review)}catch(e){refused=String(e).includes(c.message)};if(!refused)throw Error('Review guard failed: '+c.name);results.push(c.name);}
+  return results;
+});
 if(errors.length)throw new Error('Runtime errors: '+errors.join('; '));
 if(writes)throw new Error('Unexpected write attempts: '+writes);
-writeFileSync('docs/design/ui-qa-results.json',JSON.stringify({date:'2026-10-08',fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,screens:shots},null,2));
+writeFileSync('docs/design/ui-qa-results.json',JSON.stringify({date:'2026-10-08',fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,reviewGuards,screens:shots},null,2));
 console.log(JSON.stringify({screens:shots.length,runtimeErrors:errors,transactionWrites:writes}));await browser.close();

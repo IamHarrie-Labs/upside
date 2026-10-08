@@ -25,6 +25,8 @@ node scripts/qa/local-loss-recovery.mts
 
 Run them in that order. They deliberately control demo prices, balances and time to check profitable settlement, withdrawal, scoring, a loss, and partial recovery. Their balance assertions are designed for a fresh setup rather than repeated execution on an already modified chain. They are not mainnet trading tests.
 
-`node scripts/sync-brand.mjs` regenerates the web/native theme from `brand/tokens.json`. `brand-assets.mts` exports the current mark into app icons. The web review also exports the cropped aircraft/community scene for native onboarding.
+`node scripts/sync-brand.mjs` regenerates the web/native theme from `brand/tokens.json`. `brand-assets.mts` exports the current mark into app icons. The original generated cabin scene is shared by web and native; QA screenshots do not overwrite it.
 
-Hosted trading, signed APKs, physical-phone passkeys, production credentials, and independent contract review are tracked separately in the design review.
+Hosted testnet proof is in docs/design/hosted-testnet-results.json. Signed APKs, physical-phone passkeys, sponsor credentials and independent contract review remain separately tracked in docs/priority-work-status.md.
+
+`node scripts/qa/security-regressions.mts` checks agent reservations, x402 offers, caches and verification policy without making payments. `node scripts/qa/hosted-read-only.mts` checks the live website and the recorded testnet settlement without sending transactions. Run the latter after publishing. The receipt-index check uses a disposable local chain, requires the local transaction scenarios first, and deliberately ages blocks to verify bounded backfill resumption. Artwork prompt provenance is in `app/public/art/README.md`.

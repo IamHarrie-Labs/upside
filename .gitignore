@@ -22,3 +22,10 @@ contracts/lib/
 # MetaMask plugin build output
 mm-plugin/oclif.manifest.json
 mm-plugin/*.tgz
+
+# Signing material and disposable build inspection
+mobile/credentials.json
+*.jks
+*.keystore
+*.p12
+.qa/

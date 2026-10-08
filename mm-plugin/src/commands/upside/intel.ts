@@ -2,12 +2,13 @@ import { CommandError, type CommandIO, InputFieldType, type InputSchema, PluginC
 import { isAddress, type Address } from "viem";
 import { deploymentFor, getCallerRecords, publicReader, type CallerRecord } from "../../core.js";
 import { asCommandError, walletSigner } from "../../host.js";
-import { maxPriceFrom } from "../../rules.js";
+import { maxPriceFrom, intelBudgetFrom } from "../../rules.js";
 import { nansenSmartMoney, type Paid } from "../../x402.js";
 
 const inputs = {
   address: { type: InputFieldType.Text, flag: "address", message: "Caller address", required: true, index: 0 },
   maxPrice: { type: InputFieldType.Text, flag: "max-price", message: "Most USD to pay for the lookup (default 0.10)", required: false, prompt: false },
+  intelDailyBudget: {type:InputFieldType.Text,flag:"intel-daily-budget",message:"Daily USDC intelligence allowance (default 1)",required:false,prompt:false},
 } satisfies InputSchema;
 
 type Result = {
@@ -32,7 +33,7 @@ export default class UpsideIntel extends PluginCommand<Result> {
       const address = String(i.address).toLowerCase() as Address;
       // Payment and Nansen's Monad data are both on Monad mainnet.
       const signer = await walletSigner(this.ctx, io, this.pluginCommandId, 143);
-      const { smartMoney, payment } = await nansenSmartMoney(signer, { maxUsd: maxPriceFrom(i), log: (m) => io.emit(m) });
+      const { smartMoney, payment } = await nansenSmartMoney(signer, { maxUsd: maxPriceFrom(i), maxDailyUsd:intelBudgetFrom(i), log: (m) => io.emit(m) });
       const hit = smartMoney.get(address);
       let upside: CallerRecord | null = null;
       try {

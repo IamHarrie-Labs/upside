@@ -20,6 +20,8 @@ With the local chain running (see the root README), the sign-in screen offers th
 
 You need a free Expo account. Nothing below needs Android Studio.
 
+The preview profile now targets `upside-monad.vercel.app` and the hosted keeper. See [the physical phone test and signing checklist](../docs/phone-test.md). Certificate association files still require genuine signing identity values; successful Expo-web QA does not establish native passkey support.
+
 ```bash
 npm install -g eas-cli
 eas login

@@ -9,7 +9,7 @@ Copy trading usually means handing an agent your keys and hoping. Here an agent 
 3. **Your vault's exposure cap** is enforced by the `FollowVault` contract, whatever the agent does.
 4. **Your Agent Wallet policy:** MetaMask checks every transaction and can ask you to approve it (Guard Mode).
 
-The caller is paid only from your cumulative net profit above a high-water mark, so a follower who is down pays nothing.
+The caller is paid from cumulative realized gains above a per-caller high-water mark. Earlier realized losses are recovered first. Open losses, gas and previous fees are excluded; already paid fees are not refunded.
 
 Two more pieces make the agent accountable and better informed:
 
@@ -44,6 +44,7 @@ Rule flags for `follow` and `autopilot`:
 | `--allow-unverified` | off |
 | `--smart-money-only` | off (Nansen lookup via x402; once per autopilot pass, only when a call passes every other rule) |
 | `--max-price` | $0.10 per x402 request |
+| `--intel-daily-budget` | $1 USDC per UTC day for Nansen authorizations |
 
 All commands take `--chain-id 10143` (testnet, default) or `143` (mainnet) and `--json`. On mainnet, swaps go through Kuru Flow. Quotes come from the Upside keeper, set with `--keeper-api` or `UPSIDE_KEEPER_API`.
 
@@ -88,7 +89,9 @@ All commands target only Monad (143, 10143).
   - The settlement result is reported back.
 - Errors are `CommandError`s with stable codes (`RULES_REFUSED`, `STALE_PRICE`, `TX_DENIED`, …) and a hint.
 
-All logic lives in `src/core.ts`; the commands are thin adapters. The autopilot remembers followed calls and daily spend in `~/.upside/`.
+All trading logic lives in `src/core.ts`; the commands are thin adapters. The autopilot stores atomic, locked daily reservations in `~/.upside/`, reconstructs confirmed spending from chain events, and stops on corruption or unresolved submission. Daily budgets are local policy, separate from the onchain original-cost exposure cap. Another client holding the credential can bypass local policy. See [ledger recovery](../docs/agent-budget-recovery.md).
+
+Nansen authorization requires exact USDC on Monad, a valid recipient, bounded lifetime and the price/daily caps. Thirty-minute results are cached across restarts. An uncertain or failed authorization retains its reservation. Dry runs never purchase intelligence. This snapshot describes recent Nansen Smart Money trades, not a complete or permanent wallet classification. Actual funded payment and Agent Wallet host approval remain unverified.
 
 ## Test
 

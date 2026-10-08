@@ -2,11 +2,13 @@ import type { ExpoConfig } from "expo/config";
 
 // The passkey domain (relying party). The same domain hosts the web app and the association files that let this app
 // use its passkeys: /.well-known/apple-app-site-association and /.well-known/assetlinks.json (see mobile/README.md).
-const RP_ID = process.env.EXPO_PUBLIC_RP_ID ?? "upside.example.com";
+const RP_ID = process.env.EXPO_PUBLIC_RP_ID ?? "upside-monad.vercel.app";
 
 const config: ExpoConfig = {
   name: "Upside",
   slug: "upside",
+  owner: "iamharrie",
+  extra: { eas: { projectId: "285477d2-32f0-4c89-893c-a1f25288b4bd" } },
   scheme: "upside",
   version: "0.1.0",
   orientation: "portrait",

@@ -1,0 +1,24 @@
+# Upload the standalone mobile app, excluding secrets and unrelated services.
+node_modules/
+dist/
+.env
+.env.*
+.git/
+.vercel/
+.expo/
+.claude/
+.qa/
+credentials.json
+*.jks
+*.keystore
+*.p12
+*.log
+/app/
+/contracts/
+/keeper/
+/mm-plugin/
+/indexer/
+/deploy/
+/scripts/
+/brand/
+/docs/

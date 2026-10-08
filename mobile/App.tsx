@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps,
 import {
   ActivityIndicator,
   Image,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -36,7 +37,9 @@ import {
   ensureVault,
   fmtBase,
   fmtQuote,
-  follow,
+  fmtReceipt,
+  prepareFollow,
+  confirmFollow,
   getCallerStats,
   getCalls,
   getHandles,
@@ -54,6 +57,7 @@ import {
   toHandle,
   type Call,
   type CallerStats,
+  type FollowReview,
 } from "./src/lib/upside";
 
 // ----------------------------------------------------------------- theme
@@ -231,7 +235,7 @@ function UpsideApp() {
     body = (
       <>
         <Back onPress={goHome} />
-        <Feed calls={calls.filter((c) => c.id === route.id)} {...feedProps} onCaller={openCaller} />
+        <Feed key={session?.account.address ?? "visitor"} calls={calls.filter((c) => c.id === route.id)} {...feedProps} onCaller={openCaller} />
       </>
     );
   } else if (route.name === "caller") {
@@ -239,7 +243,7 @@ function UpsideApp() {
       <>
         <Back onPress={goHome} />
         <CallerProfile address={route.address} stats={stats} />
-        <Feed
+        <Feed key={session?.account.address ?? "visitor"}
           calls={calls.filter((c) => c.caller.toLowerCase() === route.address.toLowerCase())}
           {...feedProps}
           onCaller={openCaller}
@@ -247,7 +251,7 @@ function UpsideApp() {
       </>
     );
   } else if (tab === "feed") {
-    body = <Feed calls={calls} {...feedProps} onCaller={openCaller} />;
+    body = <Feed key={session?.account.address ?? "visitor"} calls={calls} {...feedProps} onCaller={openCaller} />;
   } else if (tab === "post") {
     body = session ? (
       <Post session={session} mid={mid} stats={stats} busy={busy} run={run} />
@@ -429,7 +433,7 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
       <Image source={require("./assets/community-strip.png")} style={{ width: "100%", height: 165, marginVertical: 8 }} resizeMode="cover" accessible={false} />
       {[
         "Every call is committed on Monad before the move. No deleting losers.",
-        "Callers earn a share of your net gains. Still down with them? They get nothing.",
+        "Callers earn a share of new realized gains. Closed losses are recovered first.",
         "Inspect committed calls and scored outcomes before you follow.",
       ].map((t) => (
         <Text key={t} style={[s.muted, { marginBottom: 6 }]}>
@@ -505,12 +509,17 @@ function Feed(props: {
   const [amount, setAmount] = useState("50");
   const [filter, setFilter] = useState<"all" | "live" | "scored">("all");
   const [query, setQuery] = useState("");
+  const [review, setReview] = useState<{call:Call; quote:FollowReview}|null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [reviewError, setReviewError] = useState("");
   const shown = calls.filter(c => (filter === "all" || (filter === "scored" ? c.scored : !c.scored && c.expiry > now)) &&
     `${nameOf(c.caller)} ${c.caller} ${c.id}`.toLowerCase().includes(query.trim().toLowerCase()));
   if (!calls.length) return <Empty text="No calls here yet." />;
 
   return (
     <View style={{ gap: 10 }}>
+      {review && session && <NativeTradeReview call={review.call} quote={review.quote} busy={busy} error={reviewError} cancel={() => {if(!busy) setReview(null);}} confirm={() => run(`Following call #${review.call.id} with $${fmtQuote(review.quote.amount)}`, async () => {const hash=await confirmFollow(session,review.quote);setReview(null);return hash;})} />}
+      {!!reviewError && <Text accessibilityRole="alert" style={s.notice}>{reviewError}</Text>}
       <View style={{ flexDirection: "row", gap: 8 }}>
         {(["all", "live", "scored"] as const).map(f => <Pressable key={f} accessibilityRole="button" accessibilityState={{ selected: filter === f }} onPress={() => setFilter(f)} style={[s.pill, filter === f && s.pillOn]}><Text style={{ color: filter === f ? C.accent : C.ink }}>{({ all: "All calls", live: "Live", scored: "Scored" })[f]}</Text></Pressable>)}
       </View>
@@ -543,9 +552,9 @@ function Feed(props: {
                 <RecordLine st={st} />
               </View>
               <View style={{ alignItems: "flex-end" }}>
-                <Text style={s.small}>{c.feeBps / 100}% of net gains</Text>
+                <Text style={s.small}>{c.feeBps / 100}% of new realized gains</Text>
                 <Text style={s.small}>
-                  {c.followers} {c.followers === 1 ? "follower" : "followers"} · ${fmtQuote(c.followedVolume, 0)}
+                  {c.followers<0 ? "Activity indexing" : `${c.followers} ${c.followers===1?"follow":"follows"} · ${fmtQuote(c.followedVolume,0)} ${QUOTE_SYMBOL}`}
                 </Text>
               </View>
             </View>
@@ -573,7 +582,7 @@ function Feed(props: {
               style={s.link}
               onPress={() =>
                 shareLink(
-                  `${nameOf(c.caller)} called ${c.side === 0 ? "LONG" : "SHORT"} ${BASE_SYMBOL} at ${humanPrice(c.entryMid).toFixed(4)}, target ${humanPrice(c.targetMid).toFixed(4)}. Committed onchain; you only pay if you profit.`,
+                  `${nameOf(c.caller)} called ${c.side === 0 ? "LONG" : "SHORT"} ${BASE_SYMBOL} at ${humanPrice(c.entryMid).toFixed(4)}, target ${humanPrice(c.targetMid).toFixed(4)}. Committed onchain; fees apply to new realized gains.`,
                   `call/${c.id}`,
                 )
               }
@@ -585,17 +594,8 @@ function Feed(props: {
             {active && c.side === 0 && session && !mine && (
               <Btn
                 title={`Follow $${amount}`}
-                disabled={busy || !mid}
-                onPress={() =>
-                  run(`Following call #${c.id} with $${amount}`, async () => {
-                    const amt = parseQuote(amount);
-                    let v = props.vault;
-                    if (!v) v = await ensureVault(session, parseQuote("500"));
-                    const stt = await getVaultState(v);
-                    if (deployment.demo && stt.cash < amt) await demoFaucet(session, v, parseQuote("500"));
-                    return follow(session, v, c.id, amt, (await getMid()) ?? mid!);
-                  })
-                }
+                disabled={busy || preparing || !mid}
+                onPress={async () => {setPreparing(true);setReviewError("");try{setReview({call:c,quote:await prepareFollow(session.account.address,c.id,parseQuote(amount))});}catch(e){setReviewError(describeError(e));}finally{setPreparing(false);}}}
               />
             )}
           </Card>
@@ -603,6 +603,29 @@ function Feed(props: {
       })}
     </View>
   );
+}
+
+function NativeTradeReview({call,quote,busy,error,cancel,confirm}:{call:Call;quote:FollowReview;busy:boolean;error:string;cancel:()=>void;confirm:()=>void}) {
+  return <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={cancel}>
+    <ScrollView contentContainerStyle={{padding:24,paddingTop:48,gap:16,backgroundColor:C.bg,flexGrow:1}}>
+      <Text accessibilityRole="header" style={s.h2}>Review your follow</Text>
+      <Text style={s.muted}>Call #{call.id} · {deployment.chainId===143 ? "Monad mainnet" : "Test network"}</Text>
+      <Card style={{gap:10}}>
+        <Text style={s.who}>${fmtQuote(quote.amount)} {QUOTE_SYMBOL}{deployment.demo ? " · test tokens" : ""}</Text>
+        <Text style={s.muted}>Estimated {quote.output ? fmtBase(quote.output) : "—"} {BASE_SYMBOL} · minimum {fmtBase(quote.minOut)}</Text>
+        <Text style={s.muted}>Exposure after this follow: ${fmtQuote(quote.exposure)} / ${fmtQuote(quote.limit)}</Text>
+        <Text style={s.small}>{deployment.demo ? "DemoRouter" : "Kuru Flow"} · 2% price guard · {call.feeBps/100}% performance fee</Text>
+      </Card>
+      <Text style={s.muted}>Fees apply to new realized gains above your previous peak with this caller. Closed losses carry forward. Open losses and gas are excluded; earlier fees are not refunded.</Text>
+      <Text style={s.muted}>Targets and stops describe the call. They do not automatically close your position.</Text>
+      {quote.createVault && <Text style={s.small}>First, create your vault with a ${fmtQuote(quote.limit)} exposure limit.</Text>}
+      {quote.topUp>0n && <Text style={s.small}>Then, add ${fmtQuote(quote.topUp)} test tokens to your vault.</Text>}
+      <Text style={s.small}>Review expires after 60 seconds. Your account needs MON for transaction fees.</Text>
+      {!!error && <Text accessibilityRole="alert" style={s.notice}>{error}</Text>}
+      <Btn title="Confirm follow" disabled={busy||quote.gasBalance===0n} onPress={confirm}/>
+      <Btn ghost title="Cancel" disabled={busy} onPress={cancel}/>
+    </ScrollView>
+  </Modal>;
 }
 
 // ----------------------------------------------------------------- post
@@ -646,7 +669,7 @@ function Post(props: { session: Session; mid: bigint | null; stats: Map<Address,
         <Field label="Target +%" value={target} onChange={setTarget} hint={t ? t.toFixed(4) : ""} />
         <Field label="Stop −%" value={stop} onChange={setStop} hint={sp ? sp.toFixed(4) : ""} />
       </View>
-      <Field label="Your fee, % of net gains (max 30)" value={fee} onChange={setFee} />
+      <Field label="Your fee, % of new realized gains (max 30)" value={fee} onChange={setFee} />
       <Text style={s.label}>Scored after</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {HORIZONS.map(([sec, label]) => (
@@ -708,9 +731,9 @@ function Portfolio(props: {
           <Text style={s.h2}>Your vault</Text>
           <Text style={s.muted}>
             Follows run through your own vault on Monad. Only you can trade or withdraw. Callers are paid by the vault, and
-            only from your net gains with them.
+            only from new realized gains with them.
           </Text>
-          <Field label={`Exposure limit (${QUOTE_SYMBOL})`} value={limit} onChange={setLimit} hint="The vault refuses any follow that would put more than this at risk." />
+          <Field label={`Exposure limit (${QUOTE_SYMBOL})`} value={limit} onChange={setLimit} hint="The vault limits the original cost of open follows. It does not guarantee a maximum loss." />
           <Btn
             title={`Create vault${deployment.demo ? " + 500 test AUSD" : ""}`}
             disabled={busy || !validLimit}
@@ -739,7 +762,7 @@ function Portfolio(props: {
             <Text style={s.bigNum}>${fmtQuote(vs.cash)}</Text>
           </View>
           <View style={{ alignItems: "flex-end" }}>
-            <Text style={s.muted}>At risk</Text>
+            <Text style={s.muted}>Open cost</Text>
             <Text style={{ color: C.ink }}>
               ${fmtQuote(vs.openCost)} / ${fmtQuote(vs.maxExposure, 0)}
             </Text>
@@ -799,14 +822,8 @@ function Portfolio(props: {
       })}
 
       {!!closed.length && <Text style={s.section}>CLOSED</Text>}
-      {closed.map((p) => (
-        <View key={p.id} style={s.closedRow}>
-          <Text style={{ color: C.ink }}>
-            {nameOf(p.caller)} · call #{p.callId}
-          </Text>
-          <Text style={s.muted}>${fmtQuote(p.cost)} in</Text>
-        </View>
-      ))}
+      {closed.map(p => <NativeReceipt key={p.id} position={p} receipt={vs.receipts.find(r=>r.positionId===p.id)} />)}
+      {!!vs.receiptError && <Text style={s.small}>Settlement history is temporarily unavailable. Refresh to retry.</Text>}
 
       {vs.pnl.size > 0 && (
         <Card style={{ gap: 6 }}>
@@ -824,6 +841,17 @@ function Portfolio(props: {
       )}
     </View>
   );
+}
+
+function NativeReceipt({position:p,receipt:r}:{position:VaultState["positions"][number];receipt:VaultState["receipts"][number]|undefined}) {
+  const [open,setOpen]=useState(false);
+  const money=(v:bigint)=>`${v<0n?"−":""}$${fmtReceipt(v<0n?-v:v)}`;
+  const rows=r ? [["Principal",p.cost],["Proceeds",r.proceeds],["Realized gain / loss",r.pnl],["Previous net",r.beforeNet],["Previous peak",r.beforeHighWater],["New gains eligible for fee",r.gain],["Total performance fee",r.callerFee+r.protocolFee],["Caller received",r.callerFee],["Protocol share (included)",r.protocolFee],["Returned to vault",r.proceeds-r.callerFee-r.protocolFee]] as const : [];
+  return <Card style={{gap:8}}>
+    <Pressable accessibilityRole="button" accessibilityState={{expanded:open}} onPress={()=>setOpen(!open)}><Text style={s.who}>{nameOf(p.caller)} · call #{p.callId} · receipt</Text></Pressable>
+    {!r && <Text style={s.small}>Settlement receipt is indexing. Refresh to retry.</Text>}
+    {open && r && <View style={{gap:8}}>{rows.map(([label,value])=><View key={label} style={s.row}><Text style={s.muted}>{label}</Text><Text style={{color:C.ink}}>{money(value)}</Text></View>)}<Text style={s.small}>Gas and open losses are excluded. Previously paid fees are not refunded.</Text>{EXPLORER && <Text style={s.link} onPress={()=>Linking.openURL(`${EXPLORER}/tx/${r.hash}`)}>View settlement transaction</Text>}</View>}
+  </Card>;
 }
 
 function HandleCard({ session, busy, run }: { session: Session; busy: boolean; run: Runner }) {

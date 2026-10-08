@@ -21,6 +21,7 @@ export const ruleInputs = {
     prompt: false,
   },
   maxPrice: text("max-price", "Most USD to pay per x402 request (default 0.10)"),
+  intelDailyBudget: text("intel-daily-budget", "Most USDC to authorize for intelligence per UTC day (default 1.00; separate from AUSD trading)"),
   allowUnverified: {
     type: InputFieldType.Boolean,
     flag: "allow-unverified",
@@ -73,6 +74,7 @@ export function rulesFrom(i: Record<string, unknown>, perCall: bigint): Rules {
 }
 
 export const maxPriceFrom = (i: Record<string, unknown>) => num(i.maxPrice, "max-price", 0.1);
+export const intelBudgetFrom = (i: Record<string, unknown>) => num(i.intelDailyBudget, "intel-daily-budget", 1);
 
 /** The rules as published in an ERC-8004 registration (human units). */
 export function mandateOf(rules: Rules, dailyBudget: bigint) {

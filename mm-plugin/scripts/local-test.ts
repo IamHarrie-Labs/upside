@@ -3,13 +3,13 @@
 //
 // Needs: anvil on :8547, `bash scripts/setup-local.sh` (Ada verified), and the keeper pushing prices.
 //   cd mm-plugin && npm run test:local
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createPublicClient, createWalletClient, http, type Address, type Hex, type PublicClient } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { foundry } from "viem/chains";
-import { CallBookAbi } from "../src/abi.js";
+import { CallBookAbi, KeeperPriceSourceAbi } from "../src/abi.js";
 import {
   autopilotPass,
   close,
@@ -79,6 +79,8 @@ const host: Host = {
 const kinds = (acts: PilotAction[], callId: number) => acts.filter((a) => "callId" in a && a.callId === callId).map((a) => a.kind);
 
 async function main() {
+  const seed=wallet('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
+  const price=await seed.writeContract({address:d.priceSource,abi:KeeperPriceSourceAbi,functionName:'push',args:[d.base,d.settlement,2000000n]});await read.waitForTransactionReceipt({hash:price});
   if (!(await getMid(host))) throw new Error("No fresh mid onchain: start the keeper first.");
   await read.request({ method: "anvil_setBalance" as any, params: [host.account, "0x56BC75E2D63100000"] as any });
   console.log(`agent wallet ${host.account}\n`);
@@ -126,6 +128,9 @@ async function main() {
   const cap = pass2.find((a) => a.kind === "skipped" && a.callId === third) as Extract<PilotAction, { kind: "skipped" }> | undefined;
   check(!!cap?.reasons.some((r) => r.includes("exposure cap")), `skips call #${third}: vault exposure cap`);
 
+  const ledger=join(process.env.UPSIDE_STATE_DIR!,`autopilot-31337-${host.account.toLowerCase()}.json`);unlinkSync(ledger);
+  const recovered=await autopilotPass(host,{...opts,dailyBudget:parseQuote('20')});
+  check(recovered.some(a=>a.kind==='skipped'&&a.callId===third&&a.reasons.some(r=>r.includes('daily budget'))),'missing local state reconstructs confirmed daily spend');
   // Manual close works through the same path.
   const longPos = (await getVaultState(host, vault)).positions.find((p) => p.callId === adaLong && p.open)!;
   await close(host, vault, longPos);
@@ -142,12 +147,13 @@ async function main() {
     ...smartRules,
     smartMoney: async () => (lookups++, new Map([[ada, { label: "30D Smart Trader" }]])),
   });
-  check(kinds(smart, third).includes("followed") && lookups === 1, `--smart-money-only follows a listed caller, with one paid lookup per pass`);
+  check(!kinds(smart, third).includes("followed") && lookups === 0, `dry-run Smart Money rule refuses without buying intelligence`);
 
   // Close on expiry: wait for Ada's short call to expire, then a pass closes it.
   console.log(`\nwaiting for call #${adaShort} to expire…`);
   const call: any = await read.readContract({ address: d.callBook, abi: CallBookAbi, functionName: "getCall", args: [BigInt(adaShort)] });
-  while (Number((await read.getBlock()).timestamp) < Number(call.expiry) + 2) await new Promise((r) => setTimeout(r, 2000));
+  await read.request({method:'evm_increaseTime' as any,params:[Math.max(1,Number(call.expiry)+2-Number((await read.getBlock()).timestamp))] as any});await read.request({method:'evm_mine' as any});
+  const fresh=await seed.writeContract({address:d.priceSource,abi:KeeperPriceSourceAbi,functionName:'push',args:[d.base,d.settlement,2000000n]});await read.waitForTransactionReceipt({hash:fresh});
   const pass3 = await autopilotPass(host, opts);
   check(kinds(pass3, adaShort).includes("closed"), `closes the position on call #${adaShort} after it expires`);
 

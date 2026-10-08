@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-08T18:49:45.005Z",
+  "scope": "Actual local closed events with global scanner not initialized",
+  "boundedBackfillResumes": true,
+  "partialHistoryRefused": true,
+  "completeHistory": true,
+  "closedPositions": 3,
+  "correctFeeSplit": true,
+  "lossRecovery": true,
+  "invalidVaultRefused": true
+}

@@ -3,7 +3,7 @@
   "chainId": 31337,
   "realLocalTransactions": true,
   "realFundsUsed": false,
-  "postedCalls": 2,
+  "postedCalls": 1,
   "followAUSD": 50,
   "closeProceedsAUSD": 60,
   "totalPerformanceFeeAUSD": 2,

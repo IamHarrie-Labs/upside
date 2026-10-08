@@ -3,6 +3,11 @@
   "fixtureOnly": true,
   "transactionWrites": 0,
   "runtimeErrors": [],
+  "reviewGuards": [
+    "changed account",
+    "expired quote",
+    "no gas"
+  ],
   "screens": [
     {
       "name": "landing-1440",
@@ -14,6 +19,10 @@
     },
     {
       "name": "calls-1440",
+      "overflow": false
+    },
+    {
+      "name": "trade-review-1440",
       "overflow": false
     },
     {
@@ -77,6 +86,10 @@
       "overflow": false
     },
     {
+      "name": "trade-review-390",
+      "overflow": false
+    },
+    {
       "name": "create-390",
       "overflow": false
     },
@@ -134,6 +147,10 @@
     },
     {
       "name": "calls-320",
+      "overflow": false
+    },
+    {
+      "name": "trade-review-320",
       "overflow": false
     },
     {

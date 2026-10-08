@@ -5,25 +5,28 @@
 // a volume) so restarts resume instead of rescanning. Only Followed events from vaults created by Upside's
 // VaultFactory count, so another contract emitting the same event can't inflate a call's numbers.
 // The Envio indexer (indexer/) serves the same data and more at scale.
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync } from "node:fs";
 import { decodeEventLog, parseAbi, toEventSelector, type Address } from "viem";
 import { deployment, publicClient } from "./env.js";
 
 const ABI = parseAbi([
   "event VaultCreated(address indexed owner, address vault, uint256 maxExposure)",
   "event Followed(uint256 indexed positionId, uint256 indexed callId, address indexed caller, uint256 amountIn, uint256 baseOut)",
+  "event Closed(uint256 indexed positionId, uint256 indexed callId, address indexed caller, uint256 proceeds, int256 pnl, uint256 callerFee, uint256 protocolFee)",
 ]);
 const VAULT_CREATED = toEventSelector(ABI[0]);
 const FOLLOWED = toEventSelector(ABI[1]);
+const CLOSED = toEventSelector(ABI[2]);
 const CHUNK = BigInt(process.env.LOGS_CHUNK ?? 100);
 const STATE_FILE = process.env.FLOW_STATE;
 
-type State = { cursor: string; vaults: string[]; flow: Record<string, { followers: number; volume: string }> };
-let state: State = { cursor: String(deployment.startBlock), vaults: [], flow: {} };
+type State = { cursor: string; vaults: string[]; flow: Record<string, { followers: number; volume: string }>; receipts:Record<string,any[]>; anchor?:string };
+const empty = ():State => ({ cursor: String(deployment.startBlock), vaults: [], flow: {},receipts:{} });
+let state: State = empty();
 try {
   if (STATE_FILE) {
     const saved = JSON.parse(readFileSync(STATE_FILE, "utf8"));
-    if (saved.chainId === deployment.chainId && saved.factory === deployment.factory) state = saved.state;
+    if (saved.version === 2 && saved.chainId === deployment.chainId && saved.factory === deployment.factory) state = saved.state;
   }
 } catch {
   // no saved state yet
@@ -33,30 +36,40 @@ const vaults = new Set(state.vaults);
 function save() {
   if (!STATE_FILE) return;
   try {
-    writeFileSync(STATE_FILE, JSON.stringify({ chainId: deployment.chainId, factory: deployment.factory, state }));
+    writeFileSync(`${STATE_FILE}.tmp`, JSON.stringify({ version:2, chainId: deployment.chainId, factory: deployment.factory, state }));
+    renameSync(`${STATE_FILE}.tmp`,STATE_FILE);
   } catch (e) {
     console.error("flow: could not save state:", (e as Error).message);
   }
 }
 
 let busy = false;
+let lastHead=0n;
 /** Scans new blocks up to the chain head, at most `maxChunks` chunks per call. */
 export async function syncFlow(maxChunks = 50) {
   if (busy) return;
   busy = true;
   try {
     const head = await publicClient.getBlockNumber();
+    lastHead=head;
     let from = BigInt(state.cursor);
+    if (state.anchor && from>BigInt(deployment.startBlock)) {
+      const canonical = await publicClient.getBlock({blockNumber:from-1n});
+      if (canonical.hash !== state.anchor) {state=empty();vaults.clear();from=BigInt(state.cursor);}
+    }
     for (let i = 0; i < maxChunks && from <= head; i++) {
       const to = from + CHUNK - 1n > head ? head : from + CHUNK - 1n;
       const logs = await publicClient.getLogs({ fromBlock: from, toBlock: to } as any).catch(async () =>
         // some RPCs reject address-less queries; fall back to the two event topics
         publicClient.request({
           method: "eth_getLogs",
-          params: [{ fromBlock: `0x${from.toString(16)}`, toBlock: `0x${to.toString(16)}`, topics: [[VAULT_CREATED, FOLLOWED]] }],
+          params: [{ fromBlock: `0x${from.toString(16)}`, toBlock: `0x${to.toString(16)}`, topics: [[VAULT_CREATED, FOLLOWED, CLOSED]] }],
         } as any),
       );
-      for (const l of logs as any[]) {
+      const anchor=(await publicClient.getBlock({blockNumber:to})).hash ?? undefined;
+      const before=structuredClone(state); const previousVaults=new Set(vaults);
+      try { for (const l of logs as any[]) {
+        if (l.removed) continue;
         const topic = l.topics?.[0];
         if (topic === VAULT_CREATED && l.address.toLowerCase() === deployment.factory.toLowerCase()) {
           const ev = decodeEventLog({ abi: ABI, data: l.data, topics: l.topics }) as any;
@@ -66,8 +79,14 @@ export async function syncFlow(maxChunks = 50) {
           const id = String(ev.args.callId);
           const cur = state.flow[id] ?? { followers: 0, volume: "0" };
           state.flow[id] = { followers: cur.followers + 1, volume: (BigInt(cur.volume) + ev.args.amountIn).toString() };
+        } else if (topic === CLOSED && vaults.has(l.address.toLowerCase())) {
+          const ev = decodeEventLog({abi:ABI,data:l.data,topics:l.topics}) as any;
+          const rows=state.receipts[l.address.toLowerCase()]??[];
+          if (!rows.some(r=>r.positionId===String(ev.args.positionId))) rows.push({positionId:String(ev.args.positionId),callId:String(ev.args.callId),caller:ev.args.caller,proceeds:String(ev.args.proceeds),pnl:String(ev.args.pnl),callerFee:String(ev.args.callerFee),protocolFee:String(ev.args.protocolFee),hash:l.transactionHash});
+          state.receipts[l.address.toLowerCase()]=rows;
         }
-      }
+      }} catch(e){state=before;vaults.clear();previousVaults.forEach(v=>vaults.add(v));throw e;}
+      state.anchor=anchor;
       from = to + 1n;
       state.cursor = from.toString();
     }
@@ -81,5 +100,6 @@ export async function syncFlow(maxChunks = 50) {
 }
 
 export function flowSnapshot() {
-  return { cursor: Number(state.cursor), vaults: vaults.size, flow: state.flow };
+  return { cursor: Number(state.cursor), head:Number(lastHead), vaults: vaults.size, flow: state.flow };
 }
+export function receiptSnapshot(vault:string) { return {cursor:Number(state.cursor),receipts:state.receipts[vault.toLowerCase()]??[]}; }

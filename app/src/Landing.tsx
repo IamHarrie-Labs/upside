@@ -19,7 +19,7 @@ const QUESTIONS = [
 const STEPS = [
   { title: "Read the whole record.", text: "Start with a trader's calls. See what worked, what missed, and what's still open before you follow." },
   { title: "Make your own move.", text: "Choose a call and an amount. The trade runs through your vault, with an exposure limit you set." },
-  { title: "Share what you actually gain.", text: "Close when you're ready. A fee is earned only on new gains above your previous peak with that trader." },
+  { title: "Share what you actually gain.", text: "Close when you're ready. A fee is earned only on new realized gains above your previous peak with that trader." },
 ];
 
 export default function Landing({ onStart, onBrowse }: { onStart: () => void; onBrowse: () => void }) {
@@ -52,7 +52,7 @@ export default function Landing({ onStart, onBrowse }: { onStart: () => void; on
     <main id="landing-main" tabIndex={-1}>
       <section className="intro-section" aria-labelledby="intro-title">
         <div className="landing-hero">
-          <div className="hero-copy"><p className="eyebrow">Trading calls on Monad</p><h1 id="intro-title">Good calls.<br /><span>Shared upside.</span></h1><p className="hero-description">Follow a trader through your own vault. They earn a share of your gains after earlier losses are recovered.</p><div className="hero-actions"><button className="ink-button" onClick={onBrowse}>Explore the calls</button></div><p className="hero-footnote">{deployment.demo ? "Testnet preview · Demo trading venue" : "Hackathon preview"}</p></div>
+          <div className="hero-copy"><p className="eyebrow">Trading calls on Monad</p><h1 id="intro-title">Good calls.<br /><span>Shared upside.</span></h1><p className="hero-description">Follow a trader through your own vault. They earn a share of your realized gains after earlier closed losses are recovered.</p><div className="hero-actions"><button className="ink-button" onClick={onBrowse}>Explore the calls</button></div><p className="hero-footnote">{deployment.demo ? "Testnet preview · Demo trading venue" : "Hackathon preview"}</p></div>
         <svg className="clouds" viewBox="0 0 1464 230" preserveAspectRatio="none" aria-hidden="true">
           <g fill="#fafbfc" stroke="#575652" strokeWidth="2">
             <path d="M-20 230V185Q8 138 58 175Q70 122 120 126Q143 80 198 110Q228 58 285 100Q311 119 313 154Q355 115 405 148Q420 176 414 203Q474 170 508 230Z"/>
@@ -63,7 +63,7 @@ export default function Landing({ onStart, onBrowse }: { onStart: () => void; on
         </svg>
         </div>
         <div className="crew-art" aria-label="Decorative illustrations of traders inside an aircraft">
-          <video autoPlay={!paused} loop muted playsInline preload="metadata" poster="/art/crew-poster.jpg" aria-hidden="true" ref={video => { if (video) { if (paused) video.pause(); else void video.play().catch(() => {}); } }}><source src="/art/crew-motion.mp4" type="video/mp4"/></video>
+          <img className="cabin-illustration" src="/art/cabin-original-v1.png" alt="" width="2164" height="727" decoding="async" />
           <button className="motion-toggle" aria-pressed={paused} onClick={() => setPaused(!paused)}>{paused ? "Resume motion" : "Pause motion"}</button>
         </div>
       </section>
@@ -72,7 +72,7 @@ export default function Landing({ onStart, onBrowse }: { onStart: () => void; on
         <ol className="step-list">{STEPS.map((step, i) => <li key={step.title} data-step={i} className={activeStep === i ? "active-step" : ""}><span aria-hidden="true">0{i + 1}</span><div><h3>{step.title}</h3><p>{step.text}</p></div></li>)}</ol>
       </section>
       <section className="fee-story" id="fees" aria-labelledby="fee-title">
-        <div><p className="eyebrow">How traders get paid</p><h2 id="fee-title">Recover losses first.<br /><em>Then share the gains.</em></h2><p>A winning trade doesn't erase a loss. Your fee follows your total result with each trader.</p><p className="section-note">Venue costs affect your trading result. Network gas is paid separately.</p></div>
+        <div><p className="eyebrow">How traders get paid</p><h2 id="fee-title">Recover losses first.<br /><em>Then share the gains.</em></h2><p>Your fee follows your closed trades with each trader. A closed gain first recovers earlier closed losses.</p><p className="section-note">Venue costs affect your trading result. Open losses are excluded. Earlier fees are not refunded. Network gas is paid separately.</p></div>
         <div className="fee-example" data-decorative-motion><span className="folio">An example, before trading costs</span><div><span>First trade</span><b className="down">−20 AUSD</b></div><div><span>Next trade</span><b className="up">+10 AUSD</b></div><div className="example-total"><span>Still recovering earlier losses</span><b>0 fee</b></div><div className="receipt-stamp" aria-hidden="true">Losses recovered first</div></div>
       </section>
       <section className="control-section" id="your-vault" aria-labelledby="control-title">

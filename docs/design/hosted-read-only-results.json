@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-08T18:55:45.648Z",
+  "url": "https://upside-monad.vercel.app",
+  "actualHostedReceipt": true,
+  "completeHistory": true,
+  "matchingTransaction": true,
+  "landingArtwork": true,
+  "browseTestnetCalls": true,
+  "guideDisclosure": true,
+  "horizontalOverflow": false,
+  "runtimeErrors": [],
+  "scope": "Read-only hosted browser and keeper check; no phone authentication or trading"
+}

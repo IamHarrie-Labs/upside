@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-08T18:30:40.206Z",
+  "chainId": 10143,
+  "demo": true,
+  "venue": "DemoRouter",
+  "price": "Keeper-generated demo prices",
+  "realMarketTrade": false,
+  "physicalPhone": false,
+  "metamaskHost": false,
+  "callId": 11,
+  "caller": "0xd1Cf22e7Ddd13709895B9F2bc3fED7dd16f451fe",
+  "follower": "0xD44c1945ca6ACE56EB9490dAdb6E8978EBb6C95A",
+  "vault": "0xD80a8c400e34739025d4c93B1080f732384E68BC",
+  "settlement": {
+    "positionId": "0",
+    "callId": "11",
+    "caller": "0xd1Cf22e7Ddd13709895B9F2bc3fED7dd16f451fe",
+    "proceeds": "9999999",
+    "pnl": "-1",
+    "callerFee": "0",
+    "protocolFee": "0"
+  },
+  "withdrawn": "9999999",
+  "followerGasRemaining": "0",
+  "transactions": [
+    {
+      "label": "post demo call",
+      "hash": "0xfa8caca8a64fe558a76bfc84a2024ece26d6d1a2b8888b21072af31c274a09fb",
+      "block": 69326761,
+      "url": "https://testnet.monadvision.com/tx/0xfa8caca8a64fe558a76bfc84a2024ece26d6d1a2b8888b21072af31c274a09fb"
+    },
+    {
+      "label": "fund follower with 0.20 test MON",
+      "hash": "0xd18034df1a80893cbb48d77eb71c23864408f6f1f7d97398c57774635b9ef36e",
+      "block": 69326774,
+      "url": "https://testnet.monadvision.com/tx/0xd18034df1a80893cbb48d77eb71c23864408f6f1f7d97398c57774635b9ef36e"
+    },
+    {
+      "label": "Create Upside vault with a 50.00 AUSD exposure cap",
+      "hash": "0x8ff9a77b1012d07239a7b301de3e6fe65d7eecbaba0394488fcdff8005c6bb9b",
+      "block": 69326786,
+      "url": "https://testnet.monadvision.com/tx/0x8ff9a77b1012d07239a7b301de3e6fe65d7eecbaba0394488fcdff8005c6bb9b"
+    },
+    {
+      "label": "Mint 10.00 test AUSD into the vault (testnet faucet)",
+      "hash": "0xbabcba27a805843c2767a3c3d8fafae2b5d54c660937883178efb2a1ea8e42a8",
+      "block": 69326796,
+      "url": "https://testnet.monadvision.com/tx/0xbabcba27a805843c2767a3c3d8fafae2b5d54c660937883178efb2a1ea8e42a8"
+    },
+    {
+      "label": "Follow Upside call #11: buy MON with 10.00 AUSD (caller earns 20% of net profit only)",
+      "hash": "0xba660f9fc12533021c598dc10b49d2d743a1cb0e88394fe7618affb05b52f631",
+      "block": 69326812,
+      "url": "https://testnet.monadvision.com/tx/0xba660f9fc12533021c598dc10b49d2d743a1cb0e88394fe7618affb05b52f631"
+    },
+    {
+      "label": "Close Upside position #0 (4.9926 MON, cost 10.00 AUSD)",
+      "hash": "0x8db57557cfd52bc27bbd641714efc35e7310207b408600de3cf3a478fc648c94",
+      "block": 69326830,
+      "url": "https://testnet.monadvision.com/tx/0x8db57557cfd52bc27bbd641714efc35e7310207b408600de3cf3a478fc648c94"
+    },
+    {
+      "label": "withdraw test AUSD",
+      "hash": "0x78e8f54ddd6a5c6955907cb6701dc15fa76848af759c4f73b3a633685640aec5",
+      "block": 69326844,
+      "url": "https://testnet.monadvision.com/tx/0x78e8f54ddd6a5c6955907cb6701dc15fa76848af759c4f73b3a633685640aec5"
+    },
+    {
+      "label": "return remaining test MON",
+      "hash": "0x455c20cbf7a294aa5007ce2bd7f569167fd97ed4a7865adc4de02f2e977b62d0",
+      "block": 69326855,
+      "url": "https://testnet.monadvision.com/tx/0x455c20cbf7a294aa5007ce2bd7f569167fd97ed4a7865adc4de02f2e977b62d0"
+    }
+  ]
+}

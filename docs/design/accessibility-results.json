@@ -4,6 +4,6 @@
   "pauseMotion": true,
   "reducedMotion": true,
   "namedButtons": true,
-  "videoPause": true,
+  "illustrationPause": true,
   "scope": "Targeted browser checks, not a full accessibility certification"
 }

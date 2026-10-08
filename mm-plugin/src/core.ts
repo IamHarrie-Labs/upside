@@ -19,6 +19,7 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { loadLedger, saveLedger, withLedgerLock, type PilotState } from "./ledger.js";
 import {
   AttestedGateAbi,
   CallBookAbi,
@@ -463,7 +464,6 @@ export async function close(h: Host, vault: Address, p: Position, slippageBps = 
 // ----------------------------------------------------------------- autopilot
 
 /** Local memory so an autopilot never follows the same call twice or overspends its daily budget. */
-type PilotState = { followed: number[]; spent: Record<string, string> };
 
 function statePath(h: Pick<Host, "chainId" | "account">) {
   const dir = process.env.UPSIDE_STATE_DIR ?? join(homedir(), ".upside");
@@ -471,27 +471,28 @@ function statePath(h: Pick<Host, "chainId" | "account">) {
   return join(dir, `autopilot-${h.chainId}-${h.account.toLowerCase()}.json`);
 }
 function loadState(h: Pick<Host, "chainId" | "account">): PilotState {
-  try {
-    return JSON.parse(readFileSync(statePath(h), "utf8"));
-  } catch {
-    return { followed: [], spent: {} };
-  }
+  return loadLedger(statePath(h));
 }
 function saveState(h: Pick<Host, "chainId" | "account">, s: PilotState) {
-  writeFileSync(statePath(h), JSON.stringify(s, null, 2));
+  saveLedger(statePath(h), s);
 }
 
 export type PilotAction =
   | { kind: "followed"; callId: number; caller: Address; amount: string; positionId: number | null; hash?: Hex }
   | { kind: "closed"; positionId: number; callId: number; hash?: Hex }
   | { kind: "skipped"; callId: number; caller: Address; reasons: string[] }
+  | { kind: "syncing"; reason: string }
   | { kind: "stopped"; reason: string };
 
 /**
  * One autopilot pass: close positions whose call has expired (if asked), then follow open calls that pass the
  * rules, within the daily budget and the vault's onchain exposure cap.
  */
-export async function autopilotPass(
+export async function autopilotPass(h: Host, opts: Parameters<typeof lockedAutopilotPass>[1]): Promise<PilotAction[]> {
+  return withLedgerLock(statePath(h), () => lockedAutopilotPass(h, opts));
+}
+
+async function lockedAutopilotPass(
   h: Host,
   opts: {
     rules: Rules;
@@ -504,19 +505,46 @@ export async function autopilotPass(
 ): Promise<PilotAction[]> {
   const actions: PilotAction[] = [];
   const state = loadState(h);
-  const day = new Date().toISOString().slice(0, 10);
+  const chainNow = Number((await h.read.getBlock()).timestamp);
+  const day = new Date(chainNow * 1000).toISOString().slice(0, 10);
   let spent = BigInt(state.spent[day] ?? "0");
 
   const vault = await getVault(h, h.account);
   if (!vault) return [{ kind: "stopped", reason: "No Upside vault yet. Run `mm upside deposit` first." }];
   let vs = await getVaultState(h, vault);
+  if (state.pending) return [{kind:"stopped",reason:"An earlier trade has unresolved spend reserved. Reconcile its receipt before clearing pending state; no new follow will be sent."}];
+  // Reconcile actual Followed events, including follows made outside this process. Bounded catch-up resumes
+  // across passes; no new trade is permitted until today's history reaches the current chain head.
+  const head = await h.read.getBlockNumber({ cacheTime: 0 });
+  if (state.scan?.day !== day) {
+    const midnight = BigInt(Math.floor(Date.parse(`${day}T00:00:00Z`) / 1000));
+    let low = BigInt(h.d.startBlock), high = head;
+    while (low < high) { const b = (low + high) / 2n; const block = await h.read.getBlock({blockNumber:b}); if (block.timestamp < midnight) low = b + 1n; else high = b; }
+    state.scan = {day,next:low.toString(),total:"0"};
+  }
+  let cursor = BigInt(state.scan.next), total = BigInt(state.scan.total);
+  for (let n = 0; cursor <= head && n < 50; n++) {
+    const to = cursor + 99n < head ? cursor + 99n : head;
+    const logs = await h.read.getLogs({address:vault,event:FollowVaultAbi.find((e: any) => e.type === "event" && e.name === "Followed") as any,fromBlock:cursor,toBlock:to});
+    for (const log of logs as any[]) total += BigInt(log.args.amountIn);
+    cursor = to + 1n;
+  }
+  state.scan = {day,next:cursor.toString(),total:total.toString()};
+  // A local reservation may be ahead of indexed events; never lower it automatically.
+  spent = total > spent ? total : spent;
+  state.spent[day] = spent.toString();
+  saveState(h, state);
+  if (cursor <= head) return [{kind:"syncing",reason:"Reconciling today's confirmed follows before spending. Catch-up continues on the next pass."}];
   const calls = await getCalls(h, { limit: 50 });
   const byId = new Map(calls.map((c) => [c.id, c]));
 
   if (opts.closeExpired) {
     for (const p of vs.positions.filter((p) => p.open)) {
+      // A held call can be older than the latest 50 discovery results.
       const c = byId.get(p.callId);
-      if (c && !c.open) {
+      const held = c ?? await h.read.readContract({ address: h.d.callBook, abi: CallBookAbi, functionName: "getCall", args: [BigInt(p.callId)] }) as any;
+      const now = Number((await h.read.getBlock()).timestamp);
+      if (held.scored || Number(held.expiry) <= now) {
         if (opts.dryRun) actions.push({ kind: "closed", positionId: p.id, callId: p.callId });
         else {
           const r = await close(h, vault, p);
@@ -541,6 +569,7 @@ export async function autopilotPass(
     if (openCost + amt > vs.maxExposure) reasons.push(`vault exposure cap ${fmtQuote(vs.maxExposure)} AUSD would be exceeded`);
     if (cash < amt) reasons.push(`vault holds ${fmtQuote(cash)} AUSD; follow needs ${fmtQuote(amt)}`);
     if (!reasons.length && opts.rules.requireSmartMoney) {
+      if (opts.dryRun) { actions.push({kind:"skipped",callId:c.id,caller:c.caller,reasons:["Nansen classification needs a paid lookup; dry run signs and pays nothing."]}); continue; }
       if (smart === undefined) {
         try {
           smart = opts.smartMoney ? await opts.smartMoney() : null;
@@ -559,10 +588,13 @@ export async function autopilotPass(
     if (opts.dryRun) {
       actions.push({ kind: "followed", callId: c.id, caller: c.caller, amount: fmtQuote(amt), positionId: null });
     } else {
+      state.pending = {day,amount:amt.toString(),callId:c.id};
+      saveState(h, state); // Reserve before wallet approval/broadcast; crash recovery fails closed.
       const r = await follow(h, vault, c, amt);
       actions.push({ kind: "followed", callId: c.id, caller: c.caller, amount: fmtQuote(amt), positionId: r.positionId, hash: r.hash });
       state.followed.push(c.id);
       state.spent[day] = (spent + amt).toString();
+      delete state.pending;
       saveState(h, state);
     }
     spent += amt;

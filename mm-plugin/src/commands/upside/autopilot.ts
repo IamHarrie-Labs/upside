@@ -1,7 +1,7 @@
 import { type CommandIO, InputFieldType, type InputSchema, PluginCommand, schemaToArgs, schemaToFlags } from "@metamask/agent-wallet/plugin";
 import { autopilotPass, fmtQuote, type PilotAction } from "../../core.js";
 import { asCommandError, chainIdFrom, chainInput, keeperInput, walletHost } from "../../host.js";
-import { amountFrom, maxPriceFrom, ruleInputs, rulesFrom } from "../../rules.js";
+import { amountFrom, maxPriceFrom, intelBudgetFrom, ruleInputs, rulesFrom } from "../../rules.js";
 import { nansenSmartMoney } from "../../x402.js";
 
 const inputs = {
@@ -54,7 +54,7 @@ export default class UpsideAutopilot extends PluginCommand<Result> {
       // Paid per pass with USDC on Monad via x402, signed by the Agent Wallet; skipped when no call needs it.
       const smartMoney = rules.requireSmartMoney
         ? async () =>
-            (await nansenSmartMoney({ address: h.account, signTypedData: h.signTypedData! }, { maxUsd, log: (m) => io.emit(m) }))
+            (await nansenSmartMoney({ address: h.account, signTypedData: h.signTypedData! }, { maxUsd, maxDailyUsd:intelBudgetFrom(i), log: (m) => io.emit(m) }))
               .smartMoney
         : undefined;
       const all: PilotAction[] = [];

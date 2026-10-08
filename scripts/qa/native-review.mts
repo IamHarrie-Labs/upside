@@ -63,7 +63,7 @@ async function snap(name:string){await page.evaluate(()=>document.fonts.ready);a
 
 for (const width of [390,768]) {
   mode='normal';await page.setViewportSize({width,height:900});await page.goto('http://127.0.0.1:8081/',{waitUntil:'domcontentloaded'});await page.getByText('Good calls.',{exact:false}).waitFor();await snap(`onboarding-${width}`);
-  await page.getByRole('button',{name:'Femi (follower)'}).click();await page.getByText('@ada',{exact:true}).first().waitFor();await snap(`calls-${width}`);
+  await page.getByRole('button',{name:'Femi (follower)'}).click();await page.getByText('@ada',{exact:true}).first().waitFor();await snap(`calls-${width}`);await page.getByRole('button',{name:'Follow $50',exact:true}).click();await page.getByText('Review your follow',{exact:true}).waitFor();await snap(`trade-review-${width}`);await page.getByRole('button',{name:'Cancel',exact:true}).click();
   if(await page.getByRole('button',{name:'Follow $50',exact:true}).count()!==1)throw new Error('Short calls must not offer spot follow');
   await page.getByRole('button',{name:'Scored',exact:true}).click();
   if(await page.getByRole('button',{name:'Follow $50',exact:true}).count())throw new Error('Scored filter includes followable calls');

@@ -8,13 +8,14 @@
 import { keccak256, toHex, type Address } from "viem";
 import { AttestedGateAbi } from "./abi.js";
 import { deployment, publicClient, walletClient } from "./env.js";
+import { verificationMode } from "./verification-policy.js";
 
 const [caller, daysArg] = process.argv.slice(2) as [Address, string | undefined];
 if (!caller) {
   console.error("usage: npm run attest -- <callerAddress> [days]");
   process.exit(1);
 }
-const mode = process.env.CLEANVERSE_MODE ?? "mock";
+const mode = verificationMode(process.env.CLEANVERSE_MODE, deployment.chainId, deployment.demo);
 
 type APass = { status: string; expiresAt: number; reference: string };
 

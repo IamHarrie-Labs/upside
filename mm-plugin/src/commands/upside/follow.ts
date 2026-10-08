@@ -2,7 +2,7 @@ import { CommandError, type CommandIO, InputFieldType, type InputSchema, PluginC
 import type { Address, Hex } from "viem";
 import { checkCall, fmtQuote, follow, getCallerRecords, getCalls, getVault, getVaultState } from "../../core.js";
 import { asCommandError, chainIdFrom, chainInput, keeperInput, walletHost } from "../../host.js";
-import { amountFrom, maxPriceFrom, ruleInputs, rulesFrom } from "../../rules.js";
+import { amountFrom, maxPriceFrom, intelBudgetFrom, ruleInputs, rulesFrom } from "../../rules.js";
 import { nansenSmartMoney } from "../../x402.js";
 
 const inputs = {
@@ -39,9 +39,10 @@ export default class UpsideFollow extends PluginCommand<Result> {
       const rec = (await getCallerRecords(h, [call.caller])).get(call.caller.toLowerCase() as Address);
       const reasons = checkCall(call, rec, rules);
       if (!reasons.length && rules.requireSmartMoney) {
+        if (i.dryRun) throw new CommandError("PAID_CHECK_REQUIRED", "Dry run did not buy Nansen intelligence.", "Run upside intel first, or explicitly authorize a real follow with the Smart Money rule.");
         const { smartMoney } = await nansenSmartMoney(
           { address: h.account, signTypedData: h.signTypedData! },
-          { maxUsd: maxPriceFrom(i), log: (m) => io.emit(m) },
+          { maxUsd: maxPriceFrom(i), maxDailyUsd: intelBudgetFrom(i), log: (m) => io.emit(m) },
         );
         if (!smartMoney.has(call.caller.toLowerCase())) reasons.push("caller is not a Nansen Smart Money wallet on Monad");
       }
