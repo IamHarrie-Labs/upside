@@ -14,7 +14,7 @@ import {
   StatusBar as RNStatusBar,
 } from "react-native";
 import type { Address } from "viem";
-import { deployment, EXPLORER, IS_LOCAL, WEB_URL } from "./src/env";
+import { deployment, EXPLORER, IS_LOCAL, REFRESH_MS, WEB_URL } from "./src/env";
 import { getPerplPositions, perplEnabled, perplUrl, type PerplPosition } from "./src/lib/perpl";
 import { getNansen, type NansenInfo } from "./src/lib/nansen";
 import {
@@ -172,7 +172,7 @@ export default function App() {
 
   useEffect(() => {
     refresh().catch(() => {});
-    const t = setInterval(() => refresh().catch(() => {}), 2500);
+    const t = setInterval(() => refresh().catch(() => {}), REFRESH_MS);
     return () => clearInterval(t);
   }, [refresh]);
 

@@ -24,7 +24,7 @@ import {
 } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { AttestedGateAbi, CallBookAbi, DemoRouterAbi, DemoTokenAbi, FollowVaultAbi, HandlesAbi, KeeperPriceSourceAbi, VaultFactoryAbi } from "./abi.js";
-import { chain, deployment as d, publicClient, walletClient } from "./env.js";
+import { chain, deployment as d, publicClient, rpcTransport, walletClient } from "./env.js";
 
 if (!d.demo || d.chainId === 143) throw new Error("Demo venues only (testnet or local)");
 const handles = (d as any).handles as Address;
@@ -61,8 +61,11 @@ writeFileSync(
 );
 const persona = (key: string) => {
   const account = privateKeyToAccount(key as Hex);
-  return { account, wallet: createWalletClient({ chain, transport: http(rpcUrl), account }) };
+  return { account, wallet: createWalletClient({ chain, transport: rpcTransport(), account }) };
 };
+// SEED_FINISH=1 skips to the last step after an interrupted run: wait for Ada's short calls (SEED_SHORT, default
+// "0,1,2,3") to be scored, then Femi closes her position on the first one (FEMI_POSITION, default 0).
+const FINISH = process.env.SEED_FINISH === "1";
 const ada = persona(saved.ADA_KEY);
 const sybil = persona(saved.SYBIL_KEY);
 const femi = persona(saved.FEMI_KEY);
@@ -161,6 +164,14 @@ const getCall = (id: number) =>
 // ------------------------------------------------------------------ seed
 const start = await publicClient.getBalance({ address: walletClient.account.address });
 
+let short: number[] = [];
+let femiVault: Address = zeroAddress;
+let femiShort = 0;
+if (FINISH) {
+  short = (process.env.SEED_SHORT ?? "0,1,2,3").split(",").map(Number);
+  femiVault = (await publicClient.readContract({ address: d.factory, abi: VaultFactoryAbi, functionName: "vaultOf", args: [femi.account.address] })) as Address;
+  femiShort = Number(process.env.FEMI_POSITION ?? 0);
+} else {
 console.log("1/6 funding personas with testnet MON");
 await fund(ada.account.address, "0.4");
 await fund(femi.account.address, "0.4");
@@ -182,7 +193,6 @@ await setHandle(sybil, "sybil_farm");
 await setHandle(femi, "femi");
 
 console.log("3/6 Ada posts short calls (scored in minutes) and open calls for the coming days");
-const short: number[] = [];
 for (const h of [180, 240, 300, 360]) short.push(await post(ada, h, 1500, 2, 2));
 const open24h = await post(ada, 24 * 3600, 1500, 6, 4);
 const open3d = await post(ada, 3 * 86_400, 2000, 12, 6);
@@ -190,8 +200,8 @@ const open6h = await post(ada, 6 * 3600, 1000, 3, 2);
 console.log(`   short #${short.join(", #")} · open #${open6h} (6h), #${open24h} (24h), #${open3d} (3d)`);
 
 console.log("4/6 Femi follows Ada's first short call and her 24h call");
-const femiVault = await vaultFor(femi, "500", "500");
-const femiShort = await follow(femi, femiVault, short[0], "100");
+femiVault = await vaultFor(femi, "500", "500");
+femiShort = await follow(femi, femiVault, short[0], "100");
 const femiLong = await follow(femi, femiVault, open24h, "50");
 console.log(`   vault ${femiVault}: position #${femiShort} on call #${short[0]}, #${femiLong} on call #${open24h}`);
 
@@ -205,6 +215,7 @@ for (let i = 0; i < FAKE_FOLLOWERS; i++) {
   process.stdout.write(".");
 }
 console.log(`\n   call #${sybilCall}: ${FAKE_FOLLOWERS} wallets, $${FAKE_FOLLOWERS * 100} behind it`);
+}
 
 console.log("6/6 waiting for Ada's short calls to be scored, then Femi closes");
 const deadline = Date.now() + 20 * 60_000;

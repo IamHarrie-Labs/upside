@@ -52,6 +52,19 @@ export const chain = defineChain({
   name: CHAIN_ID === 143 ? "Monad" : CHAIN_ID === 10143 ? "Monad Testnet" : "Local Monad",
   nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
   rpcUrls: { default: { http: [RPC_URL] } },
+  // Multicall3 (standard address) is deployed on Monad mainnet and testnet, not on a bare Anvil node.
+  ...(CHAIN_ID === 143 || CHAIN_ID === 10143
+    ? { contracts: { multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" as Address } } }
+    : {}),
 });
 
-export const publicClient = createPublicClient({ chain, transport: http(RPC_URL), pollingInterval: 500 });
+// Public Monad RPCs allow ~15 requests/s per IP: off the local chain, a refresh's contract reads are bundled
+// into Multicall3 calls instead of one request each.
+export const publicClient = createPublicClient({
+  chain,
+  transport: http(RPC_URL),
+  pollingInterval: 500,
+  batch: { multicall: CHAIN_ID === 143 || CHAIN_ID === 10143 },
+});
+/** How often the screens re-read chain state. */
+export const REFRESH_MS = CHAIN_ID === 31337 ? 2000 : 5000;

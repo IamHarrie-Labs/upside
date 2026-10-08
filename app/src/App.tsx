@@ -35,7 +35,7 @@ import {
   type Call,
   type CallerStats,
 } from "./lib/upside";
-import { deployment, EXPLORER, IS_LOCAL } from "./env";
+import { deployment, EXPLORER, IS_LOCAL, REFRESH_MS } from "./env";
 import { getPerplPositions, perplEnabled, perplUrl, type PerplPosition } from "./lib/perpl";
 import { getNansen, type NansenInfo } from "./lib/nansen";
 
@@ -56,6 +56,8 @@ const nameOf = (a: string) => {
   return h ? `@${h}` : short(a);
 };
 const go = (hash: string) => (location.hash = hash);
+/** "#/" and "#" are the home screen; detail routes are "#/call/N" and "#/caller/0x…". */
+const currentRoute = () => (location.hash === "#/" || location.hash === "#" ? "" : location.hash);
 
 async function share(title: string, text: string, hash: string) {
   const url = `${location.origin}${location.pathname}${hash}`;
@@ -96,11 +98,11 @@ export default function App() {
   const [vs, setVs] = useState<VaultState | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [busy, setBusy] = useState(false);
-  const [route, setRoute] = useState(location.hash);
+  const [route, setRoute] = useState(currentRoute);
   const [, setHandleTick] = useState(0);
 
   useEffect(() => {
-    const on = () => (setRoute(location.hash), window.scrollTo(0, 0));
+    const on = () => (setRoute(currentRoute()), window.scrollTo(0, 0));
     addEventListener("hashchange", on);
     return () => removeEventListener("hashchange", on);
   }, []);
@@ -131,7 +133,7 @@ export default function App() {
 
   useEffect(() => {
     refresh().catch(() => {});
-    const t = setInterval(() => refresh().catch(() => {}), 2000);
+    const t = setInterval(() => refresh().catch(() => {}), REFRESH_MS);
     return () => clearInterval(t);
   }, [refresh]);
 

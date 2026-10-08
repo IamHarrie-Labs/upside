@@ -36,5 +36,18 @@ export const chain = defineChain({
 });
 
 export const account = privateKeyToAccount(key);
-export const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
-export const walletClient = createWalletClient({ chain, transport: http(rpcUrl), account });
+// Public Monad RPCs rate-limit per IP (testnet: 15 requests/s) and answer with JSON-RPC error -32011, which viem
+// doesn't treat as retryable. Retry those (and HTTP 429) with backoff here.
+export const rateLimitedFetch: typeof fetch = async (input, init) => {
+  for (let i = 0; ; i++) {
+    const res = await fetch(input, init);
+    if (i >= 7) return res;
+    const limited = res.status === 429 || (res.ok && (await res.clone().text()).includes('"code":-32011'));
+    if (!limited) return res;
+    await new Promise((r) => setTimeout(r, 250 * 2 ** i + Math.random() * 250));
+  }
+};
+export const rpcTransport = () => http(rpcUrl, { fetchFn: rateLimitedFetch, retryCount: 3 });
+const transport = rpcTransport();
+export const publicClient = createPublicClient({ chain, transport });
+export const walletClient = createWalletClient({ chain, transport, account });
