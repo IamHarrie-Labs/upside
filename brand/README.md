@@ -12,7 +12,7 @@ Warm editorial finance. Comfortable spacing, public records, and precise typogra
 
 ## Mark and artwork
 
-The rounded U monogram accompanies the Space Grotesk wordmark. Use both in ink, leaving at least half a mark's width of clear space. The standalone mark works for app icons. Do not rotate, stretch, or add a gradient.
+The Cabin emblem accompanies the Space Grotesk wordmark. Its aircraft-window silhouette connects to the landing illustration; the horizontal division suggests a horizon. Use both in ink, leaving at least half a mark's width of clear space. The standalone mark works for app icons. Do not rotate, stretch, or add a gradient. The user selected Cabin from the three concepts archived in `brand/logo-options/`.
 
 `app/src/Brand.tsx` contains the vector mark and address-derived glyphs. The landing uses the cropped aircraft/community footage supplied in `Agent CrewArea.mp4`, with cloud framing in SVG. The portraits are decorative, not actual Upside customers or trader endorsements. The reference artwork is not represented as newly created Upside illustration. Native onboarding uses a static cropped export of this scene.
 

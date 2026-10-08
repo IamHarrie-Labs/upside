@@ -15,7 +15,7 @@ The interface has an original paper, ink and copper identity across web and Expo
 
 | Folder | What it is |
 | --- | --- |
-| `contracts/` | Foundry project: `CallBook`, `FollowVault`, `VaultFactory`, `UpsideConfig`, `AttestedGate`, `KeeperPriceSource`, plus testnet-only `demo/` contracts. 18 tests. |
+| `contracts/` | Foundry project: `CallBook`, `FollowVault`, `VaultFactory`, `UpsideConfig`, `AttestedGate`, `KeeperPriceSource`, plus testnet-only `demo/` contracts. 21 tests, including three review cases documenting current limitations. |
 | `app/` | Mobile-first web app (Vite + React + viem). Passkey accounts via [Mera](https://mera.category.xyz). Also hosts the passkey association files. |
 | `mobile/` | Native iOS/Android app (Expo SDK 57) sharing the same contract logic; EAS APK profile configured. Physical-device passkeys and the signed build remain release checks. See `mobile/README.md`. |
 | `mm-plugin/` | MetaMask Agent Wallet plugin (`mm upside …`): an AI agent with an ERC-8004 identity follows verified callers within your rules, your vault's onchain cap and your Agent Wallet policy, and pays for Nansen intel over x402. See `mm-plugin/README.md`. |

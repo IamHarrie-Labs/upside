@@ -261,4 +261,47 @@ contract UpsideTest is Test {
         vm.expectRevert(KeeperPriceSource.Stale.selector);
         ks.midPrice(address(wmon), address(ausd));
     }
+
+    // Review evidence: these tests record current limitations, not desired production guarantees.
+    function test_reviewLateScoringUsesPriceAtExecution() public {
+        uint256 id = _post(caller);
+        vm.warp(block.timestamp + 1 hours);
+        _setPrice(2.2e6); // +10% at expiry, but nobody scores the call.
+        vm.warp(block.timestamp + 1 days);
+        _setPrice(2.8e6);
+        assertEq(book.scoreCall(id), 4000); // +40% at actual scoring time.
+    }
+
+    function test_reviewStalePriceBlocksCloseAndKeepsBaseLocked() public {
+        KeeperPriceSource ks = new KeeperPriceSource(admin, 120);
+        vm.startPrank(admin);
+        ks.setKeeper(admin, true);
+        ks.push(address(wmon), address(ausd), 2e6);
+        book.setPriceSource(ks);
+        vm.stopPrank();
+        uint256 pid = _follow(_post(caller), 100e6);
+        uint256 base = vault.getPosition(pid).baseAmount;
+        vm.warp(block.timestamp + 121);
+        bytes memory closeData = _sellData(base, address(vault));
+        vm.prank(follower);
+        vm.expectRevert(KeeperPriceSource.Stale.selector);
+        vault.close(pid, address(router), closeData, 0);
+        assertTrue(vault.getPosition(pid).open);
+        assertEq(vault.lockedBase(address(wmon)), base);
+    }
+
+    function test_reviewOpenLossDoesNotOffsetClosedWinnerFee() public {
+        uint256 winner = _follow(_post(caller), 100e6); // 50 WMON at 2.
+        _setPrice(4e6);
+        uint256 loser = _follow(_post(caller), 400e6); // 100 WMON at 4.
+        _setPrice(3e6);
+        (int256 pnl, uint256 callerFee) = _close(winner);
+        assertEq(pnl, 50e6);
+        assertEq(callerFee, 9e6); // 10 total fee, including the protocol's 1.
+        assertEq(vault.netPnl(caller), 50e6);
+        assertTrue(vault.getPosition(loser).open);
+        uint256 remainingValue = vault.getPosition(loser).baseAmount * 3e6 / 1e18;
+        assertEq(remainingValue, 300e6); // Remaining position has an unrealized loss of 100.
+        assertLt(pnl + int256(remainingValue) - 400e6, 0); // Combined trading result is negative.
+    }
 }

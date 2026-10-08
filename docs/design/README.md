@@ -2,7 +2,7 @@
 
 Reviewed 8 October 2026.
 
-The current direction combines the aircraft, illustrated traders and clouds with a locally bundled Space Grotesk type system and a rounded U monogram. Landing, account creation, calls, author profiles, call details, creation, vaults, rankings, help, privacy, terms and error states share the paper/ink/copper system.
+The current direction combines the aircraft, illustrated traders and clouds with a locally bundled Space Grotesk type system and the user-selected Cabin aircraft-window emblem. Landing, account creation, calls, author profiles, call details, creation, vaults, rankings, help, privacy, terms and error states share the paper/ink/copper system.
 
 ## What changed
 
@@ -52,7 +52,7 @@ The current direction combines the aircraft, illustrated traders and clouds with
 - `accessibility-results.json`: keyboard skip navigation, named buttons, animation pause, and reduced-motion behavior. This is a targeted check, not full accessibility certification.
 - `local-e2e-results.json`: real transactions on Anvil chain 31337 through the browser UI: post, follow 50 test AUSD, close for 60, settle a 2 AUSD performance fee (1.8 to caller; 0.2 protocol share), withdraw 5, and score the call. Separate losing and partial-recovery rounds paid no new caller fee.
 - Production web build, web lint, native TypeScript and native-source lint.
-- Existing Foundry suite: 18 passed, 0 failed. Includes exposure, ownership, loss recovery, stale price, unverified fees and locked-token behavior.
+- Foundry suite: 21 passed, 0 failed. Includes exposure, ownership, loss recovery, stale price, unverified fees and locked-token behavior. Three review cases document delayed scoring, stale-price exit blocking and unrealized-loss exclusion; they confirm limitations rather than fix them. See [the project review](../project-review-2026-10-08.md).
 
 The fixture suites deliberately block transaction writes. The separate local end-to-end suite broadcasts only to Anvil using public development keys and test tokens; no real funds were used. Prices were controlled to exercise settlement and loss recovery. Fixture screenshots are named by route/state and are refreshed for the current UI; screenshots prefixed `local-` show the transaction checks from revision `31dfc8f`, whose contract logic is unchanged. Neither suite establishes hosted RPC reliability or real-device authentication.
 

@@ -3,8 +3,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const require=createRequire(import.meta.url);
 const {chromium}=require('C:/Users/Harrie/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const t=JSON.parse(readFileSync('brand/tokens.json','utf8'));
-const mark='<path d="M6 6H13V22C13 26.4 15.6 29 20 29S27 26.4 27 22V6H34V22C34 30.8 28.8 36 20 36S6 30.8 6 22V6Z" fill="'+t.ink+'"/>';
-const svg=(solid=true)=>`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64">${solid?`<rect width="64" height="64" rx="14" fill="${t.bg}"/>`:''}<g transform="translate(12 10)">${mark}</g></svg>`;
+const mark='<path fill-rule="evenodd" d="M32 5C44 5 52 13 52 25V40C52 52 44 60 32 60S12 52 12 40V25C12 13 20 5 32 5ZM32 14C25 14 21 19 21 26V37H43V26C43 19 39 14 32 14ZM22 45C24 49 27 51 32 51S40 49 42 45H22Z" fill="'+t.ink+'"/>';
+const svg=(solid=true)=>`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64">${solid?`<rect width="64" height="64" rx="14" fill="${t.bg}"/>`:''}<g transform="translate(12 11) scale(.625)">${mark}</g></svg>`;
 writeFileSync('app/public/favicon.svg',svg());
 const b=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});const p=await b.newPage({viewport:{width:512,height:512}});
 for(const [size,paths,solid] of [[512,['app/public/icon-512.png','app/public/icon-maskable-512.png'],true],[1024,['mobile/assets/icon.png'],true],[192,['app/public/icon-192.png'],true],[180,['app/public/apple-touch-icon.png'],true],[64,['mobile/assets/favicon.png'],true],[1024,['mobile/assets/android-icon-foreground.png'],false],[96,['mobile/assets/brand-mark.png'],false]]){

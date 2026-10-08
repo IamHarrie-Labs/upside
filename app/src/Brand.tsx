@@ -1,5 +1,5 @@
 export function BrandMark({ className = "" }: { className?: string }) {
-  return <svg className={className} width="30" height="30" viewBox="0 0 40 40" fill="currentColor" aria-hidden="true"><path d="M6 6H13V22C13 26.4 15.6 29 20 29S27 26.4 27 22V6H34V22C34 30.8 28.8 36 20 36S6 30.8 6 22V6Z"/></svg>;
+  return <svg className={className} width="30" height="30" viewBox="0 0 64 64" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M32 5C44 5 52 13 52 25V40C52 52 44 60 32 60S12 52 12 40V25C12 13 20 5 32 5ZM32 14C25 14 21 19 21 26V37H43V26C43 19 39 14 32 14ZM22 45C24 49 27 51 32 51S40 49 42 45H22Z"/></svg>;
 }
 export function WalletGlyph({ address }: { address: string }) {
   const n = parseInt(address.slice(2, 8), 16) || 1;
