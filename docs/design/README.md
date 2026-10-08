@@ -2,11 +2,11 @@
 
 Reviewed 8 October 2026.
 
-The new identity replaces the reference footage with an original rising-path mark and a hand-drawn financial-record journey. Landing, account creation, calls, author profiles, call details, creation, vaults, rankings, help, privacy, terms and error states now share the same paper/ink/copper system.
+The current direction keeps the new paper/ink/copper interface, typography and product improvements, with the aircraft, illustrated traders and clouds restored from the user's video reference. The quotation-style mark replaces the rejected rising-path logo. Landing, account creation, calls, author profiles, call details, creation, vaults, rankings, help, privacy, terms and error states share this visual system.
 
 ## What changed
 
-- Original artwork and controllable vector animation replace the borrowed clip and portraits.
+- The reference's aircraft/community scene is incorporated into the new layout. Portraits are decorative. The cropped scene excludes the reference's name and headline; video and clouds have pause and reduced-motion handling.
 - A concrete product story and a labelled fee example explain cumulative loss recovery.
 - Calls have filters, search, status labels, and address-derived identity marks.
 - Loading, connection failures, stale prices, empty records, and invalid links have explicit states.
@@ -23,7 +23,7 @@ The new identity replaces the reference footage with an original rising-path mar
 
 | Page or state | Assessment and evidence |
 |---|---|
-| Landing | Original artwork, specific value proposition, explanation and fee example. Desktop/phone screenshots; both account and browse paths tested. |
+| Landing | New editorial layout, aircraft/community scene and cloud framing, specific value proposition, explanation and fee example. Desktop/phone screenshots; both account and browse paths tested. |
 | Account creation / sign-in | Consistent brand; accessible name field and processing/error states. Local account navigation tested. Physical passkey authentication is a separate check. |
 | Calls | Filters, search, identity, fees, thesis, status, and score are grouped consistently. Fixture data includes live, scored, winning and losing calls. |
 | Call detail | Supported call IDs show the record; unsupported IDs have an explicit empty record. Accessible return navigation. |
@@ -49,7 +49,7 @@ The new identity replaces the reference footage with an original rising-path mar
 - Production web build, web lint, native TypeScript and native-source lint.
 - Existing Foundry suite: 18 passed, 0 failed. Includes exposure, ownership, loss recovery, stale price, unverified fees and locked-token behavior.
 
-The fixture suites deliberately block transaction writes. The separate local end-to-end suite broadcasts only to Anvil using public development keys and test tokens; no real funds were used. Prices were controlled to exercise settlement and loss recovery. Fixture screenshots are named by route/state; screenshots prefixed `local-` show the local transaction checks. Neither suite establishes hosted RPC reliability or real-device authentication.
+The fixture suites deliberately block transaction writes. The separate local end-to-end suite broadcasts only to Anvil using public development keys and test tokens; no real funds were used. Prices were controlled to exercise settlement and loss recovery. Fixture screenshots are named by route/state and are refreshed for the current UI; screenshots prefixed `local-` show the transaction checks from revision `31dfc8f`, whose contract logic is unchanged. Neither suite establishes hosted RPC reliability or real-device authentication.
 
 ## Remaining release gates
 

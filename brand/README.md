@@ -8,13 +8,13 @@ Upside is a marketplace for committed trading calls and loss-aware compensation.
 
 ## Visual direction
 
-Warm editorial finance. Comfortable spacing, public records, precise typography, and original line illustrations. The warm illustrated feel of the user's reference is retained; its characters, clouds, aircraft, footage, logo, and composition are not used in the current product.
+Warm editorial finance. Comfortable spacing, public records, and precise typography. The latest direction keeps the new interface and editorial typography while incorporating the aircraft, illustrated traders, and cloud framing from the user's video reference. The reference's product name and headline are excluded from the visible artwork.
 
 ## Mark and artwork
 
-The mark traces a rising path with a deliberate setback and an open upward arrow. It works at small sizes without a wordmark. Use the copper mark next to the ink wordmark, leaving at least half a mark's width of clear space. Do not rotate, stretch, or add a gradient.
+The quotation-style mark suggests a trader's stated call. Use the copper mark next to the ink wordmark, leaving at least half a mark's width of clear space. Do not rotate, stretch, or add a gradient. It replaces the rising-path mark that the user rejected.
 
-`app/src/Brand.tsx` contains the original vector mark, address-derived glyphs, and three-record illustration. The illustration connects a committed call, a user-controlled vault, and a settlement receipt. It conveys process, not a promised investment result. The moving copper dot and gently drifting records express progress without implying constant market gains.
+`app/src/Brand.tsx` contains the vector mark and address-derived glyphs. The landing uses the cropped aircraft/community footage supplied in `Agent CrewArea.mp4`, with cloud framing in SVG. The portraits are decorative, not actual Upside customers or trader endorsements. The reference artwork is not represented as newly created Upside illustration. Native onboarding uses a static cropped export of this scene.
 
 ## Tokens
 
@@ -50,12 +50,12 @@ Direct, specific, calm. Say what happens, what it costs, and what the user contr
 
 ## Motion and accessibility
 
-Landing motion can be paused and respects the system's reduced-motion preference. No autoplay video or audio remains. Browser navigation has named landmarks, labels, visible focus rings, statuses, errors, and recovery paths. Phone actions have generous touch targets. Native uses a static export of the original illustration; native animated playback is not claimed.
+Landing video is muted and plays inline. Video and cloud motion can be paused and respect the system's reduced-motion preference, including when that preference changes while the page is open. Browser navigation has named landmarks, labels, visible focus rings, statuses, errors, and recovery paths. Phone actions have generous touch targets. Native uses a static scene; native animated playback is not claimed.
 
 ## Assets and reproducibility
 
 - Web favicon and app/PWA icons: `app/public/`.
 - Expo app/adaptive icons and illustration: `mobile/assets/`.
 - `scripts/qa/brand-assets.mts` exports icons from the original mark.
-- `scripts/qa/ui-review.mts` exports the static illustration during its desktop check.
+- `scripts/qa/ui-review.mts` exports the cropped native community scene during its desktop check.
 - The browser scripts use the Codex-bundled Playwright path on this machine. Adjust that path when moving the tooling to another environment.

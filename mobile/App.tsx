@@ -409,7 +409,7 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
       <Text style={[s.h1, { fontSize: 42, letterSpacing: -1.8 }]}>Good calls.
         {"\n"}Shared upside.</Text>
       <Text style={s.lede}>Trading calls you only pay for when you profit.</Text>
-      <Image source={require("./assets/signal-journey.png")} style={{ width: "100%", height: 165, marginVertical: 8 }} resizeMode="contain" accessibilityLabel="A committed call, your vault, and shared gains" />
+      <Image source={require("./assets/community-strip.png")} style={{ width: "100%", height: 165, marginVertical: 8 }} resizeMode="cover" accessible={false} />
       {[
         "Every call is committed on Monad before the move. No deleting losers.",
         "Callers earn a share of your net gains. Still down with them? They get nothing.",

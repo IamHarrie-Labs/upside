@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const require=createRequire(import.meta.url);
 const {chromium}=require('C:/Users/Harrie/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const t=JSON.parse(readFileSync('brand/tokens.json','utf8'));
-const mark=`<path d="M7 30V22L17 13V23L30 10" stroke="${t.accent}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M23 10H31V18" stroke="${t.accent}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="9" cy="34" r="2" fill="${t.accent}"/>`;
+const mark=`<path d="M6 23C6 14 10 9 18 8V13C14 14 12 16 12 20H18V31H6V23ZM23 23C23 14 27 9 35 8V13C31 14 29 16 29 20H35V31H23V23Z" fill="${t.accent}"/>`;
 const svg=(solid=true)=>`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64">${solid?`<rect width="64" height="64" rx="14" fill="${t.bg}"/>`:''}<g transform="translate(12 10)">${mark}</g></svg>`;
 writeFileSync('app/public/favicon.svg',svg());
 const b=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});const p=await b.newPage({viewport:{width:512,height:512}});
