@@ -431,7 +431,7 @@ export async function follow(h: Host, vault: Address, call: Call, amountIn: bigi
         args: [BigInt(call.id), amountIn, router, data, minOut],
       }),
     },
-    `Follow Upside call #${call.id}: buy MON with ${fmtQuote(amountIn)} AUSD (caller earns ${call.feeBps / 100}% of net profit only)`,
+    `Follow Upside call #${call.id}: buy MON with ${fmtQuote(amountIn)} AUSD (caller earns ${call.feeBps / 100}% of new realized gains)`,
   );
   const positionId = hash ? await positionFromReceipt(h, hash) : null;
   return { hash, positionId };

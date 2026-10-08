@@ -6,9 +6,11 @@ description: Follow verified traders' onchain calls on Monad with the user's Met
 # Upside on MetaMask Agent Wallet
 
 Upside is a feed of trading calls on Monad. Every call is committed onchain before the move and scored
-against the market mid at expiry, losers included. Followers trade from their own vault, and a caller is
-paid only from the follower's cumulative net profit above a high-water mark. Only callers with an active
-Cleanverse A-Pass are "verified" and can earn fees.
+against the fresh mid when scored after expiry, losers included. Followers trade from their own vault.
+Caller fees use new cumulative realized gains above a per-caller high-water mark after earlier closed
+losses are recovered. Open losses, gas and previous fees are excluded; paid fees are not refunded.
+The current gate attestation determines whether a caller earns. Testnet uses explicit demo attestations;
+the intended Cleanverse A-Pass integration still requires authenticated verification.
 
 The `mm upside` commands come from the `mm-plugin-upside` plugin. Always pass `--json` and read the
 `ok`, `data` and `error.code` fields.
@@ -45,9 +47,12 @@ Rule flags, shared by `follow` and `autopilot`:
 - `--max-age-min` (15): only follow calls posted within this many minutes, so the entry is close to the caller's.
 - `--callers`: comma-separated allowlist of caller addresses.
 - `--allow-unverified`: include callers without an A-Pass. Off by default.
-- `--smart-money-only`: only callers Nansen lists as Smart Money on Monad. Costs $0.05 USDC per autopilot pass
-  (x402, Monad mainnet), only when some call passes every other rule.
+- `--smart-money-only`: require the caller in Nansen's recent Monad Smart Money trade snapshot. Fresh
+  snapshots are cached for 30 minutes across restarts. A new refresh may cost $0.05 USDC on Monad mainnet,
+  only when a call passes the other rules. A missing wallet is not proof it is never Smart Money.
 - `--max-price` (0.10): most USD per x402 request; higher prices are refused before signing.
+- `--intel-daily-budget` (1): daily USDC authorization allowance, separate from AUSD trading. Uncertain
+  payments retain their reservation. Dry runs never purchase intelligence.
 
 ## How to act
 
@@ -62,8 +67,10 @@ Rule flags, shared by `follow` and `autopilot`:
 4. **Never loosen a rule on your own.** If a command returns `RULES_REFUSED`, report the reasons. Change a
    rule flag (for example `--allow-unverified` or a lower `--min-scored`) only when the user asks for it.
 5. **Autopilot needs explicit limits from the user.** Ask for `--per-call` and `--daily-budget` and
-   confirm them. The vault's `--max-exposure` cap is enforced by the contract and is the hard ceiling,
-   whatever the agent does. Suggest a cap no larger than the user is willing to lose.
+   confirm them. The vault's `--max-exposure` cap limits the original cost of open positions onchain;
+   it is not a guaranteed maximum loss. Daily trading and intelligence allowances are local policies.
+   Missing ledger state is reconciled from chain events. Corrupt or unresolved state stops new trades;
+   follow the recovery guide rather than resetting a budget.
 6. **Identity before autonomy.** Before a long-running `autopilot --watch`, offer to register the agent with
    `mm upside agent register`, using the same limits the user agreed to, so its mandate is public. Its
    transactions are then labelled with the agent id.

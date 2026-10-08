@@ -31,7 +31,7 @@ Solidity call book, per-owner deterministic clone vaults, original-cost exposure
 | Monad | Hosted testnet post/follow/close/withdraw with explorer receipts | Mainnet production readiness |
 | Kuru | Execution adapter and previously documented mainnet-fork round trip | New consented live market execution and exact bounty eligibility |
 | Agora / AUSD | Real AUSD route parameterization; preview uses test stand-in | Real-token mobile flow |
-| Mera | Passkey derivation/signing in web/native | Signed APK association and Android/iPhone hardware test |
+| Mera | Passkey derivation/signing in web/native; genuine Android certificate association published; signed Expo preview submitted | Completed cloud build and Android/iPhone hardware test |
 | MetaMask | Plugin builds; local core workflow tested | Actual Agent Wallet Guard Mode approval/refusal recording |
 | ERC-8004 | Registration/read implementation and documented fork test | Fresh live identity proof; identity is not policy enforcement |
 | x402 / Nansen | Payment challenge/signing path; new deterministic refusal/cache/budget tests | Successful funded payment settlement or authenticated live labels |
@@ -45,10 +45,12 @@ Primary recommendation: Social, Attention & Culture — accountable trading crea
 
 The compelling demo is the link from a public commitment to a follower's own confirmed trade and an intelligible fee receipt. Show one clean loop and one refusal rather than listing every sponsor badge.
 
+Native dependency compatibility and remaining transitive advisories are recorded in `docs/mobile-dependency-review.md`; a passing build is not a production security audit.
+
 ## Boundaries
 
 Fees account for realized trading PnL before performance fees and gas. Open losses are excluded until closed; earlier fees are not refunded. The closing call's rate applies to new gains above the peak. A local daily allowance can be bypassed outside that client; only the vault exposure limit is onchain. Keeper prices and administrator configuration are trusted dependencies. Stale price blocks exits and locks open base tokens. Scores use the price when scored after expiry, not a historical expiry observation. No claim of Sybil-proof reputation, guaranteed profit or production audit is made.
 
 ## Fields still requiring human/external completion
 
-Public repository URL (no Git remote configured), team names and contact, final track/bounty selection from the signed-in portal, signed APK/build URL, physical-phone results, actual user interviews, successful funded sponsor transactions where claimed, and narrated final video. Portal cutoff and sponsor stacking rules remain to be confirmed. Rehearse and prepare submission by 12 October rather than relying on the ambiguous public deadline.
+Public repository URL (no Git remote configured), team names and contact, final track/bounty selection from the signed-in portal, completed APK and physical-phone results, actual user interviews, successful funded sponsor transactions where claimed, and narrated final video. Android build: https://expo.dev/accounts/iamharrie/projects/upside/builds/df217ebf-6926-4b27-98c7-09a772573924. Portal cutoff and sponsor stacking rules remain to be confirmed. Rehearse and prepare submission by 12 October rather than relying on the ambiguous public deadline.

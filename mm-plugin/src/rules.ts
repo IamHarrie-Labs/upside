@@ -16,7 +16,7 @@ export const ruleInputs = {
   smartMoneyOnly: {
     type: InputFieldType.Boolean,
     flag: "smart-money-only",
-    message: "Only follow callers Nansen labels Smart Money on Monad (paid lookup: $0.05 USDC per pass via x402)",
+    message: "Require a caller in Nansen's recent Monad Smart Money trades (30-minute cache; up to $0.05 USDC per refresh via x402)",
     required: false,
     prompt: false,
   },

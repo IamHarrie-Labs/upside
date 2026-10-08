@@ -18,7 +18,7 @@ type Result = { callId: number; caller: Address; amount: string; positionId: num
 
 export default class UpsideFollow extends PluginCommand<Result> {
   static override description =
-    "Follow a call from your Upside vault. Refuses calls that break your rules (unverified caller, weak record, high fee). The caller is paid only from your net profit.";
+    "Follow a call from your Upside vault. Refuses calls that break your rules (unverified caller, weak record, high fee). Caller fees use new realized gains after earlier closed losses; open losses and gas are excluded.";
   static override examples = [
     "<%= config.bin %> upside follow 12 --amount 10",
     "<%= config.bin %> upside follow 12 --amount 10 --min-scored 5 --min-win-rate 60 --max-fee-pct 15 --json",

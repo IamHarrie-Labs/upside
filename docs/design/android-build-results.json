@@ -1,11 +1,13 @@
 {
-  "date": "2026-10-08T19:11:21.3285183Z",
+  "date": "2026-10-08T19:22:41.9995970Z",
   "id": "df217ebf-6926-4b27-98c7-09a772573924",
-  "status": "IN_QUEUE",
+  "status": "FINISHED",
   "sourceCommit": "6e55ae8",
   "profile": "preview",
   "platform": "ANDROID",
   "url": "https://expo.dev/accounts/iamharrie/projects/upside/builds/df217ebf-6926-4b27-98c7-09a772573924",
   "physicalDeviceVerified": false,
-  "signingFingerprint": "15:93:64:40:B0:3F:F6:F2:AA:F2:83:91:E5:DD:F5:B3:EC:0E:5B:96:DF:BC:BB:F5:AF:CC:00:78:F8:0B:2C:1B"
+  "signingFingerprint": "15:93:64:40:B0:3F:F6:F2:AA:F2:83:91:E5:DD:F5:B3:EC:0E:5B:96:DF:BC:BB:F5:AF:CC:00:78:F8:0B:2C:1B",
+  "apkUrl": "https://expo.dev/artifacts/eas/TRitU_EqtwTN-x0gOUoaPzoEcYmKCLTSNWsbz5kY4y0.apk",
+  "cloudDoctorChecksPassed": "20/21; replacement dependency-corrected build required"
 }
