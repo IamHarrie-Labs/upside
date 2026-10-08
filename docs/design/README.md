@@ -2,10 +2,14 @@
 
 Reviewed 8 October 2026.
 
-The current direction keeps the new paper/ink/copper interface, typography and product improvements, with the aircraft, illustrated traders and clouds restored from the user's video reference. The quotation-style mark replaces the rejected rising-path logo. Landing, account creation, calls, author profiles, call details, creation, vaults, rankings, help, privacy, terms and error states share this visual system.
+The current direction combines the aircraft, illustrated traders and clouds with a locally bundled Space Grotesk type system and a rounded U monogram. Landing, account creation, calls, author profiles, call details, creation, vaults, rankings, help, privacy, terms and error states share the paper/ink/copper system.
 
 ## What changed
 
+- Five main landing sections explain the product, the following process, fees, vault controls and common questions. Repeated signup prompts and decorative directional arrows were removed.
+- Copy uses plain terms and concrete behavior. Field-note slogans, repeated taglines and abstract onboarding language were cut.
+- The how-it-works heading stays pinned beside all three steps on larger screens and releases at the section boundary. Phone layouts keep it in normal flow.
+- Receipt and exposure details animate once when visible. Reading copy stays visible; FAQ disclosures work from the keyboard.
 - The reference's aircraft/community scene is incorporated into the new layout. Portraits are decorative. The cropped scene excludes the reference's name and headline; video and clouds have pause and reduced-motion handling.
 - A concrete product story and a labelled fee example explain cumulative loss recovery.
 - Calls have filters, search, status labels, and address-derived identity marks.
@@ -44,6 +48,7 @@ The current direction keeps the new paper/ink/copper interface, typography and p
 - `native-web-qa-results.json`: 20 Expo-web screen states at 390 and 768 pixels, with no runtime errors, horizontal overflow, or transaction writes. This is not physical-phone evidence.
 - `screens/`: screenshots for each reviewed route and state.
 - `contrast-results.json`: all 18 shared foreground/surface combinations meet the 4.5:1 text contrast threshold.
+- `landing-interaction-results.json`: five main sections, actual Grotesk font loading, no decorative arrows, sticky heading/release, third-step progression, keyboard FAQ, motion pause, reduced motion and responsive behavior at 320/390/768/1024/1440 pixels.
 - `accessibility-results.json`: keyboard skip navigation, named buttons, animation pause, and reduced-motion behavior. This is a targeted check, not full accessibility certification.
 - `local-e2e-results.json`: real transactions on Anvil chain 31337 through the browser UI: post, follow 50 test AUSD, close for 60, settle a 2 AUSD performance fee (1.8 to caller; 0.2 protocol share), withdraw 5, and score the call. Separate losing and partial-recovery rounds paid no new caller fee.
 - Production web build, web lint, native TypeScript and native-source lint.

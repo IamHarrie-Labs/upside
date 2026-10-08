@@ -1,22 +1,58 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "./Brand";
 import { deployment } from "./env";
 
+/* MOTION STORYBOARD
+ * 0ms: navigation, headline and actions are ready to use.
+ * Scroll: step markers change at the reading line; the heading stays pinned.
+ * Receipt: its border and stamp settle once the example enters view.
+ * Vault: exposure bar fills once; surrounding text stays visible.
+ * Pause/reduced motion: video, clouds and decorative movement stop.
+ */
+const QUESTIONS = [
+  { q: "What am I paying for?", a: "Each trader sets a performance fee on their call. You pay when you close a follow and your total realized trading gains with that trader pass your previous peak. Earlier losses are recovered first. The protocol's share comes out of that fee." },
+  { q: "Does following a call place a trade?", a: "Yes. A supported follow buys the position through your vault. You choose how much to commit and when to close it. The target and stop describe the trader's plan; they don't close the position automatically." },
+  { q: "Can a trader remove a losing call?", a: "Calls are committed onchain and cannot be edited or deleted. The public record includes scored losses and calls still waiting to be scored. A call's score comes from market mid prices; your own result depends on your fills and when you close." },
+  { q: "Who controls my funds?", a: "Your account controls your vault. Traders cannot withdraw your funds. You can set an exposure limit and withdraw available settlement tokens. Trading and smart contracts carry risk; the limit is not a guaranteed maximum loss." },
+  { q: "Is this using real money?", a: deployment.demo ? "This deployment uses test tokens and a demo trading venue. MON pays network gas. Test AUSD is for trying the flow and has no redemption promise." : "Check the network and assets before trading. This is a hackathon preview, and production services and contracts need separate validation before handling customer funds." },
+];
+const STEPS = [
+  { title: "Read the whole record.", text: "Start with a trader's calls. See what worked, what missed, and what's still open before you follow." },
+  { title: "Make your own move.", text: "Choose a call and an amount. The trade runs through your vault, with an exposure limit you set." },
+  { title: "Share what you actually gain.", text: "Close when you're ready. A fee is earned only on new gains above your previous peak with that trader." },
+];
+
 export default function Landing({ onStart, onBrowse }: { onStart: () => void; onBrowse: () => void }) {
   const [paused, setPaused] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  useEffect(() => { const preference = window.matchMedia("(prefers-reduced-motion: reduce)"); const onChange = () => { if (preference.matches) setPaused(true); }; preference.addEventListener("change", onChange); return () => preference.removeEventListener("change", onChange); }, []);
-  return <div className={`landing ${paused ? "motion-paused" : ""}`}>
+  const [activeStep, setActiveStep] = useState(0);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => { if (preference.matches) setPaused(true); };
+    preference.addEventListener("change", onChange);
+    return () => preference.removeEventListener("change", onChange);
+  }, []);
+  useEffect(() => {
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) if (entry.isIntersecting) {
+        if (entry.target.hasAttribute("data-step")) setActiveStep(Number(entry.target.getAttribute("data-step")));
+        else { entry.target.classList.add("is-in-view"); observer.unobserve(entry.target); }
+      }
+    }, { rootMargin: "-18% 0px -28% 0px", threshold: 0.1 });
+    root.current?.querySelectorAll("[data-step], [data-decorative-motion]").forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+  return <div ref={root} className={`landing ${paused ? "motion-paused" : ""}`}>
     <a className="skip" href="#landing-main">Skip to content</a>
     <header className="landing-header">
       <a className="wordmark" href="#" aria-label="Upside home"><BrandMark />Upside</a>
-      <nav aria-label="About Upside" className="landing-nav"><a href="#how-it-works">How it works</a><a href="#/guide">The field guide</a></nav>
-      <button className="ink-button small" onClick={onStart}>Open Upside <span aria-hidden="true">↗</span></button>
+      <nav aria-label="About Upside" className="landing-nav"><a href="#how-it-works">How it works</a><a href="#fees">Fees</a><a href="#questions">Questions</a></nav>
+      <button className="ink-button small" onClick={onStart}>Open Upside</button>
     </header>
     <main id="landing-main" tabIndex={-1}>
-      <section className="landing-hero">
-        <div className="hero-copy"><p className="eyebrow"><span className="edition-line"/>Good judgment deserves good company.</p><h1>Good calls.<br /><span>Shared upside.</span></h1><p className="hero-description">Find a trader worth following.<br />Share the gains. Recover losses first.</p><div className="hero-actions"><button className="ink-button" onClick={onBrowse}>Explore the calls <span aria-hidden="true">↗</span></button><a className="text-link" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a></div><p className="hero-footnote">Your vault. Your decisions. Their full record.</p></div>
-        <aside className="hero-margin"><span className="folio">FIELD NOTES / 001</span><p>A following<br />has to be<br /><em>earned.</em></p><span className="margin-rule"/><span className="hero-environment">{deployment.demo ? "Testnet preview" : "Built on Monad"}</span></aside>
-
+      <section className="intro-section" aria-labelledby="intro-title">
+        <div className="landing-hero">
+          <div className="hero-copy"><p className="eyebrow">Trading calls on Monad</p><h1 id="intro-title">Good calls.<br /><span>Shared upside.</span></h1><p className="hero-description">Follow a trader through your own vault. They earn a share of your gains after earlier losses are recovered.</p><div className="hero-actions"><button className="ink-button" onClick={onBrowse}>Explore the calls</button></div><p className="hero-footnote">{deployment.demo ? "Testnet preview · Demo trading venue" : "Hackathon preview"}</p></div>
         <svg className="clouds" viewBox="0 0 1464 230" preserveAspectRatio="none" aria-hidden="true">
           <g fill="#fafbfc" stroke="#575652" strokeWidth="2">
             <path d="M-20 230V185Q8 138 58 175Q70 122 120 126Q143 80 198 110Q228 58 285 100Q311 119 313 154Q355 115 405 148Q420 176 414 203Q474 170 508 230Z"/>
@@ -25,16 +61,26 @@ export default function Landing({ onStart, onBrowse }: { onStart: () => void; on
           <g fill="none" stroke="#b4bdc0" strokeWidth="12" opacity=".65"><path d="M277 111Q315 150 294 182M1047 79Q1099 104 1081 150M1362 42Q1293 72 1300 125"/></g>
           <g fill="#272621"><circle cx="445" cy="123" r="3"/><circle cx="849" cy="167" r="2"/><circle cx="689" cy="206" r="2"/></g>
         </svg>
+        </div>
+        <div className="crew-art" aria-label="Decorative illustrations of traders inside an aircraft">
+          <video autoPlay={!paused} loop muted playsInline preload="metadata" poster="/art/crew-poster.jpg" aria-hidden="true" ref={video => { if (video) { if (paused) video.pause(); else void video.play().catch(() => {}); } }}><source src="/art/crew-motion.mp4" type="video/mp4"/></video>
+          <button className="motion-toggle" aria-pressed={paused} onClick={() => setPaused(!paused)}>{paused ? "Resume motion" : "Pause motion"}</button>
+        </div>
       </section>
-      <section className="crew-art" aria-label="Decorative illustrations of a trading community and an aircraft wing">
-        <video autoPlay={!paused} loop muted playsInline preload="metadata" poster="/art/crew-poster.jpg" aria-hidden="true" ref={video => { if (video) { if (paused) video.pause(); else void video.play().catch(() => {}); } }}><source src="/art/crew-motion.mp4" type="video/mp4"/></video>
-        <button className="motion-toggle" aria-pressed={paused} onClick={() => setPaused(!paused)}>{paused ? "Resume motion" : "Pause motion"}</button>
+      <section className="how-section" id="how-it-works" aria-labelledby="how-title">
+        <div className="section-intro"><p className="eyebrow">How following works</p><h2 id="how-title">Conviction is personal.<br /><em>The record is public.</em></h2><p>You decide who to follow. Their record stays there for you to check.</p><div className="step-progress" aria-hidden="true">{STEPS.map((_, i) => <span key={i} className={activeStep >= i ? "active" : ""}/>)}</div></div>
+        <ol className="step-list">{STEPS.map((step, i) => <li key={step.title} data-step={i} className={activeStep === i ? "active-step" : ""}><span aria-hidden="true">0{i + 1}</span><div><h3>{step.title}</h3><p>{step.text}</p></div></li>)}</ol>
       </section>
-      <div className="principle-strip"><span>01 / Calls on record</span><span>02 / Capital in your control</span><span>03 / Fees from net gains</span></div>
-      <section className="how-section" id="how-it-works"><div className="section-intro"><p className="eyebrow">A better kind of following</p><h2>Conviction is personal.<br /><em>The record is public.</em></h2><p>Less guessing who to trust. More evidence you can inspect.</p></div><ol className="step-list"><li><span>01</span><div><h3>Read the whole record.</h3><p>Explore committed calls and scored outcomes. Winning calls, losing calls, and unresolved calls stay visible.</p></div></li><li><span>02</span><div><h3>Make your own move.</h3><p>Choose a call and an amount. Execute through your own vault with an exposure limit you control.</p></div></li><li><span>03</span><div><h3>Share what you actually gain.</h3><p>Close the position to settle. The caller earns a fee only on new net gains above your previous peak with them.</p></div></li></ol></section>
-      <section className="fee-story"><div><p className="eyebrow">The part that makes it Upside</p><h2>Still recovering?<br /><em>No new performance fee.</em></h2><p>One winning trade does not erase the losses that came before it. Fees follow your cumulative result with each caller.</p><a className="text-link" href="#/guide">Understand the fee rule ↗</a></div><div className="fee-example"><span className="folio">ILLUSTRATIVE FEE EXAMPLE</span><div><span>First trade</span><b className="down">−20 AUSD</b></div><div><span>Next trade</span><b className="up">+10 AUSD</b></div><div className="example-total"><span>Still below your previous peak</span><b>0 fee</b></div><p>Before trading costs. Your actual settlement uses the vault’s recorded proceeds and fee rules.</p></div></section>
-      <section className="closing-section"><BrandMark /><p className="eyebrow">Bring your judgment. Keep your agency.</p><h2>The upside is earned.</h2><button className="ink-button" onClick={onStart}>Find your next call ↗</button><p>{deployment.demo ? "Testnet preview · demo venue · test tokens only" : "Trading involves risk. Outcomes and returns vary."}</p></section>
+      <section className="fee-story" id="fees" aria-labelledby="fee-title">
+        <div><p className="eyebrow">How traders get paid</p><h2 id="fee-title">Recover losses first.<br /><em>Then share the gains.</em></h2><p>A winning trade doesn't erase a loss. Your fee follows your total result with each trader.</p><p className="section-note">Venue costs affect your trading result. Network gas is paid separately.</p></div>
+        <div className="fee-example" data-decorative-motion><span className="folio">An example, before trading costs</span><div><span>First trade</span><b className="down">−20 AUSD</b></div><div><span>Next trade</span><b className="up">+10 AUSD</b></div><div className="example-total"><span>Still recovering earlier losses</span><b>0 fee</b></div><div className="receipt-stamp" aria-hidden="true">Losses recovered first</div></div>
+      </section>
+      <section className="control-section" id="your-vault" aria-labelledby="control-title">
+        <div className="vault-example" data-decorative-motion><div className="vault-example-top"><BrandMark/><span>Example vault</span></div><div className="vault-example-balance"><span>Available cash</span><strong>500 <small>AUSD</small></strong></div><div className="vault-example-exposure"><span>Open exposure</span><b>100 / 500 AUSD</b></div><div className="vault-example-meter"><span/></div><div className="vault-example-receipt"><span>Exposure limit</span><b>Set by you</b></div><div className="vault-example-receipt"><span>Available cash</span><b>Withdraw to your account</b></div><p>Illustrative amounts. Your vault shows its onchain balances.</p></div>
+        <div className="control-copy"><p className="eyebrow">Your vault</p><h2 id="control-title">You choose the call.<br /><em>You keep control.</em></h2><p>Set how much you want to put into open follows. Close a position when you're ready, and withdraw the cash that's available.</p><dl><div><dt>Your account signs each trade.</dt><dd>A trader's call doesn't give them access to your funds.</dd></div><div><dt>Every settlement has a receipt.</dt><dd>Check the proceeds, fee and payout against the transaction.</dd></div></dl></div>
+      </section>
+      <section className="questions-section" id="questions" aria-labelledby="questions-title"><div><p className="eyebrow">Before your first follow</p><h2 id="questions-title">A few things<br />worth knowing.</h2><p>More detail is in the <a href="#/guide">guide</a>.</p></div><div className="questions-list">{QUESTIONS.map(question => <details key={question.q}><summary>{question.q}<span aria-hidden="true" className="question-toggle"/></summary><p>{question.a}</p></details>)}</div></section>
     </main>
-    <footer className="landing-footer"><a className="wordmark" href="#"><BrandMark />Upside</a><span>Good calls. Shared upside.</span><nav aria-label="Resources"><a href="#/guide">Guide</a><a href="#/privacy">Privacy</a><a href="#/terms">Preview terms</a></nav></footer>
+    <footer className="landing-footer"><a className="wordmark" href="#"><BrandMark />Upside</a><span>{deployment.demo ? "Test tokens. Demo venue." : "Trading involves risk."}</span><nav aria-label="Resources"><a href="#/guide">Guide</a><a href="#/privacy">Privacy</a><a href="#/terms">Preview terms</a></nav></footer>
   </div>;
 }

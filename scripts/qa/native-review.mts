@@ -56,13 +56,13 @@ await context.route('**/*',async(route:any)=>{
   if(url.includes(':8788')) return route.fulfill({contentType:'application/json',body:JSON.stringify(url.includes('/perpl/')?{markets:[]}:url.includes('/nansen')?{mode:'off'}:url.includes('/flow')?{flow:{}}:{ok:true})});
   return route.continue();
 });
-const page=await context.newPage();
+const page=await context.newPage();page.setDefaultTimeout(45000);
 const errors:string[]=[];page.on('pageerror',(e:any)=>errors.push(e.message));
 const shots:any[]=[];
-async function snap(name:string){await page.waitForFunction(()=>[...document.images].every(i=>i.complete&&i.naturalWidth>0));await page.waitForTimeout(150);const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/native-${name}.png`,fullPage:true});shots.push({name,overflow});}
+async function snap(name:string){await page.evaluate(()=>document.fonts.ready);await page.waitForFunction(()=>[...document.images].every(i=>i.complete&&i.naturalWidth>0));await page.waitForTimeout(150);const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/native-${name}.png`,fullPage:true});shots.push({name,overflow});}
 
 for (const width of [390,768]) {
-  mode='normal';await page.setViewportSize({width,height:900});await page.goto('http://127.0.0.1:8081/');await page.getByText('Good calls.',{exact:false}).waitFor();await snap(`onboarding-${width}`);
+  mode='normal';await page.setViewportSize({width,height:900});await page.goto('http://127.0.0.1:8081/',{waitUntil:'domcontentloaded'});await page.getByText('Good calls.',{exact:false}).waitFor();await snap(`onboarding-${width}`);
   await page.getByRole('button',{name:'Femi (follower)'}).click();await page.getByText('@ada',{exact:true}).first().waitFor();await snap(`calls-${width}`);
   if(await page.getByRole('button',{name:'Follow $50',exact:true}).count()!==1)throw new Error('Short calls must not offer spot follow');
   await page.getByRole('button',{name:'Scored',exact:true}).click();
@@ -73,10 +73,10 @@ for (const width of [390,768]) {
   await page.getByText('Vault',{exact:true}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();await snap(`vault-${width}`);
   await page.getByRole('button',{name:'Exposure limit',exact:true}).click();await page.getByRole('button',{name:'Save exposure limit'}).waitFor();await snap(`vault-editor-${width}`);
   await page.getByText('Record',{exact:true}).click();await page.getByText('Leaders',{exact:true}).waitFor();await snap(`record-${width}`);
-  await page.getByText('@ada',{exact:true}).first().click();await page.getByRole('button',{name:'Share profile'}).waitFor();await snap(`caller-${width}`);await page.goto('http://127.0.0.1:8081/#/call/0');await page.getByText('← Back',{exact:true}).waitFor();await snap(`detail-${width}`);
+  await page.getByText('@ada',{exact:true}).first().click();await page.getByRole('button',{name:'Share profile'}).waitFor();await snap(`caller-${width}`);await page.goto('http://127.0.0.1:8081/#/call/0',{waitUntil:'domcontentloaded'});await page.getByText('Back',{exact:true}).waitFor();await snap(`detail-${width}`);
 }
 for (const state of ['empty','stale','error','new-vault']) {
-  mode=state;await page.goto('http://127.0.0.1:8081/');await page.getByRole('button',{name:'Femi (follower)'}).click();
+  mode=state;await page.goto('http://127.0.0.1:8081/',{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Femi (follower)'}).click();
   if(state==='empty')await page.getByText('No calls here yet.',{exact:true}).waitFor();
   if(state==='error')await page.getByRole('button',{name:'Retry connection'}).waitFor();
   if(state==='stale'){await page.getByText('@ada',{exact:true}).first().waitFor();await page.getByText('Create',{exact:true}).click();await page.getByText('Waiting for a fresh price before you can commit this call.',{exact:true}).waitFor();}

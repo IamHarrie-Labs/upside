@@ -1,6 +1,7 @@
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { isLoaded, useFonts } from "expo-font";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -9,7 +10,7 @@ import {
   ScrollView,
   Share,
   StyleSheet,
-  Text,
+  Text as NativeText,
   TextInput,
   View,
   StatusBar as RNStatusBar,
@@ -113,7 +114,23 @@ function countdown(sec: number) {
 
 // ----------------------------------------------------------------- app
 
+function Text(props: ComponentProps<typeof NativeText>) {
+  const weight = Number(StyleSheet.flatten(props.style)?.fontWeight ?? 400);
+  const family = weight >= 600 ? "SpaceGrotesk-Bold" : weight >= 500 ? "SpaceGrotesk-Medium" : "SpaceGrotesk-Regular";
+  return <NativeText {...props} style={[props.style, isLoaded(family) ? { fontFamily: family, fontWeight: "normal", fontStyle: "normal" } : undefined]}/>;
+}
+
 export default function App() {
+  const [loaded, error] = useFonts({
+    "SpaceGrotesk-Regular": require("./assets/fonts/SpaceGrotesk-Regular.ttf"),
+    "SpaceGrotesk-Medium": require("./assets/fonts/SpaceGrotesk-Medium.ttf"),
+    "SpaceGrotesk-Bold": require("./assets/fonts/SpaceGrotesk-Bold.ttf"),
+  });
+  if (!loaded && !error) return <View style={{ flex: 1, backgroundColor: C.bg, justifyContent: "center" }}><ActivityIndicator color={C.ink} accessibilityLabel="Loading Upside"/></View>;
+  return <UpsideApp/>;
+}
+
+function UpsideApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [browsing, setBrowsing] = useState(false);
   const [tab, setTab] = useState<Tab>("feed");
@@ -268,7 +285,7 @@ export default function App() {
         <Text style={s.label}>{deployment.demo ? "PREVIEW / TEST TOKENS ONLY" : "MONAD / ONCHAIN RECORD"}</Text>
         {route.name === "tabs" && <View style={{ gap: 8, marginVertical: 15 }}><Text style={[s.label, { color: C.accent }]}>{({feed:"01 / FIND YOUR CONVICTION",post:"02 / MAKE IT A COMMITMENT",portfolio:"03 / STAY IN CONTROL",board:"04 / EVIDENCE OVER ATTENTION"})[tab]}</Text><Text style={[s.h1, { fontSize: 34, letterSpacing: -1.2 }]}>{({feed:"The call sheet.",post:"Put it on record.",portfolio:"Your vault. Your upside.",board:"A following is earned."})[tab]}</Text></View>}
         {loading ? <View style={{ padding: 35, gap: 15 }}><ActivityIndicator color={C.accent}/><Text style={s.muted}>Reading the onchain record…</Text></View> : loadError ? <Card style={{ gap: 15 }}><Text accessibilityRole="alert" style={s.notice}>{loadError}</Text><Btn ghost title="Retry connection" onPress={() => refresh().catch(() => {})}/></Card> : body}
-        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`${WEB_URL}/#/guide`)} style={{ paddingVertical: 16 }}><Text style={s.link}>Read the Upside field guide ↗</Text></Pressable>
+        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`${WEB_URL}/#/guide`)} style={{ paddingVertical: 16 }}><Text style={s.link}>Upside guide</Text></Pressable>
       </ScrollView>
 
       {toast && (
@@ -335,7 +352,7 @@ function Btn(props: { title: string; onPress: () => void; disabled?: boolean; gh
 function Back({ onPress }: { onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={{ paddingVertical: 6 }}>
-      <Text style={s.muted}>← Back</Text>
+      <Text style={s.muted}>Back</Text>
     </Pressable>
   );
 }
@@ -405,10 +422,10 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
   return (
     <ScrollView contentContainerStyle={[s.content, { paddingTop: 24 }]} keyboardShouldPersistTaps="handled">
       <Image source={require("./assets/brand-mark.png")} style={{ width: 45, height: 45 }} accessibilityLabel="Upside"/>
-      <Text style={[s.label, { color: C.accent, fontStyle: "italic", fontSize: 17, marginTop: 12 }]}>Good judgment deserves good company.</Text>
+      <Text style={[s.label, { color: C.accent, fontStyle: "italic", fontSize: 17, marginTop: 12 }]}>Follow a call through your own vault.</Text>
       <Text style={[s.h1, { fontSize: 42, letterSpacing: -1.8 }]}>Good calls.
         {"\n"}Shared upside.</Text>
-      <Text style={s.lede}>Trading calls you only pay for when you profit.</Text>
+      <Text style={s.lede}>Traders earn a share after earlier losses are recovered.</Text>
       <Image source={require("./assets/community-strip.png")} style={{ width: "100%", height: 165, marginVertical: 8 }} resizeMode="cover" accessible={false} />
       {[
         "Every call is committed on Monad before the move. No deleting losers.",
@@ -460,7 +477,7 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
         </Card>
       )}
       <Pressable onPress={onBrowse} style={{ alignSelf: "center", padding: 14 }}>
-        <Text style={s.muted}>Just browse calls →</Text>
+        <Text style={s.muted}>Just browse calls</Text>
       </Pressable>
       <Text style={[s.small, { textAlign: "center" }]}>
         Chain {deployment.chainId}
@@ -983,7 +1000,7 @@ const s = StyleSheet.create({
   pill: { minHeight: 44, justifyContent: "center", borderWidth: 1, borderColor: C.line, backgroundColor: C.panel, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 },
   pillOn: { borderColor: C.accent },
   amountRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  input: { backgroundColor: C.panel2, borderColor: C.line, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: C.ink, fontSize: 16 },
+  input: { fontFamily: "SpaceGrotesk-Regular", backgroundColor: C.panel2, borderColor: C.line, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: C.ink, fontSize: 16 },
   notice: { color: C.warn, backgroundColor: "rgba(255,200,87,0.12)", borderRadius: 10, padding: 10, fontSize: 13 },
   feebox: { color: C.ink, backgroundColor: "rgba(195,92,48,0.10)", borderRadius: 10, padding: 10, fontSize: 13 },
   bigNum: { color: C.ink, fontSize: 26, fontWeight: "800" },

@@ -39,6 +39,7 @@ const config: ExpoConfig = {
   web: { favicon: "./assets/favicon.png", bundler: "metro" },
   plugins: [
     "expo-secure-store",
+    ["expo-font", { fonts: ["./assets/fonts/SpaceGrotesk-Regular.ttf", "./assets/fonts/SpaceGrotesk-Medium.ttf", "./assets/fonts/SpaceGrotesk-Bold.ttf"] }],
     [
       "expo-build-properties",
       {

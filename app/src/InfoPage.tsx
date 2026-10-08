@@ -1,6 +1,6 @@
 type Section = { title: string; text: string };
 const pages: Record<string, { title: string; intro: string; sections: Section[] }> = {
-  guide: { title: "The Upside field guide.", intro: "Know what you follow, what you control, and how a fee is earned.", sections: [
+  guide: { title: "How Upside works.", intro: "Know what you follow, what you control, and how a fee is earned.", sections: [
     { title: "A call is a public commitment", text: "A caller records a direction, target, stop, horizon, and fee before the move. Calls cannot be edited or deleted. The score compares the entry mid price with the mid price when scored after expiry. It is a signal score, not a follower's realized return." },
     { title: "Targets and stops are reference levels", text: "These levels describe the caller's thesis. They do not automatically close your position. You decide when to close and settle your follow." },
     { title: "Your vault and exposure limit", text: "A follow executes through your vault. The exposure limit restricts the total original cost of open follows; it is not a guaranteed maximum loss. Closing sells the position and settles any fee. Available settlement tokens can be withdrawn to your account." },
@@ -24,5 +24,5 @@ const pages: Record<string, { title: string; intro: string; sections: Section[] 
 };
 export default function InfoPage({ name }: { name: string }) {
   const page = pages[name];
-  return <article className="info-page"><a className="text-link" href="#/">← Back to calls</a><p className="eyebrow">UPSIDE / FIELD GUIDE</p><h1>{page.title}</h1><p className="info-intro">{page.intro}</p>{page.sections.map(s => <section key={s.title}><h2>{s.title}</h2><p>{s.text}</p></section>)}<a className="ink-button" href="#/">Explore calls ↗</a></article>;
+  return <article className="info-page"><a className="text-link" href="#/">Back to calls</a><p className="eyebrow">{name === "guide" ? "Using Upside" : name === "privacy" ? "Your privacy" : "About this preview"}</p><h1>{page.title}</h1><p className="info-intro">{page.intro}</p>{page.sections.map(s => <section key={s.title}><h2>{s.title}</h2><p>{s.text}</p></section>)}</article>;
 }

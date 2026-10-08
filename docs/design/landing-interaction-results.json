@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-08",
+  "mainSections": 5,
+  "groteskLoaded": true,
+  "decorativeArrows": 0,
+  "pinnedHeading": {
+    "firstTop": 96,
+    "secondTop": 96,
+    "releasesAtSectionEnd": true
+  },
+  "thirdStepActive": true,
+  "keyboardFAQ": true,
+  "pauseDecorativeMotion": true,
+  "reducedMotion": true,
+  "phoneFlow": true,
+  "viewportWidths": [
+    320,
+    390,
+    768,
+    1024,
+    1440
+  ],
+  "runtimeErrors": []
+}

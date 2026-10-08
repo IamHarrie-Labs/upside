@@ -219,7 +219,7 @@ export default function App() {
       <main id="workspace" tabIndex={-1}>
         {isInfo && <InfoPage name={infoName} />}
         {invalidRoute && <StatePanel title="This page is off the map." text="The link does not point to a supported Upside page." action={() => go("")} label="Back to calls" />}
-        {!isInfo && !invalidRoute && <div className="environment-strip"><span className="status-dot"/><span>{deployment.demo ? "Preview / test tokens only" : "Monad / onchain record"}</span><span>{updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Connecting to the record"}</span><a href="#/guide">Field guide ↗</a></div>}
+        {!isInfo && !invalidRoute && <div className="environment-strip"><span className="status-dot"/><span>{deployment.demo ? "Preview / test tokens only" : "Monad / onchain record"}</span><span>{updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Connecting to the record"}</span><a href="#/guide">Guide</a></div>}
         {!isInfo && !invalidRoute && loadError && <div className="connection-error" role="alert"><p>{loadError}</p><button className="ghost" onClick={() => refresh().catch(() => {})}>Retry connection</button></div>}
         {!route.startsWith("#/") && <div className="workspace-heading"><p className="eyebrow">{({ feed: "01 / Find your conviction", post: "02 / Make it a commitment", portfolio: "03 / Stay in control", board: "04 / Evidence over attention" })[tab]}</p><h1>{({ feed: "The call sheet.", post: "Put it on record.", portfolio: "Your vault. Your upside.", board: "A following is earned." })[tab]}</h1><p className="sub">{({ feed: "Find a thesis. Inspect its author. Make your own move.", post: "A clear thesis, committed before the outcome.", portfolio: "See your exposure, your positions, and what a caller has earned.", board: "Scored commitments, including the ones that missed." })[tab]}</p></div>}
         {!isInfo && !invalidRoute && !loadError && loading && <div className="skeleton-stack" role="status" aria-label="Loading the onchain record"><div/><div/><span>Reading the onchain record…</span></div>}
@@ -329,12 +329,12 @@ function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => v
   };
   return (
     <div className="shell onboard">
-      <button className="back" disabled={busy} onClick={onBack}>← Back to Upside</button>
+      <button className="back" disabled={busy} onClick={onBack}>Back to Upside</button>
       <div className="hero">
         <BrandMark className="onboard-mark" />
-        <p className="eyebrow">Your judgment. Your account.</p>
-        <h1>Make room for<br />your upside.</h1>
-        <p className="lede">Trading calls you only pay for when you profit.</p>
+        <p className="eyebrow">Your account</p>
+        <h1>Start with your<br />own account.</h1>
+        <p className="lede">Sign in with a passkey. Your account controls your vault.</p>
         <ul className="points">
           <li>Every call is committed on Monad before the move. No deleting losers.</li>
           <li>Callers earn a share of your net gains. Still down with them? They get nothing.</li>
@@ -380,7 +380,7 @@ function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => v
         </div>
       )}
       <button className="back center-btn" onClick={onBrowse}>
-        Just browse calls →
+        Just browse calls
       </button>
       <p className="fine center">
         Chain {deployment.chainId}
@@ -695,7 +695,7 @@ function Portfolio(props: {
           </button>
         </div>
         {editingLimit && <div className="inline-editor"><label className="field"><span>Exposure limit ({QUOTE_SYMBOL})</span><input inputMode="decimal" value={limit} onChange={e => setLimit(e.target.value)} /></label><button className="primary" disabled={busy || !validLimit || (validLimit && parseQuote(limit) < vs.openCost)} onClick={() => run("Updating exposure limit", async () => { const hash = await setExposure(session, vault, parseQuote(limit)); setEditingLimit(false); return hash; })}>Save exposure limit</button><p className="fine">The limit must cover the original cost of open follows. It does not guarantee a maximum loss.</p></div>}
-        <details className="vault-access"><summary>Fund or withdraw your vault</summary><p className="fine">Deposit {QUOTE_SYMBOL} on this network to the vault address. MON is needed in your account for gas.</p><div className="address-block"><span>Vault address</span><code>{vault}</code><button className="share" onClick={() => navigator.clipboard.writeText(vault).then(() => window.dispatchEvent(new CustomEvent("upside:notice", { detail:"Vault address copied." }))).catch(() => setToastNotice("Clipboard unavailable. Select and copy the address above."))}>Copy address ↗</button></div><label className="field"><span>Withdraw available {QUOTE_SYMBOL} to your account</span><input inputMode="decimal" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} placeholder="Amount" /></label><button className="ghost" disabled={busy || !/^\d+(\.\d{1,6})?$/.test(withdrawAmount) || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > Number(fmtQuote(vs.cash,6))} onClick={() => run("Withdrawing available cash", async () => { const hash = await withdrawCash(session, vault, parseQuote(withdrawAmount)); setWithdrawAmount(""); return hash; })}>Withdraw to my account</button></details>
+        <details className="vault-access"><summary>Fund or withdraw your vault</summary><p className="fine">Deposit {QUOTE_SYMBOL} on this network to the vault address. MON is needed in your account for gas.</p><div className="address-block"><span>Vault address</span><code>{vault}</code><button className="share" onClick={() => navigator.clipboard.writeText(vault).then(() => window.dispatchEvent(new CustomEvent("upside:notice", { detail:"Vault address copied." }))).catch(() => setToastNotice("Clipboard unavailable. Select and copy the address above."))}>Copy address</button></div><label className="field"><span>Withdraw available {QUOTE_SYMBOL} to your account</span><input inputMode="decimal" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} placeholder="Amount" /></label><button className="ghost" disabled={busy || !/^\d+(\.\d{1,6})?$/.test(withdrawAmount) || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > Number(fmtQuote(vs.cash,6))} onClick={() => run("Withdrawing available cash", async () => { const hash = await withdrawCash(session, vault, parseQuote(withdrawAmount)); setWithdrawAmount(""); return hash; })}>Withdraw to my account</button></details>
       </div>
 
       <h3>Open</h3>
@@ -813,19 +813,19 @@ function Board({ stats }: { stats: Map<Address, CallerStats> }) {
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="empty"><BrandMark /><p>{text}</p><a href="#/guide">Read the field guide ↗</a></div>;
+  return <div className="empty"><BrandMark /><p>{text}</p><a href="#/guide">Read the guide</a></div>;
 }
 
 function setToastNotice(text: string) { window.dispatchEvent(new CustomEvent("upside:notice", { detail: text })); }
 function StatePanel({ title, text, action, label }: { title: string; text: string; action?: () => void; label?: string }) {
-  return <section className="state-panel"><BrandMark /><h2>{title}</h2><p>{text}</p>{action ? <button className="ghost" onClick={action}>{label}</button> : <a className="text-link" href="#/guide">Read the field guide ↗</a>}</section>;
+  return <section className="state-panel"><BrandMark /><h2>{title}</h2><p>{text}</p>{action ? <button className="ghost" onClick={action}>{label}</button> : <a className="text-link" href="#/guide">Read the guide</a>}</section>;
 }
 
 function Detail({ children }: { children: React.ReactNode }) {
   return (
     <div className="detail-stack">
       <button className="back" onClick={() => go("")}>
-        ← Back
+        Back
       </button>
       {children}
     </div>
