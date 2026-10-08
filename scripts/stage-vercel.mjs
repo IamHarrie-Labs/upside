@@ -7,5 +7,5 @@ if(relative(project,target)!=='.vercel\\output\\static'&&relative(project,target
 rmSync(target,{recursive:true,force:true});
 mkdirSync(target,{recursive:true});
 cpSync('app/dist',target,{recursive:true});
-writeFileSync('app/.vercel/output/config.json',JSON.stringify({version:3,routes:[{handle:'filesystem'},{src:'/(.*)',dest:'/index.html'}]},null,2));
+writeFileSync('app/.vercel/output/config.json',JSON.stringify({version:3,routes:[{src:'^/\\.well-known/(assetlinks\\.json|apple-app-site-association)$',headers:{'Content-Type':'application/json','Cache-Control':'public, max-age=300'},continue:true},{handle:'filesystem'},{src:'/(.*)',dest:'/index.html'}]},null,2));
 console.log('Staged reviewed Vite output for vercel deploy --prebuilt.');

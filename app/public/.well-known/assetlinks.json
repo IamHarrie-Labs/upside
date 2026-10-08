@@ -4,7 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "xyz.upside.app",
-      "sha256_cert_fingerprints": ["REPLACE_WITH_SHA256_FROM_eas_credentials"]
+      "sha256_cert_fingerprints": ["15:93:64:40:B0:3F:F6:F2:AA:F2:83:91:E5:DD:F5:B3:EC:0E:5B:96:DF:BC:BB:F5:AF:CC:00:78:F8:0B:2C:1B"]
     }
   }
 ]

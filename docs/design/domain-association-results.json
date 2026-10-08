@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-08T19:10:01.2454208Z",
+  "androidStatus": 200,
+  "androidJson": true,
+  "genuineAndroidFingerprint": true,
+  "package": "xyz.upside.app",
+  "appleStatus": 200,
+  "appleJson": true,
+  "nativeAppleAppsConfigured": 0,
+  "physicalDeviceVerified": false
+}
