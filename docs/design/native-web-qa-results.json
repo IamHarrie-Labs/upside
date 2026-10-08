@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-08",
+  "fixtureOnly": true,
+  "platform": "Expo web (not a physical phone)",
+  "runtimeErrors": [],
+  "transactionWrites": 0,
+  "screens": [
+    {
+      "name": "onboarding-390",
+      "overflow": false
+    },
+    {
+      "name": "calls-390",
+      "overflow": false
+    },
+    {
+      "name": "create-390",
+      "overflow": false
+    },
+    {
+      "name": "vault-390",
+      "overflow": false
+    },
+    {
+      "name": "vault-editor-390",
+      "overflow": false
+    },
+    {
+      "name": "record-390",
+      "overflow": false
+    },
+    {
+      "name": "caller-390",
+      "overflow": false
+    },
+    {
+      "name": "detail-390",
+      "overflow": false
+    },
+    {
+      "name": "onboarding-768",
+      "overflow": false
+    },
+    {
+      "name": "calls-768",
+      "overflow": false
+    },
+    {
+      "name": "create-768",
+      "overflow": false
+    },
+    {
+      "name": "vault-768",
+      "overflow": false
+    },
+    {
+      "name": "vault-editor-768",
+      "overflow": false
+    },
+    {
+      "name": "record-768",
+      "overflow": false
+    },
+    {
+      "name": "caller-768",
+      "overflow": false
+    },
+    {
+      "name": "detail-768",
+      "overflow": false
+    },
+    {
+      "name": "state-empty",
+      "overflow": false
+    },
+    {
+      "name": "state-stale",
+      "overflow": false
+    },
+    {
+      "name": "state-error",
+      "overflow": false
+    },
+    {
+      "name": "state-new-vault",
+      "overflow": false
+    }
+  ]
+}

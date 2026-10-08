@@ -1,6 +1,6 @@
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -48,6 +48,7 @@ import {
   previewFee,
   QUOTE_SYMBOL,
   setExposure,
+  withdrawCash,
   setHandle,
   toHandle,
   type Call,
@@ -56,18 +57,7 @@ import {
 
 // ----------------------------------------------------------------- theme
 
-const C = {
-  bg: "#f3e9df",
-  panel: "#fbf5ef",
-  panel2: "#eaded2",
-  line: "#d0c2b5",
-  ink: "#191815",
-  muted: "#706a63",
-  accent: "#c35c30",
-  up: "#34765b",
-  down: "#b34335",
-  warn: "#92521c",
-};
+import { C } from "./src/theme";
 
 type Tab = "feed" | "post" | "portfolio" | "board";
 type Route = { name: "tabs" } | { name: "call"; id: number } | { name: "caller"; address: Address };
@@ -136,6 +126,13 @@ export default function App() {
   const [toast, setToast] = useState<Toast>(null);
   const [busy, setBusy] = useState(false);
   const [, setTick] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const refreshVersion = useRef(0);
+  const adoptSession = (next: Session | null) => {
+    refreshVersion.current++;
+    setLoading(true); setLoadError(""); setVault(null); setVs(null); setSession(next);
+  };
 
   // Deep links: open straight to a call or caller, readable without an account.
   const url = Linking.useLinkingURL();
@@ -148,34 +145,42 @@ export default function App() {
   }, [url]);
 
   const refresh = useCallback(async () => {
-    const [m, cs] = await Promise.all([getMid(), getCalls()]);
-    setMid(m);
-    setCalls(cs);
-    setStats(await getCallerStats(cs.map((c) => c.caller)));
-    let state: VaultState | null = null;
-    if (session) {
-      const v = await getVault(session.account.address);
-      setVault(v);
-      state = v ? await getVaultState(v) : null;
-      setVs(state);
-    }
-    HANDLES = await getHandles([
-      ...cs.map((c) => c.caller),
-      ...(session ? [session.account.address] : []),
-      ...(state ? state.positions.map((p) => p.caller) : []),
-    ]);
-    [PERPL, NANSEN] = await Promise.all([
-      getPerplPositions(cs.map((c) => c.caller)),
-      getNansen(cs.map((c) => c.caller)),
-    ]);
-    setTick((t) => t + 1);
+    const version = ++refreshVersion.current;
+    try {
+      const [m, cs] = await Promise.all([getMid(), getCalls()]);
+      const nextStats = await getCallerStats([...cs.map((c) => c.caller), ...(session ? [session.account.address] : [])]);
+      let state: VaultState | null = null;
+      let nextVault: Address | null = null;
+      if (session) {
+        const v = await getVault(session.account.address);
+        nextVault = v;
+        state = v ? await getVaultState(v) : null;
+      }
+      const nextHandles = await getHandles([
+        ...cs.map((c) => c.caller),
+        ...(session ? [session.account.address] : []),
+        ...(state ? state.positions.map((p) => p.caller) : []),
+      ]);
+      const [nextPerpl, nextNansen] = await Promise.all([
+        getPerplPositions(cs.map((c) => c.caller)),
+        getNansen(cs.map((c) => c.caller)),
+      ]);
+      if (version !== refreshVersion.current) return;
+      setMid(m); setCalls(cs); setStats(nextStats); setVault(nextVault); setVs(state);
+      HANDLES = nextHandles; PERPL = nextPerpl; NANSEN = nextNansen;
+      setTick((t) => t + 1);
+      setLoading(false);
+      setLoadError("");
+    } catch (error) { if (version === refreshVersion.current) throw error; }
   }, [session]);
 
   useEffect(() => {
-    refresh().catch(() => {});
-    const t = setInterval(() => refresh().catch(() => {}), REFRESH_MS);
+    if (!browsing && !session) return;
+    const read = () => refresh().catch(() => { setLoading(false); setLoadError("The onchain record could not refresh. Check your connection and retry."); });
+    queueMicrotask(read);
+    const t = setInterval(read, REFRESH_MS);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refresh, browsing, session]);
 
   const run: Runner = async (label, fn) => {
     setBusy(true);
@@ -183,7 +188,7 @@ export default function App() {
     try {
       const hash = await fn();
       setToast({ kind: "ok", text: `${label}: done`, hash: hash || undefined });
-      await refresh();
+      await refresh().catch(() => setLoadError("Transaction confirmed. Retry to refresh the latest record."));
     } catch (e) {
       setToast({ kind: "err", text: describeError(e) });
     } finally {
@@ -197,7 +202,7 @@ export default function App() {
   if (!session && !browsing)
     return (
       <Screen>
-        <Onboard onSession={(s) => (setSession(s), setBrowsing(false))} onBrowse={() => setBrowsing(true)} />
+        <Onboard onSession={(s) => (adoptSession(s), setBrowsing(false))} onBrowse={() => setBrowsing(true)} />
       </Screen>
     );
 
@@ -245,23 +250,25 @@ export default function App() {
   return (
     <Screen>
       <View style={s.top}>
-        <Text style={s.brand}>
-          <Text style={{ color: C.accent }}>▲</Text> Upside
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}><Image source={require("./assets/brand-mark.png")} style={{ width: 24, height: 24 }} /><Text style={s.brand}>Upside</Text></View>
         <Text style={s.ticker}>
           {BASE_SYMBOL}/{QUOTE_SYMBOL} <Text style={{ color: C.ink, fontWeight: "700" }}>{mid ? humanPrice(mid).toFixed(4) : "—"}</Text>
           {!mid && <Text style={{ color: C.warn }}> stale</Text>}
         </Text>
         <Pressable
           style={s.chip}
-          onPress={() => (session ? (session.end(), setSession(null), setBrowsing(false)) : signIn())}
+          disabled={busy}
+          onPress={() => (session ? (session.end(), adoptSession(null), setBrowsing(false)) : signIn())}
         >
           <Text style={s.chipText}>{session ? `${session.label.split(" ")[0]} · ${short(session.account.address)}` : "Sign in"}</Text>
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-        {body}
+        <Text style={s.label}>{deployment.demo ? "PREVIEW / TEST TOKENS ONLY" : "MONAD / ONCHAIN RECORD"}</Text>
+        {route.name === "tabs" && <View style={{ gap: 8, marginVertical: 15 }}><Text style={[s.label, { color: C.accent }]}>{({feed:"01 / FIND YOUR CONVICTION",post:"02 / MAKE IT A COMMITMENT",portfolio:"03 / STAY IN CONTROL",board:"04 / EVIDENCE OVER ATTENTION"})[tab]}</Text><Text style={[s.h1, { fontSize: 34, letterSpacing: -1.2 }]}>{({feed:"The call sheet.",post:"Put it on record.",portfolio:"Your vault. Your upside.",board:"A following is earned."})[tab]}</Text></View>}
+        {loading ? <View style={{ padding: 35, gap: 15 }}><ActivityIndicator color={C.accent}/><Text style={s.muted}>Reading the onchain record…</Text></View> : loadError ? <Card style={{ gap: 15 }}><Text accessibilityRole="alert" style={s.notice}>{loadError}</Text><Btn ghost title="Retry connection" onPress={() => refresh().catch(() => {})}/></Card> : body}
+        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`${WEB_URL}/#/guide`)} style={{ paddingVertical: 16 }}><Text style={s.link}>Read the Upside field guide ↗</Text></Pressable>
       </ScrollView>
 
       {toast && (
@@ -282,9 +289,9 @@ export default function App() {
         {(
           [
             ["feed", "Calls"],
-            ["post", "Post"],
-            ["portfolio", "Portfolio"],
-            ["board", "Leaders"],
+            ["post", "Create"],
+            ["portfolio", "Vault"],
+            ["board", "Record"],
           ] as [Tab, string][]
         ).map(([t, label]) => (
           <Pressable key={t} style={s.tabBtn} onPress={() => (setTab(t), goHome())}>
@@ -310,6 +317,8 @@ function Screen({ children }: { children: ReactNode }) {
 function Btn(props: { title: string; onPress: () => void; disabled?: boolean; ghost?: boolean; small?: boolean }) {
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!props.disabled }}
       onPress={props.onPress}
       disabled={props.disabled}
       style={({ pressed }) => [
@@ -338,8 +347,8 @@ function Card({ children, style }: { children: ReactNode; style?: object }) {
 function Badge({ st }: { st?: CallerStats }) {
   if (!st) return null;
   return (
-    <View style={[s.badge, st.verified && { borderColor: "rgba(61,220,151,0.4)" }]}>
-      <Text style={[s.badgeText, { color: st.verified ? C.up : C.muted }]}>{st.verified ? "Verified" : "Unverified · earns $0"}</Text>
+    <View style={[s.badge, st.verified && { borderColor: "rgba(53,99,72,0.4)" }]}>
+      <Text style={[s.badgeText, { color: st.verified ? C.up : C.muted }]}>{st.verified ? (deployment.demo ? "Test verified" : "Verified") : "Unverified · earns $0"}</Text>
     </View>
   );
 }
@@ -395,14 +404,12 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
 
   return (
     <ScrollView contentContainerStyle={[s.content, { paddingTop: 24 }]} keyboardShouldPersistTaps="handled">
-      <Text style={{ color: C.accent, fontSize: 44 }}>▲</Text>
-      <Text style={[s.label, { color: C.accent, fontStyle: "italic", fontSize: 17, marginTop: 12 }]}>Trading calls that work for you</Text>
-      <Text style={[s.h1, { fontSize: 42, letterSpacing: -1.8 }]}>Follow great traders.
-        {"\n"}Share in the upside.</Text>
+      <Image source={require("./assets/brand-mark.png")} style={{ width: 45, height: 45 }} accessibilityLabel="Upside"/>
+      <Text style={[s.label, { color: C.accent, fontStyle: "italic", fontSize: 17, marginTop: 12 }]}>Good judgment deserves good company.</Text>
+      <Text style={[s.h1, { fontSize: 42, letterSpacing: -1.8 }]}>Good calls.
+        {"\n"}Shared upside.</Text>
       <Text style={s.lede}>Trading calls you only pay for when you profit.</Text>
-      <View style={{ height: 128, overflow: "hidden", marginVertical: 14 }} accessibilityLabel="Illustrated trading community">
-        <Image source={require("./assets/crew-poster.jpg")} style={{ width: 600, height: 443, position: "absolute", top: -215, left: -100 }} />
-      </View>
+      <Image source={require("./assets/signal-journey.png")} style={{ width: "100%", height: 165, marginVertical: 8 }} resizeMode="contain" accessibilityLabel="A committed call, your vault, and shared gains" />
       {[
         "Every call is committed on Monad before the move. No deleting losers.",
         "Callers earn a share of your net gains. Still down with them? They get nothing.",
@@ -416,6 +423,7 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
       <Card style={{ marginTop: 14, gap: 10 }}>
         <Text style={s.label}>Display name</Text>
         <TextInput
+          accessibilityLabel="Display name"
           style={s.input}
           value={name}
           onChangeText={setName}
@@ -423,7 +431,7 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
           placeholderTextColor={C.muted}
           autoCapitalize="none"
         />
-        <Text style={s.small}>Becomes your public handle, e.g. @{toHandle(name) || "femi"}</Text>
+        <Text style={s.small}>Choose your onchain handle from your vault after funding.</Text>
         <Btn
           title="Create account with a passkey"
           disabled={busy}
@@ -431,12 +439,13 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
             start(async () => {
               const sess = await createPasskeyAccount(name || "Upside user");
               await devFundGas(sess.account.address);
-              if (toHandle(name).length >= 3) setHandle(sess, toHandle(name)).catch(() => {});
+
               return sess;
             })
           }
         />
-        {returning && <Btn ghost title="Sign in with your passkey" disabled={busy} onPress={() => start(signInWithPasskey)} />}
+        <Btn ghost title="Sign in with your passkey" disabled={busy} onPress={() => start(signInWithPasskey)} />
+        {returning && <Text style={s.small}>A passkey was previously used on this device.</Text>}
         {busy && <ActivityIndicator color={C.accent} />}
         <Text style={s.small}>No seed phrase. Your passkey derives your Monad account on this device (Mera).</Text>
         {!!err && <Text style={{ color: C.down, fontSize: 13 }}>{err}</Text>}
@@ -446,7 +455,7 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
         <Card style={{ marginTop: 12, gap: 8, borderStyle: "dashed" }}>
           <Text style={s.label}>LOCAL DEMO ACCOUNTS</Text>
           {DEV_ACCOUNTS.map((a, i) => (
-            <Btn key={a.label} ghost title={a.label} onPress={() => onSession(devSession(i))} />
+            <Btn key={a.label} ghost title={a.label} disabled={busy} onPress={() => onSession(devSession(i))} />
           ))}
         </Card>
       )}
@@ -477,10 +486,19 @@ function Feed(props: {
   const { calls, stats, mid, session, busy, run } = props;
   const now = useNow();
   const [amount, setAmount] = useState("50");
+  const [filter, setFilter] = useState<"all" | "live" | "scored">("all");
+  const [query, setQuery] = useState("");
+  const shown = calls.filter(c => (filter === "all" || (filter === "scored" ? c.scored : !c.scored && c.expiry > now)) &&
+    `${nameOf(c.caller)} ${c.caller} ${c.id}`.toLowerCase().includes(query.trim().toLowerCase()));
   if (!calls.length) return <Empty text="No calls here yet." />;
 
   return (
     <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {(["all", "live", "scored"] as const).map(f => <Pressable key={f} accessibilityRole="button" accessibilityState={{ selected: filter === f }} onPress={() => setFilter(f)} style={[s.pill, filter === f && s.pillOn]}><Text style={{ color: filter === f ? C.accent : C.ink }}>{({ all: "All calls", live: "Live", scored: "Scored" })[f]}</Text></Pressable>)}
+      </View>
+      <TextInput accessibilityLabel="Search calls" style={s.input} value={query} onChangeText={setQuery} placeholder="Search handle, address or call number" placeholderTextColor={C.muted} autoCapitalize="none" />
+      {!shown.length && <View style={{ gap: 8 }}><Empty text="No calls match these filters."/><Btn ghost title="Reset filters" onPress={() => { setFilter("all"); setQuery(""); }}/></View>}
       <View style={s.amountRow}>
         <Text style={[s.muted, { flex: 1 }]}>Follow size</Text>
         {["20", "50", "100"].map((v) => (
@@ -489,10 +507,10 @@ function Feed(props: {
           </Pressable>
         ))}
       </View>
-      {calls.map((c) => {
+      {shown.map((c) => {
         const st = stats.get(c.caller);
         const active = !c.scored && c.expiry > now;
-        const live = mid && !c.scored ? Number(((mid - c.entryMid) * 10000n) / c.entryMid) : null;
+        const live = mid && !c.scored ? Number(((mid - c.entryMid) * 10000n) / c.entryMid) * (c.side === 0 ? 1 : -1) : null;
         const mine = session && c.caller.toLowerCase() === session.account.address.toLowerCase();
         return (
           <Card key={c.id} style={[{ gap: 8 }, !active && { opacity: 0.72 }]}>
@@ -516,7 +534,7 @@ function Feed(props: {
             </View>
             <View style={s.thesis}>
               <Text style={{ color: C.ink }}>
-                <Text style={{ color: C.up, fontWeight: "800", fontSize: 12 }}>LONG </Text>
+                <Text style={{ color: c.side === 0 ? C.up : C.down, fontWeight: "800", fontSize: 12 }}>{c.side === 0 ? "LONG " : "SHORT "}</Text>
                 {BASE_SYMBOL}/{QUOTE_SYMBOL} from <Text style={{ fontWeight: "700" }}>{humanPrice(c.entryMid).toFixed(4)}</Text>
               </Text>
               <Text style={s.small}>
@@ -538,15 +556,16 @@ function Feed(props: {
               style={s.link}
               onPress={() =>
                 shareLink(
-                  `${nameOf(c.caller)} called LONG ${BASE_SYMBOL} at ${humanPrice(c.entryMid).toFixed(4)}, target ${humanPrice(c.targetMid).toFixed(4)}. Committed onchain; you only pay if you profit.`,
+                  `${nameOf(c.caller)} called ${c.side === 0 ? "LONG" : "SHORT"} ${BASE_SYMBOL} at ${humanPrice(c.entryMid).toFixed(4)}, target ${humanPrice(c.targetMid).toFixed(4)}. Committed onchain; you only pay if you profit.`,
                   `call/${c.id}`,
                 )
               }
             >
               Share
             </Text>
-            {active && !session && <Btn title="Sign in to follow" onPress={props.signIn} />}
-            {active && session && !mine && (
+            {active && c.side !== 0 && <Text style={s.small}>Short calls are viewable; spot follows support long calls only.</Text>}
+            {active && c.side === 0 && !session && <Btn title="Sign in to follow" onPress={props.signIn} />}
+            {active && c.side === 0 && session && !mine && (
               <Btn
                 title={`Follow $${amount}`}
                 disabled={busy || !mid}
@@ -589,13 +608,16 @@ function Post(props: { session: Session; mid: bigint | null; stats: Map<Address,
   const m = mid ? humanPrice(mid) : 0;
   const t = m * (1 + Number(target) / 100);
   const sp = m * (1 - Number(stop) / 100);
+  const validation = !target.trim() || !Number.isFinite(Number(target)) || Number(target) <= 0 ? "Enter a target greater than 0%."
+    : !stop.trim() || !Number.isFinite(Number(stop)) || Number(stop) <= 0 || Number(stop) >= 100 ? "Enter a stop between 0% and 100%."
+    : !fee.trim() || !Number.isFinite(Number(fee)) || Number(fee) < 0 || Number(fee) > 30 ? "Enter a fee from 0% to 30%." : "";
 
   return (
     <Card style={{ gap: 10 }}>
       <Text style={s.h2}>Post a call</Text>
-      <Text style={s.muted}>Committed onchain now and scored against the market mid when it expires. Losers count.</Text>
+      <Text style={s.muted}>Committed onchain now and scored against the market mid when scored after expiry. Losers count.</Text>
       {me && !me.verified && (
-        <Text style={s.notice}>You are not verified, so you can post but won't rank or earn fees. Verification uses a Cleanverse A-Pass.</Text>
+        <Text style={s.notice}>You can post but won't rank or earn fees without a current gate attestation.{deployment.demo ? " This preview uses test attestations." : " Production verification requires the configured verification service."}</Text>
       )}
       <View style={s.thesis}>
         <Text style={{ color: C.ink, fontSize: 16 }}>
@@ -616,9 +638,12 @@ function Post(props: { session: Session; mid: bigint | null; stats: Map<Address,
           </Pressable>
         ))}
       </View>
+      <Text style={s.small}>Targets and stops describe your thesis; they do not automatically close positions.</Text>
+      {!!validation && <Text accessibilityRole="alert" style={{ color: C.down }}>{validation}</Text>}
+      {!mid && <Text style={s.notice}>Waiting for a fresh price before you can commit this call.</Text>}
       <Btn
         title="Commit call onchain"
-        disabled={busy || !mid}
+        disabled={busy || !mid || !!validation}
         onPress={() =>
           run("Committing your call", () =>
             postCall(session, { target: t, stop: sp, feeBps: Math.round(Number(fee) * 100), horizonSec: horizon }),
@@ -633,7 +658,7 @@ function Field(props: { label: string; value: string; onChange: (v: string) => v
   return (
     <View style={{ flex: 1, gap: 4 }}>
       <Text style={s.label}>{props.label}</Text>
-      <TextInput style={s.input} value={props.value} onChangeText={props.onChange} keyboardType="decimal-pad" />
+      <TextInput accessibilityLabel={props.label} style={s.input} value={props.value} onChangeText={props.onChange} keyboardType="decimal-pad" />
       {!!props.hint && <Text style={s.small}>{props.hint}</Text>}
     </View>
   );
@@ -653,12 +678,15 @@ function Portfolio(props: {
 }) {
   const { session, vault, vs, mid, calls, stats, busy, run } = props;
   const [limit, setLimit] = useState("500");
+  const [editingLimit, setEditingLimit] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const validLimit = /^\d+(\.\d{1,6})?$/.test(limit) && Number(limit) > 0;
   const callById = useMemo(() => new Map(calls.map((c) => [c.id, c])), [calls]);
 
   if (!vault || !vs)
     return (
       <View style={{ gap: 10 }}>
-        <HandleCard session={session} busy={busy} run={run} />
+        <HandleCard key={session.account.address + (HANDLES.get(session.account.address.toLowerCase()) ?? "")} session={session} busy={busy} run={run} />
         <Card style={{ gap: 10 }}>
           <Text style={s.h2}>Your vault</Text>
           <Text style={s.muted}>
@@ -668,7 +696,7 @@ function Portfolio(props: {
           <Field label={`Exposure limit (${QUOTE_SYMBOL})`} value={limit} onChange={setLimit} hint="The vault refuses any follow that would put more than this at risk." />
           <Btn
             title={`Create vault${deployment.demo ? " + 500 test AUSD" : ""}`}
-            disabled={busy}
+            disabled={busy || !validLimit}
             onPress={() =>
               run("Creating your vault", async () => {
                 const v = await ensureVault(session, parseQuote(limit));
@@ -686,7 +714,7 @@ function Portfolio(props: {
 
   return (
     <View style={{ gap: 10 }}>
-      <HandleCard session={session} busy={busy} run={run} />
+      <HandleCard key={session.account.address + (HANDLES.get(session.account.address.toLowerCase()) ?? "")} session={session} busy={busy} run={run} />
       <Card style={{ gap: 10 }}>
         <View style={s.row}>
           <View>
@@ -707,9 +735,11 @@ function Portfolio(props: {
           {deployment.demo && (
             <Btn ghost small title="+ 500 test AUSD" disabled={busy} onPress={() => run("Adding 500 test AUSD", () => demoFaucet(session, vault, parseQuote("500")))} />
           )}
-          <Btn ghost small title="Limit +500" disabled={busy} onPress={() => run("Raising exposure limit", () => setExposure(session, vault, vs.maxExposure + parseQuote("500")))} />
+          <Btn ghost small title="Exposure limit" disabled={busy} onPress={() => { setLimit(fmtQuote(vs.maxExposure, 0)); setEditingLimit(!editingLimit); }} />
         </View>
+        {editingLimit && <View style={{ gap: 10 }}><Field label="Exposure limit (AUSD)" value={limit} onChange={setLimit} hint="Must cover the original cost of open follows."/><Btn title="Save exposure limit" disabled={busy || !validLimit || (validLimit && parseQuote(limit) < vs.openCost)} onPress={() => run("Updating exposure limit", async () => { const hash = await setExposure(session, vault, parseQuote(limit)); setEditingLimit(false); return hash; })}/></View>}
       </Card>
+      <Card style={{ gap: 12 }}><Text style={s.h2}>Fund or withdraw</Text><Text style={s.muted}>Send {QUOTE_SYMBOL} on this network to your vault. MON in your account pays gas.</Text><Text selectable style={s.small}>{vault}</Text><Field label="Withdraw available AUSD" value={withdrawAmount} onChange={setWithdrawAmount}/><Btn ghost title="Withdraw to my account" disabled={busy || !/^\d+(\.\d{1,6})?$/.test(withdrawAmount) || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > Number(fmtQuote(vs.cash,6))} onPress={() => run("Withdrawing available cash", async () => { const hash = await withdrawCash(session, vault, parseQuote(withdrawAmount)); setWithdrawAmount(""); return hash; })}/></Card>
 
       <Text style={s.section}>OPEN</Text>
       {!open.length && <Empty text="No open follows." />}
@@ -736,9 +766,9 @@ function Portfolio(props: {
             {pv && (
               <Text style={s.feebox}>
                 {pv.fee > 0n
-                  ? `Close now: caller earns $${fmtQuote(pv.fee)} of your gain above your previous best with them.`
+                  ? `Estimated performance fee: $${fmtQuote(pv.fee)} above your previous peak. The protocol receives its configured share.`
                   : pv.stillDown
-                    ? `Close now: you are still net down with ${nameOf(p.caller)}, so they earn $0.`
+                    ? `Close now: you are below your previous peak with ${nameOf(p.caller)}, so there is no new performance fee.`
                     : `Close now: caller earns $0${st?.verified ? "" : " (unverified)"}.`}
               </Text>
             )}
@@ -787,6 +817,8 @@ function HandleCard({ session, busy, run }: { session: Session; busy: boolean; r
       <Text style={s.muted}>Public handle</Text>
       <View style={[s.row, { gap: 8 }]}>
         <TextInput
+          accessibilityLabel="Public handle"
+          maxLength={20}
           style={[s.input, { flex: 1 }]}
           value={v}
           onChangeText={(x) => setV(toHandle(x))}
@@ -813,7 +845,7 @@ function Board({ stats, onCaller }: { stats: Map<Address, CallerStats>; onCaller
       <Card style={{ gap: 6 }}>
         <Text style={s.h2}>Leaders</Text>
         <Text style={s.muted}>
-          Verified callers only, ranked by average return of committed calls. Follower count and reviews are not inputs.
+          Verified callers only, ranked by average return multiplied by the square root of scored call count. Follower count and reviews are not inputs.
         </Text>
       </Card>
       {!ranked.length && <Empty text="No scored calls from verified callers yet." />}
@@ -923,32 +955,32 @@ function PerplBadge({ caller, side, profile }: { caller: Address; side: number; 
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg, alignItems: "center" },
-  column: { flex: 1, width: "100%", maxWidth: 460 },
+  column: { flex: 1, width: "100%", maxWidth: 520 },
   top: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingBottom: 10 },
   brand: { color: C.ink, fontWeight: "800", fontSize: 16 },
   ticker: { marginLeft: "auto", color: C.muted, fontSize: 13 },
   chip: { borderWidth: 1, borderColor: C.line, backgroundColor: C.panel, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   chipText: { color: C.ink, fontSize: 12 },
   content: { padding: 16, paddingBottom: 120, gap: 10 },
-  h1: { color: C.ink, fontSize: 34, fontWeight: "800", marginTop: 6 },
+  h1: { color: C.ink, fontSize: 34, fontWeight: "600", marginTop: 6 },
   h2: { color: C.ink, fontSize: 19, fontWeight: "700" },
   lede: { color: C.ink, fontSize: 18, marginVertical: 10 },
   muted: { color: C.muted, fontSize: 13, lineHeight: 19 },
   small: { color: C.muted, fontSize: 12 },
-  label: { color: C.muted, fontSize: 12, letterSpacing: 0.5 },
+  label: { color: C.muted, fontSize: 10, letterSpacing: 0.8 },
   section: { color: C.muted, fontSize: 12, letterSpacing: 1, marginTop: 10 },
   who: { color: C.ink, fontWeight: "700", fontSize: 15 },
   link: { color: C.accent, fontWeight: "700", fontSize: 13 },
-  card: { backgroundColor: C.panel, borderColor: C.line, borderWidth: 1, borderRadius: 16, padding: 14 },
+  card: { backgroundColor: C.panel, borderColor: C.line, borderWidth: 1, borderRadius: 16, padding: 18 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   thesis: { backgroundColor: C.panel2, borderRadius: 10, padding: 10, gap: 2 },
   badge: { borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 },
   badgeText: { fontSize: 11, fontWeight: "700" },
   primary: { backgroundColor: C.ink, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 14, alignItems: "center" },
-  primaryText: { color: C.bg, fontWeight: "800", fontSize: 15 },
+  primaryText: { color: C.panel, fontWeight: "700", fontSize: 14 },
   ghost: { borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, alignItems: "center" },
   ghostText: { color: C.ink, fontWeight: "700" },
-  pill: { borderWidth: 1, borderColor: C.line, backgroundColor: C.panel, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 },
+  pill: { minHeight: 44, justifyContent: "center", borderWidth: 1, borderColor: C.line, backgroundColor: C.panel, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 },
   pillOn: { borderColor: C.accent },
   amountRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   input: { backgroundColor: C.panel2, borderColor: C.line, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: C.ink, fontSize: 16 },
@@ -959,8 +991,8 @@ const s = StyleSheet.create({
   closedRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line },
   leader: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: C.panel, borderColor: C.line, borderWidth: 1, borderRadius: 14, padding: 12 },
   perpl: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 },
-  perplAligned: { borderColor: "rgba(61,220,151,0.4)", backgroundColor: "rgba(61,220,151,0.08)" },
-  perplAgainst: { borderColor: "rgba(255,200,87,0.5)", backgroundColor: "rgba(255,200,87,0.10)" },
+  perplAligned: { borderColor: "rgba(53,99,72,0.4)", backgroundColor: "rgba(53,99,72,0.08)" },
+  perplAgainst: { borderColor: "rgba(130,88,27,0.4)", backgroundColor: "rgba(130,88,27,0.08)" },
   stat: { flex: 1, backgroundColor: C.panel2, borderRadius: 10, padding: 10, gap: 2 },
   tabs: {
     position: "absolute",
@@ -968,14 +1000,14 @@ const s = StyleSheet.create({
     right: 0,
     bottom: 0,
     flexDirection: "row",
-    backgroundColor: "rgba(251,245,239,0.97)",
+    backgroundColor: "rgba(255,250,243,0.97)",
     borderTopWidth: 1,
     borderTopColor: C.line,
     paddingBottom: Platform.OS === "ios" ? 26 : 8,
     paddingTop: 6,
   },
-  tabBtn: { flex: 1, alignItems: "center", paddingVertical: 10 },
-  tabText: { color: C.muted, fontWeight: "700" },
+  tabBtn: { flex: 1, alignItems: "center", paddingVertical: 12 },
+  tabText: { color: C.muted, fontWeight: "600", fontSize: 12 },
   toast: { position: "absolute", left: 16, right: 16, bottom: 84, backgroundColor: C.panel2, borderColor: C.line, borderWidth: 1, borderRadius: 12, padding: 12, gap: 4 },
   toastOk: { borderColor: "rgba(61,220,151,0.5)" },
   toastErr: { borderColor: "rgba(255,107,122,0.6)" },

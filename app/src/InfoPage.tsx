@@ -1,0 +1,28 @@
+type Section = { title: string; text: string };
+const pages: Record<string, { title: string; intro: string; sections: Section[] }> = {
+  guide: { title: "The Upside field guide.", intro: "Know what you follow, what you control, and how a fee is earned.", sections: [
+    { title: "A call is a public commitment", text: "A caller records a direction, target, stop, horizon, and fee before the move. Calls cannot be edited or deleted. The score compares the entry mid price with the mid price when scored after expiry. It is a signal score, not a follower's realized return." },
+    { title: "Targets and stops are reference levels", text: "These levels describe the caller's thesis. They do not automatically close your position. You decide when to close and settle your follow." },
+    { title: "Your vault and exposure limit", text: "A follow executes through your vault. The exposure limit restricts the total original cost of open follows; it is not a guaranteed maximum loss. Closing sells the position and settles any fee. Available settlement tokens can be withdrawn to your account." },
+    { title: "Fees recover losses first", text: "Fees use cumulative realized trading PnL for each follower–caller relationship, before performance fee deductions and network gas. A loss of 20 AUSD followed by a gain of 10 AUSD earns no performance fee because you remain below your previous peak. Only new cumulative gains above the recorded high-water mark earn a fee. The protocol takes its configured share from that fee; it is not an additional performance fee. Swap proceeds include venue trading costs; network gas is paid separately and is not part of this accounting." },
+    { title: "Verification and context", text: "A badge reflects the configured gate's current attestation. It does not guarantee uniqueness, competence, or results. Demo gates can use test attestations. Nansen labels and Perpl positions, when available, provide context rather than endorsements. Perpl is a separate venue; its positions do not establish an Upside follow's outcome." },
+    { title: "Passkeys and funding", text: "Mera derives your account from your passkey provider's PRF output. Device and provider support varies. Keep access to your original passkey; a different passkey can create a different account. MON pays network gas. Test AUSD funds the demo venue. You may need both before trading." },
+    { title: "Preview boundaries and ranking", text: "Demo deployments use test tokens and a demo router. A stale or unavailable keeper price disables trading actions. Rankings sort by average call return multiplied by the square root of scored call count. Followers and reviews do not enter that formula. Unresolved calls remain visible. Verification API access, phone passkeys, and production services require separate validation." }
+  ]},
+  privacy: { title: "Privacy in the preview.", intro: "Current application behavior. Updated 8 October 2026.", sections: [
+    { title: "Public activity", text: "Addresses, public handles, calls, vault activity, and transactions are recorded onchain and can be viewed by others. A pseudonymous address does not make that activity private. Choose a handle that you are comfortable publishing." },
+    { title: "On your device", text: "The web app stores a passkey credential identifier in local browser storage; native uses device storage. Signing material is derived in memory. The interface does not ask you to paste a private key. Signing out ends the signing session." },
+    { title: "Service requests", text: "RPC providers, hosting providers, and the keeper process requests and standard network metadata. Optional Nansen and Perpl requests may include public addresses. Those services have their own policies. The preview has no dedicated product analytics tracker." },
+    { title: "Removing local data", text: "Clearing storage removes the local credential reference, not your provider's passkey or onchain records. This hackathon preview does not yet have a dedicated privacy support channel." }
+  ]},
+  terms: { title: "Preview terms & boundaries.", intro: "Read before using this hackathon prototype. Updated 8 October 2026.", sections: [
+    { title: "For evaluation", text: "The demo uses test tokens with no redemption promise. The preview is not a production custody service. Verify the network and purpose of any address before sending assets." },
+    { title: "Your decisions", text: "You choose what to follow, how much to commit, and when to close. Blockchain transactions cannot simply be undone. Scores, labels, and opinions are information, not advice or a promise of profit." },
+    { title: "Execution and fees", text: "Each call declares a performance fee capped at 30% by the current contract. Settlement depends on recorded proceeds, relationship accounting, verification, and protocol configuration. Network and venue costs may apply. Estimates can differ from the settled result." },
+    { title: "Operational limits", text: "Contracts, price keepers, RPCs, and passkey providers can fail. Targets and stops are informational. This page describes the preview; production legal terms and an independent security audit remain separate work." }
+  ]}
+};
+export default function InfoPage({ name }: { name: string }) {
+  const page = pages[name];
+  return <article className="info-page"><a className="text-link" href="#/">← Back to calls</a><p className="eyebrow">UPSIDE / FIELD GUIDE</p><h1>{page.title}</h1><p className="info-intro">{page.intro}</p>{page.sections.map(s => <section key={s.title}><h2>{s.title}</h2><p>{s.text}</p></section>)}<a className="ink-button" href="#/">Explore calls ↗</a></article>;
+}

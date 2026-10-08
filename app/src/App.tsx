@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Address } from "viem";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isAddress, type Address } from "viem";
 import {
   createPasskeyAccount,
   describeError,
@@ -32,6 +32,7 @@ import {
   previewFee,
   QUOTE_SYMBOL,
   setExposure,
+  withdrawCash,
   type Call,
   type CallerStats,
 } from "./lib/upside";
@@ -39,6 +40,9 @@ import { deployment, EXPLORER, IS_LOCAL, REFRESH_MS } from "./env";
 import { getPerplPositions, perplEnabled, perplUrl, type PerplPosition } from "./lib/perpl";
 import { getNansen, type NansenInfo } from "./lib/nansen";
 import Landing from "./Landing";
+import { BrandMark, WalletGlyph } from "./Brand";
+import InfoPage from "./InfoPage";
+const infoRoutes = ["guide", "privacy", "terms"];
 
 type Tab = "feed" | "post" | "portfolio" | "board";
 type VaultState = Awaited<ReturnType<typeof getVaultState>>;
@@ -65,9 +69,9 @@ async function share(title: string, text: string, hash: string) {
   try {
     if (navigator.share) return await navigator.share({ title, text, url });
     await navigator.clipboard.writeText(`${text} ${url}`);
-    alert("Link copied");
-  } catch {
-    // user cancelled
+    window.dispatchEvent(new CustomEvent("upside:notice", { detail: "Link copied to clipboard." }));
+  } catch (e) {
+    if ((e as Error)?.name !== "AbortError") window.dispatchEvent(new CustomEvent("upside:notice", { detail: { kind: "err", text: "Sharing is unavailable. Copy this page's address from your browser." } }));
   }
 }
 
@@ -100,44 +104,72 @@ export default function App() {
   const [vs, setVs] = useState<VaultState | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [route, setRoute] = useState(currentRoute);
   const [, setHandleTick] = useState(0);
+  const refreshVersion = useRef(0);
+  const adoptSession = (next: Session | null) => {
+    refreshVersion.current++;
+    setLoading(true); setLoadError(""); setVault(null); setVs(null); setSession(next);
+  };
 
   useEffect(() => {
-    const on = () => (setRoute(currentRoute()), window.scrollTo(0, 0));
+    const on = () => { const next = currentRoute(); setRoute(next); if (next.startsWith("#/")) setBrowsing(true); if (!next || next.startsWith("#/")) window.scrollTo(0, 0); };
     addEventListener("hashchange", on);
     return () => removeEventListener("hashchange", on);
   }, []);
 
+  useEffect(() => {
+    const notice = (e: Event) => { const detail = (e as CustomEvent<string | NonNullable<Toast>>).detail; setToast(typeof detail === "string" ? { kind: "ok", text: detail } : detail); };
+    addEventListener("upside:notice", notice);
+    return () => removeEventListener("upside:notice", notice);
+  }, []);
+  useEffect(() => {
+    if (!toast || toast.kind !== "ok") return;
+    const timeout = setTimeout(() => setToast(null), 6000);
+    return () => clearTimeout(timeout);
+  }, [toast]);
+
   const refresh = useCallback(async () => {
-    const [m, cs] = await Promise.all([getMid(), getCalls()]);
-    setMid(m);
-    setCalls(cs);
-    setStats(await getCallerStats(cs.map((c) => c.caller)));
-    let state: VaultState | null = null;
-    if (session) {
-      const v = await getVault(session.account.address);
-      setVault(v);
-      state = v ? await getVaultState(v) : null;
-      setVs(state);
-    }
-    HANDLES = await getHandles([
-      ...cs.map((c) => c.caller),
-      ...(session ? [session.account.address] : []),
-      ...(state ? state.positions.map((p) => p.caller) : []),
-    ]);
-    [PERPL, NANSEN] = await Promise.all([
-      getPerplPositions(cs.map((c) => c.caller)),
-      getNansen(cs.map((c) => c.caller)),
-    ]);
-    setHandleTick((t) => t + 1);
+    const version = ++refreshVersion.current;
+    try {
+      const [m, cs] = await Promise.all([getMid(), getCalls()]);
+      const nextStats = await getCallerStats([...cs.map((c) => c.caller), ...(session ? [session.account.address] : [])]);
+      let state: VaultState | null = null;
+      let nextVault: Address | null = null;
+      if (session) {
+        const v = await getVault(session.account.address);
+        nextVault = v;
+        state = v ? await getVaultState(v) : null;
+      }
+      const nextHandles = await getHandles([
+        ...cs.map((c) => c.caller),
+        ...(session ? [session.account.address] : []),
+        ...(state ? state.positions.map((p) => p.caller) : []),
+      ]);
+      const [nextPerpl, nextNansen] = await Promise.all([
+        getPerplPositions(cs.map((c) => c.caller)),
+        getNansen(cs.map((c) => c.caller)),
+      ]);
+      if (version !== refreshVersion.current) return;
+      setMid(m); setCalls(cs); setStats(nextStats); setVault(nextVault); setVs(state);
+      HANDLES = nextHandles; PERPL = nextPerpl; NANSEN = nextNansen;
+      setHandleTick((t) => t + 1);
+      setLoading(false);
+      setLoadError("");
+      setUpdatedAt(Date.now());
+    } catch (error) { if (version === refreshVersion.current) throw error; }
   }, [session]);
 
   useEffect(() => {
-    refresh().catch(() => {});
-    const t = setInterval(() => refresh().catch(() => {}), REFRESH_MS);
+    if (!browsing && !session) return;
+    const read = () => refresh().catch(() => { setLoading(false); setLoadError("We could not refresh the onchain record. Check your connection and try again."); });
+    queueMicrotask(read);
+    const t = setInterval(read, REFRESH_MS);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refresh, browsing, session]);
 
   const run = async (label: string, fn: () => Promise<string | void>) => {
     setBusy(true);
@@ -145,7 +177,7 @@ export default function App() {
     try {
       const hash = await fn();
       setToast({ kind: "ok", text: `${label} — done`, hash: hash || undefined });
-      await refresh();
+      await refresh().catch(() => setLoadError("Transaction confirmed. The record could not refresh yet; retry to see the latest state."));
     } catch (e) {
       setToast({ kind: "err", text: describeError(e) });
     } finally {
@@ -154,23 +186,27 @@ export default function App() {
   };
 
   if (!session && !browsing) return joining
-    ? <Onboard onSession={setSession} onBrowse={() => setBrowsing(true)} onBack={() => setJoining(false)} />
+    ? <Onboard onSession={adoptSession} onBrowse={() => setBrowsing(true)} onBack={() => setJoining(false)} />
     : <Landing onStart={() => setJoining(true)} onBrowse={() => setBrowsing(true)} />;
   const signIn = () => { setJoining(true); setBrowsing(false); };
+  const infoName = route.slice(2);
+  const isInfo = infoRoutes.includes(infoName);
+  const callRoute = /^#\/call\/\d+$/.test(route);
+  const callerRoute = route.startsWith("#/caller/") && isAddress(route.slice(9));
+  const invalidRoute = route.startsWith("#/") && !callRoute && !callerRoute && !isInfo;
 
   return (
     <div className="shell">
+      <a className="skip" href="#workspace">Skip to content</a>
       <header className="top">
-        <div className="brand">
-          <span className="logo">▲</span> Upside
-        </div>
+        <button className="wordmark home-button" onClick={() => { setBrowsing(false); setJoining(false); go(""); }} aria-label="Upside home"><BrandMark />Upside</button>
         <div className="ticker" title="Order-book mid, pushed by the keeper">
           {BASE_SYMBOL}/{QUOTE_SYMBOL}{" "}
           <b>{mid ? humanPrice(mid).toFixed(4) : "—"}</b>
           {!mid && <span className="warn"> stale</span>}
         </div>
         {session ? (
-          <button className="chip" onClick={() => (session.end(), setSession(null), setBrowsing(false))} title="Switch account">
+          <button className="chip" disabled={busy} onClick={() => (session.end(), adoptSession(null), setBrowsing(false))} title="Switch account">
             {session.label.split(" ")[0]} · {short(session.account.address)}
           </button>
         ) : (
@@ -180,11 +216,18 @@ export default function App() {
         )}
       </header>
 
-      <main>
-        {!route.startsWith("#/") && <div className="workspace-heading"><p className="landing-eyebrow">Your next move starts here</p><h1>{({ feed: "The trading crew.", post: "Put your call on record.", portfolio: "Your share of the upside.", board: "Let the record speak." })[tab]}</h1><p className="sub">{deployment.demo ? "Monad testnet · demo venue · test tokens" : "Committed calls. Visible outcomes. Loss-aware fees."}</p></div>}
-        {route.startsWith("#/call/") && (
+      <main id="workspace" tabIndex={-1}>
+        {isInfo && <InfoPage name={infoName} />}
+        {invalidRoute && <StatePanel title="This page is off the map." text="The link does not point to a supported Upside page." action={() => go("")} label="Back to calls" />}
+        {!isInfo && !invalidRoute && <div className="environment-strip"><span className="status-dot"/><span>{deployment.demo ? "Preview / test tokens only" : "Monad / onchain record"}</span><span>{updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Connecting to the record"}</span><a href="#/guide">Field guide ↗</a></div>}
+        {!isInfo && !invalidRoute && loadError && <div className="connection-error" role="alert"><p>{loadError}</p><button className="ghost" onClick={() => refresh().catch(() => {})}>Retry connection</button></div>}
+        {!route.startsWith("#/") && <div className="workspace-heading"><p className="eyebrow">{({ feed: "01 / Find your conviction", post: "02 / Make it a commitment", portfolio: "03 / Stay in control", board: "04 / Evidence over attention" })[tab]}</p><h1>{({ feed: "The call sheet.", post: "Put it on record.", portfolio: "Your vault. Your upside.", board: "A following is earned." })[tab]}</h1><p className="sub">{({ feed: "Find a thesis. Inspect its author. Make your own move.", post: "A clear thesis, committed before the outcome.", portfolio: "See your exposure, your positions, and what a caller has earned.", board: "Scored commitments, including the ones that missed." })[tab]}</p></div>}
+        {!isInfo && !invalidRoute && !loadError && loading && <div className="skeleton-stack" role="status" aria-label="Loading the onchain record"><div/><div/><span>Reading the onchain record…</span></div>}
+        {callRoute && !loading && !loadError && (
           <Detail>
             <Feed
+              emptyTitle="That call is not on this record."
+              emptyText="Check the call ID or return to the full call sheet."
               calls={calls.filter((c) => String(c.id) === route.slice(7))}
               stats={stats}
               mid={mid}
@@ -192,15 +235,17 @@ export default function App() {
               vs={vs}
               session={session}
               signIn={signIn}
-              busy={busy}
+              busy={busy || !!loadError}
               run={run}
             />
           </Detail>
         )}
-        {route.startsWith("#/caller/") && (
+        {callerRoute && !loading && !loadError && (
           <Detail>
             <CallerProfile address={route.slice(9) as Address} stats={stats} />
             <Feed
+              emptyTitle="No calls from this address yet."
+              emptyText="When this address posts a call, its full record will appear here."
               calls={calls.filter((c) => c.caller.toLowerCase() === route.slice(9).toLowerCase())}
               stats={stats}
               mid={mid}
@@ -208,28 +253,30 @@ export default function App() {
               vs={vs}
               session={session}
               signIn={signIn}
-              busy={busy}
+              busy={busy || !!loadError}
               run={run}
             />
           </Detail>
         )}
-        {!route.startsWith("#/") && tab === "feed" && (
-          <Feed calls={calls} stats={stats} mid={mid} vault={vault} vs={vs} session={session} signIn={signIn} busy={busy} run={run} />
+        {!route.startsWith("#/") && tab === "feed" && !loading && !loadError && (
+          <Feed calls={calls} stats={stats} mid={mid} vault={vault} vs={vs} session={session} signIn={signIn} busy={busy || !!loadError} run={run} />
         )}
-        {!route.startsWith("#/") && tab === "post" &&
-          (session ? <Post session={session} mid={mid} stats={stats} busy={busy} run={run} /> : <SignInPrompt signIn={signIn} what="post a call" />)}
-        {!route.startsWith("#/") && tab === "portfolio" && (
+        {!route.startsWith("#/") && tab === "post" && !loading &&
+          (session ? <Post session={session} mid={mid} stats={stats} busy={busy || !!loadError} run={run} /> : <SignInPrompt signIn={signIn} what="post a call" />)}
+        {!route.startsWith("#/") && tab === "portfolio" && !loading && (
           session ? (
-            <Portfolio session={session} vault={vault} vs={vs} mid={mid} calls={calls} stats={stats} busy={busy} run={run} />
+            <Portfolio session={session} vault={vault} vs={vs} mid={mid} calls={calls} stats={stats} busy={busy || !!loadError} run={run} />
           ) : (
             <SignInPrompt signIn={signIn} what="see your portfolio" />
           )
         )}
-        {!route.startsWith("#/") && tab === "board" && <Board stats={stats} />}
+        {!route.startsWith("#/") && tab === "board" && !loading && !loadError && <Board stats={stats} />}
       </main>
+      <footer className="workspace-footer"><span>Upside / Good calls. Shared upside.</span><nav aria-label="Product resources"><a href="#/guide">Guide</a><a href="#/privacy">Privacy</a><a href="#/terms">Preview terms</a></nav></footer>
 
       {toast && (
-        <div className={`toast ${toast.kind}`} onClick={() => setToast(null)}>
+        <div className={`toast ${toast.kind}`} role={toast.kind === "err" ? "alert" : "status"}>
+          <button className="toast-dismiss" onClick={() => setToast(null)} aria-label="Dismiss notification">×</button>
           {toast.text}
           {toast.hash &&
             (EXPLORER ? (
@@ -243,17 +290,17 @@ export default function App() {
         </div>
       )}
 
-      <nav className="tabs">
+      <nav className="tabs" aria-label="Workspace">
         {(
           [
             ["feed", "Calls"],
-            ["post", "Post"],
-            ["portfolio", "Portfolio"],
-            ["board", "Leaders"],
+            ["post", "Create"],
+            ["portfolio", "Vault"],
+            ["board", "Record"],
           ] as [Tab, string][]
         ).map(([t, label]) => (
-          <button key={t} className={tab === t && !route.startsWith("#/") ? "on" : ""} onClick={() => (setTab(t), go(""))}>
-            {label}
+          <button key={t} aria-current={tab === t && !route.startsWith("#/") ? "page" : undefined} className={tab === t && !route.startsWith("#/") ? "on" : ""} onClick={() => (setTab(t), go(""))}>
+            <span className="nav-number" aria-hidden="true">{({feed:"01",post:"02",portfolio:"03",board:"04"})[t]}</span>{label}
           </button>
         ))}
       </nav>
@@ -282,10 +329,11 @@ function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => v
   };
   return (
     <div className="shell onboard">
-      <button className="back" onClick={onBack}>← Back to Upside</button>
+      <button className="back" disabled={busy} onClick={onBack}>← Back to Upside</button>
       <div className="hero">
-        <div className="logo big">▲</div>
-        <h1>Upside</h1>
+        <BrandMark className="onboard-mark" />
+        <p className="eyebrow">Your judgment. Your account.</p>
+        <h1>Make room for<br />your upside.</h1>
         <p className="lede">Trading calls you only pay for when you profit.</p>
         <ul className="points">
           <li>Every call is committed on Monad before the move. No deleting losers.</li>
@@ -296,8 +344,8 @@ function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => v
       <div className="card">
         <label className="field">
           <span>Display name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. femi" />
-          <small>Becomes your public handle, e.g. @{toHandle(name) || "femi"}</small>
+          <input autoComplete="nickname" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} placeholder="What should we call you?" />
+          <small>Choose your public onchain handle from your vault after funding.</small>
         </label>
         <button
           className="primary"
@@ -306,26 +354,26 @@ function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => v
             start(async () => {
               const s = await createPasskeyAccount(name || "Upside user");
               await devFundGas(s.account.address);
-              if (toHandle(name).length >= 3) setHandle(s, toHandle(name)).catch(() => {}); // needs gas; best effort
               return s;
             })
           }
         >
           Create account with a passkey
         </button>
-        {hasPasskey() && (
+        {(
           <button className="ghost" disabled={busy} onClick={() => start(signInWithPasskey)}>
             Sign in with your passkey
           </button>
         )}
-        <p className="fine">No seed phrase. Your passkey derives your Monad account on this device (Mera).</p>
-        {err && <p className="error">{err}</p>}
+        <p className="fine">{hasPasskey() ? "A passkey was previously used on this browser. " : ""}Use a passkey provider with PRF support. Keep access to your original passkey.</p>
+        {busy && <p role="status" className="fine">Waiting for your passkey provider…</p>}
+        {err && <p className="error" role="alert">{err}</p>}
       </div>
       {IS_LOCAL && (
         <div className="card dev">
           <div className="dev-title">Local demo accounts</div>
           {DEV_ACCOUNTS.map((a, i) => (
-            <button key={a.label} className="ghost" onClick={() => onSession(devSession(i))}>
+            <button key={a.label} className="ghost" disabled={busy} onClick={() => onSession(devSession(i))}>
               {a.label}
             </button>
           ))}
@@ -349,7 +397,7 @@ type Runner = (label: string, fn: () => Promise<string | void>) => Promise<void>
 function CallerBadge({ s }: { s?: CallerStats }) {
   if (!s) return null;
   return (
-    <span className={`badge ${s.verified ? "ok" : "muted"}`}>{s.verified ? "Verified" : "Unverified · earns $0"}</span>
+    <span className={`badge ${s.verified ? "ok" : "muted"}`} title={deployment.demo ? "Current test attestation from the demo gate" : "Current gate attestation; not a guarantee of results"}>{s.verified ? (deployment.demo ? "Test verified" : "Verified") : "Unverified · earns $0"}</span>
   );
 }
 
@@ -373,30 +421,44 @@ function Feed(props: {
   signIn: () => void;
   busy: boolean;
   run: Runner;
+  emptyTitle?: string;
+  emptyText?: string;
 }) {
   const { calls, stats, mid, session, busy, run } = props;
   const now = useNow();
   const [amount, setAmount] = useState("50");
-  if (!calls.length) return <Empty text="No calls here yet." />;
+  const [filter, setFilter] = useState<"all" | "live" | "scored">("all");
+  const [query, setQuery] = useState("");
+  const shown = calls.filter(c => (filter === "all" || (filter === "live" ? !c.scored && c.expiry > now : c.scored)) && `${nameOf(c.caller)} ${c.caller} ${c.id}`.toLowerCase().includes(query.toLowerCase().trim()));
+  if (!calls.length) return <StatePanel title={props.emptyTitle ?? "The next call is still unwritten."} text={props.emptyText ?? "Committed calls will appear here with their full record. Explore the guide or sign in to create the first one."} />;
 
   return (
-    <div className="list">
+    <div className="feed-layout">
+      <div className="feed-toolbar">
+        <div className="filter-group" role="group" aria-label="Filter calls">{(["all", "live", "scored"] as const).map(f => <button key={f} className={`pill ${filter === f ? "on" : ""}`} aria-pressed={filter === f} onClick={() => setFilter(f)}>{({all:"All calls",live:"Live",scored:"Scored"})[f]}</button>)}</div>
+        <label className="search-field"><span className="sr-only">Search calls by handle, address or ID</span><input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a caller or call…" /></label>
+      </div>
       <div className="amount-row">
         <span>Follow size</span>
         {["20", "50", "100"].map((v) => (
-          <button key={v} className={`pill ${amount === v ? "on" : ""}`} onClick={() => setAmount(v)}>
+          <button key={v} aria-pressed={amount === v} className={`pill ${amount === v ? "on" : ""}`} onClick={() => setAmount(v)}>
             ${v}
           </button>
         ))}
       </div>
-      {calls.map((c) => {
+      {!shown.length && <StatePanel title="Nothing in this view yet." text="Try another filter or search." action={() => { setQuery(""); setFilter("all"); }} label="Show all calls" />}
+      <div className="call-grid">
+      {shown.map((c) => {
         const s = stats.get(c.caller);
         const active = !c.scored && c.expiry > now;
-        const live = mid && !c.scored ? Number(((mid - c.entryMid) * 10000n) / c.entryMid) : null;
+        const live = mid && !c.scored ? Number(((mid - c.entryMid) * 10000n) / c.entryMid) * (c.side === 0 ? 1 : -1) : null;
         return (
           <article key={c.id} className={`call ${active ? "" : "done"}`}>
+            <div className="call-label"><span>CALL / {String(c.id).padStart(3,"0")}</span><span className={`call-status ${active ? "live" : ""}`}>{c.scored ? "Scored" : active ? "Live thesis" : "Awaiting score"}</span></div>
             <div className="row">
-              <div>
+              <div className="caller-identity">
+                <WalletGlyph address={c.caller} />
+                <div>
                 <div className="who">
                   <a className="link" href={`#/caller/${c.caller}`}>
                     {nameOf(c.caller)}
@@ -405,6 +467,7 @@ function Feed(props: {
                   <NansenChip caller={c.caller} />
                 </div>
                 <Record s={s} />
+                </div>
               </div>
               <div className="fee">
                 {c.feeBps / 100}% of net gains
@@ -413,7 +476,7 @@ function Feed(props: {
               </div>
             </div>
             <div className="thesis">
-              <span className="long">LONG</span> {BASE_SYMBOL}/{QUOTE_SYMBOL} from <b>{humanPrice(c.entryMid).toFixed(4)}</b>
+              <span className="long">{c.side === 0 ? "LONG" : "SHORT"}</span> {BASE_SYMBOL}/{QUOTE_SYMBOL} from <b>{humanPrice(c.entryMid).toFixed(4)}</b>
               <span className="lv"> target {humanPrice(c.targetMid).toFixed(4)}</span>
               <span className="lv"> stop {humanPrice(c.stopMid).toFixed(4)}</span>
             </div>
@@ -437,19 +500,20 @@ function Feed(props: {
               onClick={() =>
                 share(
                   `Upside call #${c.id}`,
-                  `${nameOf(c.caller)} called LONG ${BASE_SYMBOL} at ${humanPrice(c.entryMid).toFixed(4)}, target ${humanPrice(c.targetMid).toFixed(4)}. Committed onchain; you only pay if you profit.`,
+                  `${nameOf(c.caller)} called ${c.side === 0 ? "LONG" : "SHORT"} ${BASE_SYMBOL} at ${humanPrice(c.entryMid).toFixed(4)}, target ${humanPrice(c.targetMid).toFixed(4)}. Committed onchain; you only pay if you profit.`,
                   `#/call/${c.id}`,
                 )
               }
             >
               Share
             </button>
-            {active && !session && (
+            {active && c.side !== 0 && <p className="fine">Short calls are viewable; spot follows support long calls only.</p>}
+            {active && c.side === 0 && !session && (
               <button className="primary" onClick={props.signIn}>
                 Sign in to follow
               </button>
             )}
-            {active && session && c.caller.toLowerCase() !== session.account.address.toLowerCase() && (
+            {active && session && c.side === 0 && c.caller.toLowerCase() !== session.account.address.toLowerCase() && (
               <button
                 className="primary"
                 disabled={busy || !mid}
@@ -467,9 +531,11 @@ function Feed(props: {
                 Follow ${amount}
               </button>
             )}
+            {active && session && c.caller.toLowerCase() === session.account.address.toLowerCase() && <p className="fine">Your own call · inspect how it performs in your public record.</p>}
           </article>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -486,16 +552,19 @@ function Post(props: { session: Session; mid: bigint | null; stats: Map<Address,
   const m = mid ? humanPrice(mid) : 0;
   const t = m * (1 + Number(target) / 100);
   const s = m * (1 - Number(stop) / 100);
+  const validation = !target.trim() || !Number.isFinite(Number(target)) || Number(target) <= 0 ? "Enter a target greater than 0%."
+    : !stop.trim() || !Number.isFinite(Number(stop)) || Number(stop) <= 0 || Number(stop) >= 100 ? "Enter a stop between 0% and 100%."
+    : !fee.trim() || !Number.isFinite(Number(fee)) || Number(fee) < 0 || Number(fee) > 30 ? "Enter a performance fee from 0% to 30%." : "";
 
   return (
     <div className="card form">
       <h2>Post a call</h2>
       <p className="sub">
-        Your call is committed onchain at this block and scored against the market mid when it expires. Losers count.
+        Your call is committed onchain and scored against the market mid when scored after expiry. Losers count.
       </p>
       {me && !me.verified && (
         <p className="notice">
-          You are not verified, so you can post but won't rank or earn fees. Verification uses a Cleanverse A-Pass.
+          You can post but won't rank or earn fees without a current gate attestation.{deployment.demo ? " This preview uses test attestations." : " Production verification requires the configured verification service."}
         </p>
       )}
       <div className="thesis big">
@@ -528,9 +597,12 @@ function Post(props: { session: Session; mid: bigint | null; stats: Map<Address,
           </select>
         </label>
       </div>
+      <p className="fine">Target and stop levels describe your thesis. They do not trigger an automatic close.</p>
+      {!mid && <p className="notice">Waiting for a fresh price before this call can be committed.</p>}
+      {validation && <p className="error" role="alert">{validation}</p>}
       <button
         className="primary"
-        disabled={busy || !mid}
+        disabled={busy || !mid || !!validation}
         onClick={() =>
           run("Committing your call", () =>
             postCall(session, { target: t, stop: s, feeBps: Math.round(Number(fee) * 100), horizonSec: horizon }),
@@ -557,6 +629,9 @@ function Portfolio(props: {
 }) {
   const { session, vault, vs, mid, calls, stats, busy, run } = props;
   const [limit, setLimit] = useState("500");
+  const [editingLimit, setEditingLimit] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const validLimit = limit.trim() !== "" && /^\d+(\.\d{1,6})?$/.test(limit) && Number(limit) > 0;
   const callById = useMemo(() => new Map(calls.map((c) => [c.id, c])), [calls]);
 
   if (!vault || !vs)
@@ -572,12 +647,13 @@ function Portfolio(props: {
           <input inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
           <small>The vault refuses any follow that would put more than this at risk.</small>
         </label>
-        <button className="primary" disabled={busy} onClick={() => run("Creating your vault", async () => {
+        <button className="primary" disabled={busy || !validLimit} onClick={() => run("Creating your vault", async () => {
           const v = await ensureVault(session, parseQuote(limit));
           if (deployment.demo) await demoFaucet(session, v, parseQuote("500"));
         })}>
           Create vault{deployment.demo ? " + 500 test AUSD" : ""}
         </button>
+        {!validLimit && <p className="error" role="alert">Enter a positive amount with up to 6 decimals.</p>}
       </div>
     );
 
@@ -586,8 +662,8 @@ function Portfolio(props: {
   const used = Number(vs.openCost) / Math.max(1, Number(vs.maxExposure));
 
   return (
-    <div className="list">
-      <HandleCard session={session} run={run} busy={busy} />
+    <div className="list portfolio-list">
+      <HandleCard key={session.account.address + (HANDLES.get(session.account.address.toLowerCase()) ?? "")} session={session} run={run} busy={busy} />
       <div className="card">
         <div className="row">
           <div>
@@ -601,7 +677,7 @@ function Portfolio(props: {
             </div>
           </div>
         </div>
-        <div className="meter">
+        <div className="meter" role="meter" aria-label="Exposure used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(100, used * 100))}>
           <div style={{ width: `${Math.min(100, used * 100)}%` }} className={used > 0.8 ? "hot" : ""} />
         </div>
         <div className="row actions">
@@ -613,14 +689,13 @@ function Portfolio(props: {
           <button
             className="ghost"
             disabled={busy}
-            onClick={() => {
-              const v = prompt("New exposure limit (AUSD)", fmtQuote(vs.maxExposure, 0));
-              if (v) run("Updating exposure limit", () => setExposure(session, vault, parseQuote(v)));
-            }}
+            onClick={() => { setLimit(fmtQuote(vs.maxExposure, 0)); setEditingLimit(!editingLimit); }}
           >
             Exposure limit
           </button>
         </div>
+        {editingLimit && <div className="inline-editor"><label className="field"><span>Exposure limit ({QUOTE_SYMBOL})</span><input inputMode="decimal" value={limit} onChange={e => setLimit(e.target.value)} /></label><button className="primary" disabled={busy || !validLimit || (validLimit && parseQuote(limit) < vs.openCost)} onClick={() => run("Updating exposure limit", async () => { const hash = await setExposure(session, vault, parseQuote(limit)); setEditingLimit(false); return hash; })}>Save exposure limit</button><p className="fine">The limit must cover the original cost of open follows. It does not guarantee a maximum loss.</p></div>}
+        <details className="vault-access"><summary>Fund or withdraw your vault</summary><p className="fine">Deposit {QUOTE_SYMBOL} on this network to the vault address. MON is needed in your account for gas.</p><div className="address-block"><span>Vault address</span><code>{vault}</code><button className="share" onClick={() => navigator.clipboard.writeText(vault).then(() => window.dispatchEvent(new CustomEvent("upside:notice", { detail:"Vault address copied." }))).catch(() => setToastNotice("Clipboard unavailable. Select and copy the address above."))}>Copy address ↗</button></div><label className="field"><span>Withdraw available {QUOTE_SYMBOL} to your account</span><input inputMode="decimal" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} placeholder="Amount" /></label><button className="ghost" disabled={busy || !/^\d+(\.\d{1,6})?$/.test(withdrawAmount) || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > Number(fmtQuote(vs.cash,6))} onClick={() => run("Withdrawing available cash", async () => { const hash = await withdrawCash(session, vault, parseQuote(withdrawAmount)); setWithdrawAmount(""); return hash; })}>Withdraw to my account</button></details>
       </div>
 
       <h3>Open</h3>
@@ -649,15 +724,16 @@ function Portfolio(props: {
               <div className="feebox">
                 {pv.fee > 0n ? (
                   <>
-                    Close now: caller earns <b>${fmtQuote(pv.fee)}</b> of your gain above your previous best with them.
+                    Estimated performance fee: <b>${fmtQuote(pv.fee)}</b> on gains above your previous peak. The protocol receives its configured share of this fee.
                   </>
                 ) : pv.stillDown ? (
-                  <>Close now: you are still net down with {nameOf(p.caller)}, so they earn $0.</>
+                  <>Close now: you are below your previous peak with {nameOf(p.caller)}, so there is no new performance fee.</>
                 ) : (
                   <>Close now: caller earns $0{st?.verified ? "" : " (unverified)"}.</>
                 )}
               </div>
             )}
+            <p className="fine">Estimated at the current mid. Execution price, fees, and gas may change the result.</p>
             <button
               className="primary"
               disabled={busy || !mid}
@@ -715,34 +791,39 @@ function Board({ stats }: { stats: Map<Address, CallerStats> }) {
       </div>
       {!ranked.length && <Empty text="No scored calls from verified callers yet." />}
       {ranked.map((s, i) => (
-        <div key={s.address} className="leader">
+        <a key={s.address} className="leader link" href={`#/caller/${s.address}`}>
           <span className="rank">{i + 1}</span>
-          <span className="who">{nameOf(s.address)}</span>
+          <span className="who"><WalletGlyph address={s.address} />{nameOf(s.address)}</span>
           <span className={s.avgReturnBps >= 0 ? "up" : "down"}>{pct(s.avgReturnBps)}</span>
           <span className="sub">
             {s.scored} {s.scored === 1 ? "call" : "calls"} · {Math.round((s.wins / s.scored) * 100)}% hit
           </span>
-        </div>
+        </a>
       ))}
       {!!unranked.length && <h3>Not ranked</h3>}
       {unranked.map((s) => (
-        <div key={s.address} className="leader muted">
+        <a key={s.address} className="leader muted link" href={`#/caller/${s.address}`}>
           <span className="rank">–</span>
           <span className="who">{nameOf(s.address)}</span>
           <span className="sub">{s.verified ? "no scored calls yet" : "unverified"}</span>
-        </div>
+        </a>
       ))}
     </div>
   );
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="empty">{text}</div>;
+  return <div className="empty"><BrandMark /><p>{text}</p><a href="#/guide">Read the field guide ↗</a></div>;
+}
+
+function setToastNotice(text: string) { window.dispatchEvent(new CustomEvent("upside:notice", { detail: text })); }
+function StatePanel({ title, text, action, label }: { title: string; text: string; action?: () => void; label?: string }) {
+  return <section className="state-panel"><BrandMark /><h2>{title}</h2><p>{text}</p>{action ? <button className="ghost" onClick={action}>{label}</button> : <a className="text-link" href="#/guide">Read the field guide ↗</a>}</section>;
 }
 
 function Detail({ children }: { children: React.ReactNode }) {
   return (
-    <div className="list">
+    <div className="detail-stack">
       <button className="back" onClick={() => go("")}>
         ← Back
       </button>
@@ -756,10 +837,10 @@ function CallerProfile({ address, stats }: { address: Address; stats: Map<Addres
   return (
     <div className="card profile">
       <div className="row">
-        <div>
+        <div className="caller-identity"><WalletGlyph address={address} /><div>
           <h2>{nameOf(address)}</h2>
           <div className="sub mono">{short(address)}</div>
-        </div>
+        </div></div>
         <CallerBadge s={s} />
       </div>
       {s && (
@@ -804,7 +885,7 @@ function HandleCard({ session, run, busy }: { session: Session; run: Runner; bus
     <div className="card">
       <div className="sub">Public handle</div>
       <div className="row handle-row">
-        <input className="inline" value={v} onChange={(e) => setV(toHandle(e.target.value))} placeholder="your_handle" />
+        <input aria-label="Public handle" className="inline" maxLength={20} value={v} onChange={(e) => setV(toHandle(e.target.value))} placeholder="your_handle" />
         <button
           className="ghost"
           disabled={busy || v.length < 3 || v === current}
@@ -813,6 +894,7 @@ function HandleCard({ session, run, busy }: { session: Session; run: Runner; bus
           Save
         </button>
       </div>
+      <p className="fine">3–20 lowercase letters, numbers, or underscores. Saved publicly onchain.</p>
     </div>
   );
 }

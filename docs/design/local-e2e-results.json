@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-08",
+  "chainId": 31337,
+  "realLocalTransactions": true,
+  "realFundsUsed": false,
+  "postedCalls": 2,
+  "followAUSD": 50,
+  "closeProceedsAUSD": 60,
+  "totalPerformanceFeeAUSD": 2,
+  "callerReceivedAUSD": 1.8,
+  "protocolShareAUSD": 0.2,
+  "vaultAfterSettlementAUSD": 508,
+  "withdrawnAUSD": 5,
+  "scoreVerified": true,
+  "runtimeErrors": [],
+  "lossRecoveryUI": [
+    {
+      "label": "loss",
+      "newCallerFeeAUSD": 0,
+      "netPnlRaw": "-10000001",
+      "highWaterRaw": "10000000"
+    },
+    {
+      "label": "partial-recovery",
+      "newCallerFeeAUSD": 0,
+      "netPnlRaw": "-2",
+      "highWaterRaw": "10000000"
+    }
+  ]
+}

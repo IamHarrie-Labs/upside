@@ -1,0 +1,110 @@
+[
+  {
+    "foreground": "ink",
+    "background": "bg",
+    "ratio": 13.01,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "ink",
+    "background": "panel",
+    "ratio": 14.45,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "ink",
+    "background": "panel2",
+    "ratio": 11.7,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "muted",
+    "background": "bg",
+    "ratio": 5.17,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "muted",
+    "background": "panel",
+    "ratio": 5.74,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "muted",
+    "background": "panel2",
+    "ratio": 4.65,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "accent",
+    "background": "bg",
+    "ratio": 5.11,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "accent",
+    "background": "panel",
+    "ratio": 5.68,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "accent",
+    "background": "panel2",
+    "ratio": 4.6,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "up",
+    "background": "bg",
+    "ratio": 6.01,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "up",
+    "background": "panel",
+    "ratio": 6.67,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "up",
+    "background": "panel2",
+    "ratio": 5.4,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "down",
+    "background": "bg",
+    "ratio": 5.71,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "down",
+    "background": "panel",
+    "ratio": 6.34,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "down",
+    "background": "panel2",
+    "ratio": 5.14,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "warn",
+    "background": "bg",
+    "ratio": 5.42,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "warn",
+    "background": "panel",
+    "ratio": 6.02,
+    "passesNormalText": true
+  },
+  {
+    "foreground": "warn",
+    "background": "panel2",
+    "ratio": 4.87,
+    "passesNormalText": true
+  }
+]

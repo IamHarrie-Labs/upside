@@ -1,0 +1,212 @@
+{
+  "date": "2026-10-08",
+  "fixtureOnly": true,
+  "transactionWrites": 0,
+  "runtimeErrors": [],
+  "screens": [
+    {
+      "name": "landing-1440",
+      "overflow": false
+    },
+    {
+      "name": "onboarding-1440",
+      "overflow": false
+    },
+    {
+      "name": "calls-1440",
+      "overflow": false
+    },
+    {
+      "name": "create-1440",
+      "overflow": false
+    },
+    {
+      "name": "vault-1440",
+      "overflow": false
+    },
+    {
+      "name": "vault-edit-1440",
+      "overflow": false
+    },
+    {
+      "name": "vault-funding-1440",
+      "overflow": false
+    },
+    {
+      "name": "record-1440",
+      "overflow": false
+    },
+    {
+      "name": "caller-1440",
+      "overflow": false
+    },
+    {
+      "name": "detail-1440",
+      "overflow": false
+    },
+    {
+      "name": "missing-call-1440",
+      "overflow": false
+    },
+    {
+      "name": "guide-1440",
+      "overflow": false
+    },
+    {
+      "name": "privacy-1440",
+      "overflow": false
+    },
+    {
+      "name": "terms-1440",
+      "overflow": false
+    },
+    {
+      "name": "not-found-1440",
+      "overflow": false
+    },
+    {
+      "name": "landing-390",
+      "overflow": false
+    },
+    {
+      "name": "onboarding-390",
+      "overflow": false
+    },
+    {
+      "name": "calls-390",
+      "overflow": false
+    },
+    {
+      "name": "create-390",
+      "overflow": false
+    },
+    {
+      "name": "vault-390",
+      "overflow": false
+    },
+    {
+      "name": "vault-edit-390",
+      "overflow": false
+    },
+    {
+      "name": "vault-funding-390",
+      "overflow": false
+    },
+    {
+      "name": "record-390",
+      "overflow": false
+    },
+    {
+      "name": "caller-390",
+      "overflow": false
+    },
+    {
+      "name": "detail-390",
+      "overflow": false
+    },
+    {
+      "name": "missing-call-390",
+      "overflow": false
+    },
+    {
+      "name": "guide-390",
+      "overflow": false
+    },
+    {
+      "name": "privacy-390",
+      "overflow": false
+    },
+    {
+      "name": "terms-390",
+      "overflow": false
+    },
+    {
+      "name": "not-found-390",
+      "overflow": false
+    },
+    {
+      "name": "landing-320",
+      "overflow": false
+    },
+    {
+      "name": "onboarding-320",
+      "overflow": false
+    },
+    {
+      "name": "calls-320",
+      "overflow": false
+    },
+    {
+      "name": "create-320",
+      "overflow": false
+    },
+    {
+      "name": "vault-320",
+      "overflow": false
+    },
+    {
+      "name": "vault-edit-320",
+      "overflow": false
+    },
+    {
+      "name": "vault-funding-320",
+      "overflow": false
+    },
+    {
+      "name": "record-320",
+      "overflow": false
+    },
+    {
+      "name": "caller-320",
+      "overflow": false
+    },
+    {
+      "name": "detail-320",
+      "overflow": false
+    },
+    {
+      "name": "missing-call-320",
+      "overflow": false
+    },
+    {
+      "name": "guide-320",
+      "overflow": false
+    },
+    {
+      "name": "privacy-320",
+      "overflow": false
+    },
+    {
+      "name": "terms-320",
+      "overflow": false
+    },
+    {
+      "name": "not-found-320",
+      "overflow": false
+    },
+    {
+      "name": "state-empty",
+      "overflow": false
+    },
+    {
+      "name": "state-stale",
+      "overflow": false
+    },
+    {
+      "name": "error-before-retry",
+      "overflow": false
+    },
+    {
+      "name": "state-error",
+      "overflow": false
+    },
+    {
+      "name": "state-new-vault",
+      "overflow": false
+    },
+    {
+      "name": "state-loading",
+      "overflow": false
+    }
+  ]
+}

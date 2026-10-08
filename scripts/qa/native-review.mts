@@ -1,0 +1,88 @@
+import { createRequire } from 'node:module';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { decodeFunctionData, encodeFunctionResult, zeroAddress } from '../../app/node_modules/viem/_esm/index.js';
+import * as abis from '../../app/src/abi.ts';
+const require = createRequire(import.meta.url);
+const { chromium } = require('C:/Users/Harrie/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const abi = Object.values(abis).flat();
+const ADA='0x70997970c51812dc3a010c7d01b50e0d17dc79c8';
+const SYBIL='0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc';
+const VAULT='0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const now=Math.floor(Date.now()/1000);
+let mode='normal'; let writes=0;
+const call=(id:number)=>({caller:id%2?SYBIL:ADA,base:VAULT,quote:VAULT,side:id===1?1:0,feeBps:2000,verifiedAtPost:id%2===0,scored:id>=2,postedAt:now-4000+id*100,expiry:id>=2?now-30:now+3600,entryMid:35000n,targetMid:36500n,stopMid:34000n,exitMid:id>=2?35500n:0n,returnBps:id===2?142n:id===3?-210n:0n});
+const position=(id:number)=>({callId:BigInt(id),caller:id%2?SYBIL:ADA,base:VAULT,baseAmount:1500n*10n**18n,cost:50000000n,open:id<2});
+function rpc(req:any) {
+  if(req.method==='eth_getLogs')return [];
+  if(req.method==='eth_blockNumber')return '0x1';
+  if(req.method==='eth_chainId')return '0x7a69';
+  if(req.method==='eth_getBalance')return '0xde0b6b3a7640000';
+  if(req.method==='eth_call') {
+    if(mode==='error')throw new Error('Simulated RPC unavailable');
+    const data=decodeFunctionData({abi:abi as any,data:req.params[0].data});
+    const name=data.functionName; const args:any[]=data.args as any[]??[];
+    const f:any=abi.find((f:any)=>f.type==='function'&&f.name===name);
+    let result:any;
+    switch(name){
+      case 'midPrice':if(mode==='stale')throw new Error('Stale price'); result=35000n;break;
+      case 'callCount':result=mode==='empty'?0n:4n;break;
+      case 'getCall':result=call(Number(args[0]));break;
+      case 'records':result=args[0].toLowerCase()===ADA?[142n,2,1,1]:[-210n,2,1,0];break;
+      case 'isVerified':result=args[0].toLowerCase()===ADA;break;
+      case 'handleOf':result=args[0].toLowerCase()===ADA?'ada':args[0].toLowerCase()===SYBIL?'sybil_farm':'femi';break;
+      case 'vaultOf':result=mode==='new-vault'?zeroAddress:VAULT;break;
+      case 'positionCount':result=3n;break;
+      case 'maxExposure':result=500000000n;break;
+      case 'openCost':result=100000000n;break;
+      case 'balanceOf':result=375500000n;break;
+      case 'getPosition':result=position(Number(args[0]));break;
+      case 'netPnl':result=-15000000n;break;
+      case 'highWater':result=0n;break;
+      default: throw new Error('Unhandled fixture read '+name);
+    }
+    return encodeFunctionResult({abi:[f],functionName:name,result} as any);
+  }
+  writes++;throw new Error('Transactions are deliberately blocked in UI QA');
+}
+const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
+const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+await context.route('**/*',async(route:any)=>{
+  const url=route.request().url();
+  if(url.includes(':8547')||url.includes('rpc.monad.xyz')){
+    const req=route.request().postDataJSON();
+    const handle=(x:any)=>{try{return {jsonrpc:'2.0',id:x.id,result:rpc(x)}}catch(e:any){return {jsonrpc:'2.0',id:x.id,error:{code:-32000,message:e.message}}}};
+    return route.fulfill({contentType:'application/json',body:JSON.stringify(Array.isArray(req)?req.map(handle):handle(req))});
+  }
+  if(url.includes(':8788')) return route.fulfill({contentType:'application/json',body:JSON.stringify(url.includes('/perpl/')?{markets:[]}:url.includes('/nansen')?{mode:'off'}:url.includes('/flow')?{flow:{}}:{ok:true})});
+  return route.continue();
+});
+const page=await context.newPage();
+const errors:string[]=[];page.on('pageerror',(e:any)=>errors.push(e.message));
+const shots:any[]=[];
+async function snap(name:string){await page.waitForFunction(()=>[...document.images].every(i=>i.complete&&i.naturalWidth>0));await page.waitForTimeout(150);const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/native-${name}.png`,fullPage:true});shots.push({name,overflow});}
+
+for (const width of [390,768]) {
+  mode='normal';await page.setViewportSize({width,height:900});await page.goto('http://127.0.0.1:8081/');await page.getByText('Good calls.',{exact:false}).waitFor();await snap(`onboarding-${width}`);
+  await page.getByRole('button',{name:'Femi (follower)'}).click();await page.getByText('@ada',{exact:true}).first().waitFor();await snap(`calls-${width}`);
+  if(await page.getByRole('button',{name:'Follow $50',exact:true}).count()!==1)throw new Error('Short calls must not offer spot follow');
+  await page.getByRole('button',{name:'Scored',exact:true}).click();
+  if(await page.getByRole('button',{name:'Follow $50',exact:true}).count())throw new Error('Scored filter includes followable calls');
+  await page.getByLabel('Search calls').fill('no-matching-handle');await page.getByText('No calls match these filters.',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Reset filters'}).click();await page.getByRole('button',{name:'Follow $50',exact:true}).waitFor();
+  await page.getByText('Create',{exact:true}).click();await page.getByText('Post a call',{exact:true}).waitFor();await snap(`create-${width}`);
+  await page.getByText('Vault',{exact:true}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();await snap(`vault-${width}`);
+  await page.getByRole('button',{name:'Exposure limit',exact:true}).click();await page.getByRole('button',{name:'Save exposure limit'}).waitFor();await snap(`vault-editor-${width}`);
+  await page.getByText('Record',{exact:true}).click();await page.getByText('Leaders',{exact:true}).waitFor();await snap(`record-${width}`);
+  await page.getByText('@ada',{exact:true}).first().click();await page.getByRole('button',{name:'Share profile'}).waitFor();await snap(`caller-${width}`);await page.goto('http://127.0.0.1:8081/#/call/0');await page.getByText('← Back',{exact:true}).waitFor();await snap(`detail-${width}`);
+}
+for (const state of ['empty','stale','error','new-vault']) {
+  mode=state;await page.goto('http://127.0.0.1:8081/');await page.getByRole('button',{name:'Femi (follower)'}).click();
+  if(state==='empty')await page.getByText('No calls here yet.',{exact:true}).waitFor();
+  if(state==='error')await page.getByRole('button',{name:'Retry connection'}).waitFor();
+  if(state==='stale'){await page.getByText('@ada',{exact:true}).first().waitFor();await page.getByText('Create',{exact:true}).click();await page.getByText('Waiting for a fresh price before you can commit this call.',{exact:true}).waitFor();}
+  if(state==='new-vault'){await page.getByText('@ada',{exact:true}).first().waitFor();await page.getByText('Vault',{exact:true}).click();await page.getByText('Your vault',{exact:true}).waitFor();}
+  await snap(`state-${state}`);
+}
+if(errors.length)throw new Error('Native-web runtime errors: '+errors.join('; '));
+writeFileSync('docs/design/native-web-qa-results.json',JSON.stringify({date:'2026-10-08',fixtureOnly:true,platform:'Expo web (not a physical phone)',runtimeErrors:errors,transactionWrites:writes,screens:shots},null,2));
+console.log(JSON.stringify({nativeWebScreens:shots.length,runtimeErrors:errors,transactionWrites:writes}));await browser.close();

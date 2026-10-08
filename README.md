@@ -6,16 +6,18 @@ Paid signal groups charge whether you win or lose, and their track records are s
 
 1. **Every call is committed onchain before the move.** It can't be edited, backdated or deleted, and it expires.
 2. **Callers are paid only from a follower's net gains.** Each follower trades through their own vault. When they close, the caller gets a share of the follower's *cumulative* net gain with that caller above a high-water mark. A follower who is still down with a caller pays nothing.
-3. **Scores come from market prices, not followers.** A call is scored from the order-book mid when it was posted to the mid at expiry, losers included. Fake followers, reviews and recycled capital don't move the score.
-4. **Only verified callers rank and earn.** A caller is verified when they hold an active Cleanverse A-Pass.
+3. **Scores come from market prices, not followers.** A call is scored from the mid when posted to the mid when scored after expiry, losers included. Follower count and reviews are not score inputs; this does not make reputation manipulation impossible.
+4. **Only attested callers rank and earn.** The contract checks a current gate attestation. Demo deployments use test attestations; the intended Cleanverse A-Pass API integration still needs credential-backed verification.
+
+The interface has an original paper, ink and copper identity across web and Expo. See the [brand guide](brand/README.md), [page-by-page review and evidence](docs/design/README.md), and [QA instructions](scripts/qa/README.md).
 
 ## What's here
 
 | Folder | What it is |
 | --- | --- |
-| `contracts/` | Foundry project: `CallBook`, `FollowVault`, `VaultFactory`, `UpsideConfig`, `AttestedGate`, `KeeperPriceSource`, plus testnet-only `demo/` contracts. 15 tests. |
+| `contracts/` | Foundry project: `CallBook`, `FollowVault`, `VaultFactory`, `UpsideConfig`, `AttestedGate`, `KeeperPriceSource`, plus testnet-only `demo/` contracts. 18 tests. |
 | `app/` | Mobile-first web app (Vite + React + viem). Passkey accounts via [Mera](https://mera.category.xyz). Also hosts the passkey association files. |
-| `mobile/` | Native iOS/Android app (Expo SDK 57) sharing the same contract logic; installable Android APK via EAS. See `mobile/README.md`. |
+| `mobile/` | Native iOS/Android app (Expo SDK 57) sharing the same contract logic; EAS APK profile configured. Physical-device passkeys and the signed build remain release checks. See `mobile/README.md`. |
 | `mm-plugin/` | MetaMask Agent Wallet plugin (`mm upside …`): an AI agent with an ERC-8004 identity follows verified callers within your rules, your vault's onchain cap and your Agent Wallet policy, and pays for Nansen intel over x402. See `mm-plugin/README.md`. |
 | `keeper/` | Keeps the order-book mid fresh onchain, scores expired calls, and attests verified callers. |
 | `indexer/` | Envio HyperIndex config, schema and handlers for the feed, caller records and settlements. |

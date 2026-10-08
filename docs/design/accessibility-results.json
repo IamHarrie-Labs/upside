@@ -1,0 +1,8 @@
+{
+  "date": "2026-10-08",
+  "keyboardSkip": true,
+  "pauseMotion": true,
+  "reducedMotion": true,
+  "namedButtons": true,
+  "scope": "Targeted browser checks, not a full accessibility certification"
+}

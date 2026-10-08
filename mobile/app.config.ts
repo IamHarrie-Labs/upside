@@ -11,8 +11,8 @@ const config: ExpoConfig = {
   version: "0.1.0",
   orientation: "portrait",
   icon: "./assets/icon.png",
-  userInterfaceStyle: "dark",
-  backgroundColor: "#0b0b10",
+  userInterfaceStyle: "light",
+  backgroundColor: "#f4eee5",
   ios: {
     bundleIdentifier: "xyz.upside.app",
     supportsTablet: false,
@@ -21,7 +21,7 @@ const config: ExpoConfig = {
   android: {
     package: "xyz.upside.app",
     adaptiveIcon: {
-      backgroundColor: "#0b0b10",
+      backgroundColor: "#f4eee5",
       foregroundImage: "./assets/android-icon-foreground.png",
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",
