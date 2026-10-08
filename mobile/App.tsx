@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -56,16 +57,16 @@ import {
 // ----------------------------------------------------------------- theme
 
 const C = {
-  bg: "#0b0b10",
-  panel: "#14141c",
-  panel2: "#1b1b26",
-  line: "#2a2a38",
-  ink: "#f2f1f7",
-  muted: "#9a99ad",
-  accent: "#8b7bff",
-  up: "#3ddc97",
-  down: "#ff6b7a",
-  warn: "#ffc857",
+  bg: "#f3e9df",
+  panel: "#fbf5ef",
+  panel2: "#eaded2",
+  line: "#d0c2b5",
+  ink: "#191815",
+  muted: "#706a63",
+  accent: "#c35c30",
+  up: "#34765b",
+  down: "#b34335",
+  warn: "#92521c",
 };
 
 type Tab = "feed" | "post" | "portfolio" | "board";
@@ -287,7 +288,7 @@ export default function App() {
           ] as [Tab, string][]
         ).map(([t, label]) => (
           <Pressable key={t} style={s.tabBtn} onPress={() => (setTab(t), goHome())}>
-            <Text style={[s.tabText, tab === t && route.name === "tabs" && { color: C.ink }]}>{label}</Text>
+            <Text style={[s.tabText, tab === t && route.name === "tabs" && { color: C.accent }]}>{label}</Text>
           </Pressable>
         ))}
       </View>
@@ -300,7 +301,7 @@ export default function App() {
 function Screen({ children }: { children: ReactNode }) {
   return (
     <View style={[s.screen, { paddingTop: Platform.OS === "android" ? (RNStatusBar.currentHeight ?? 24) : 52 }]}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={s.column}>{children}</View>
     </View>
   );
@@ -395,12 +396,17 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
   return (
     <ScrollView contentContainerStyle={[s.content, { paddingTop: 24 }]} keyboardShouldPersistTaps="handled">
       <Text style={{ color: C.accent, fontSize: 44 }}>▲</Text>
-      <Text style={s.h1}>Upside</Text>
+      <Text style={[s.label, { color: C.accent, fontStyle: "italic", fontSize: 17, marginTop: 12 }]}>Trading calls that work for you</Text>
+      <Text style={[s.h1, { fontSize: 42, letterSpacing: -1.8 }]}>Follow great traders.
+        {"\n"}Share in the upside.</Text>
       <Text style={s.lede}>Trading calls you only pay for when you profit.</Text>
+      <View style={{ height: 128, overflow: "hidden", marginVertical: 14 }} accessibilityLabel="Illustrated trading community">
+        <Image source={require("./assets/crew-poster.jpg")} style={{ width: 600, height: 443, position: "absolute", top: -215, left: -100 }} />
+      </View>
       {[
         "Every call is committed on Monad before the move. No deleting losers.",
         "Callers earn a share of your net gains. Still down with them? They get nothing.",
-        "Scores come from market prices, so fake followers can't buy a reputation.",
+        "Inspect committed calls and scored outcomes before you follow.",
       ].map((t) => (
         <Text key={t} style={[s.muted, { marginBottom: 6 }]}>
           •  {t}
@@ -882,7 +888,7 @@ function NansenChip({ caller, all }: { caller: Address; all?: boolean }) {
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
       {shown.map((l) => (
-        <View key={l} style={[s.badge, { borderColor: "rgba(139,123,255,0.5)" }]}>
+        <View key={l} style={[s.badge, { borderColor: "rgba(195,92,48,0.5)" }]}>
           <Text style={[s.badgeText, { color: C.accent }]}>Nansen · {l}</Text>
         </View>
       ))}
@@ -938,7 +944,7 @@ const s = StyleSheet.create({
   thesis: { backgroundColor: C.panel2, borderRadius: 10, padding: 10, gap: 2 },
   badge: { borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 },
   badgeText: { fontSize: 11, fontWeight: "700" },
-  primary: { backgroundColor: C.accent, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 14, alignItems: "center" },
+  primary: { backgroundColor: C.ink, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 14, alignItems: "center" },
   primaryText: { color: C.bg, fontWeight: "800", fontSize: 15 },
   ghost: { borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, alignItems: "center" },
   ghostText: { color: C.ink, fontWeight: "700" },
@@ -947,7 +953,7 @@ const s = StyleSheet.create({
   amountRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   input: { backgroundColor: C.panel2, borderColor: C.line, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: C.ink, fontSize: 16 },
   notice: { color: C.warn, backgroundColor: "rgba(255,200,87,0.12)", borderRadius: 10, padding: 10, fontSize: 13 },
-  feebox: { color: C.ink, backgroundColor: "rgba(139,123,255,0.12)", borderRadius: 10, padding: 10, fontSize: 13 },
+  feebox: { color: C.ink, backgroundColor: "rgba(195,92,48,0.10)", borderRadius: 10, padding: 10, fontSize: 13 },
   bigNum: { color: C.ink, fontSize: 26, fontWeight: "800" },
   meter: { height: 6, backgroundColor: C.panel2, borderRadius: 99, overflow: "hidden" },
   closedRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line },
@@ -962,7 +968,7 @@ const s = StyleSheet.create({
     right: 0,
     bottom: 0,
     flexDirection: "row",
-    backgroundColor: "rgba(11,11,16,0.96)",
+    backgroundColor: "rgba(251,245,239,0.97)",
     borderTopWidth: 1,
     borderTopColor: C.line,
     paddingBottom: Platform.OS === "ios" ? 26 : 8,

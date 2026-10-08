@@ -38,6 +38,7 @@ import {
 import { deployment, EXPLORER, IS_LOCAL, REFRESH_MS } from "./env";
 import { getPerplPositions, perplEnabled, perplUrl, type PerplPosition } from "./lib/perpl";
 import { getNansen, type NansenInfo } from "./lib/nansen";
+import Landing from "./Landing";
 
 type Tab = "feed" | "post" | "portfolio" | "board";
 type VaultState = Awaited<ReturnType<typeof getVaultState>>;
@@ -90,6 +91,7 @@ function countdown(sec: number) {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [browsing, setBrowsing] = useState(() => location.hash.startsWith("#/"));
+  const [joining, setJoining] = useState(false);
   const [tab, setTab] = useState<Tab>("feed");
   const [mid, setMid] = useState<bigint | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
@@ -151,8 +153,10 @@ export default function App() {
     }
   };
 
-  if (!session && !browsing) return <Onboard onSession={setSession} onBrowse={() => setBrowsing(true)} />;
-  const signIn = () => setBrowsing(false);
+  if (!session && !browsing) return joining
+    ? <Onboard onSession={setSession} onBrowse={() => setBrowsing(true)} onBack={() => setJoining(false)} />
+    : <Landing onStart={() => setJoining(true)} onBrowse={() => setBrowsing(true)} />;
+  const signIn = () => { setJoining(true); setBrowsing(false); };
 
   return (
     <div className="shell">
@@ -177,6 +181,7 @@ export default function App() {
       </header>
 
       <main>
+        {!route.startsWith("#/") && <div className="workspace-heading"><p className="landing-eyebrow">Your next move starts here</p><h1>{({ feed: "The trading crew.", post: "Put your call on record.", portfolio: "Your share of the upside.", board: "Let the record speak." })[tab]}</h1><p className="sub">{deployment.demo ? "Monad testnet · demo venue · test tokens" : "Committed calls. Visible outcomes. Loss-aware fees."}</p></div>}
         {route.startsWith("#/call/") && (
           <Detail>
             <Feed
@@ -258,7 +263,7 @@ export default function App() {
 
 // ----------------------------------------------------------------- onboarding
 
-function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onBrowse: () => void }) {
+function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => void; onBrowse: () => void; onBack: () => void }) {
   const [name, setName] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -277,6 +282,7 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
   };
   return (
     <div className="shell onboard">
+      <button className="back" onClick={onBack}>← Back to Upside</button>
       <div className="hero">
         <div className="logo big">▲</div>
         <h1>Upside</h1>
@@ -284,7 +290,7 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
         <ul className="points">
           <li>Every call is committed on Monad before the move. No deleting losers.</li>
           <li>Callers earn a share of your net gains. Still down with them? They get nothing.</li>
-          <li>Scores come from market prices, so fake followers can't buy a reputation.</li>
+          <li>Inspect committed calls and scored outcomes before you follow.</li>
         </ul>
       </div>
       <div className="card">
