@@ -38,7 +38,7 @@ try{
     await page.screenshot({path:`docs/design/screens/hosted-workspace-${theme}-1440.png`,fullPage:true});
   }
   assert.match(await page.locator('.trader-name').first().innerText(),/^@|^Trader /);
-  await page.reload();await page.locator('.call').first().waitFor({timeout:45_000});
+  await page.reload();await page.getByRole('button',{name:'Explore the calls',exact:true}).click();await page.locator('.call').first().waitFor({timeout:45_000});
   assert.equal(await page.getByLabel('Appearance',{exact:true}).inputValue(),'forest');
   await page.getByLabel('Appearance',{exact:true}).selectOption('light');
   await page.setViewportSize({width:390,height:844});

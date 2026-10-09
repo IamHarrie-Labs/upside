@@ -31,3 +31,9 @@ Upside's workflow differs from an exchange: users evaluate committed calls and c
 `scripts/qa/ui-review.mts` exercises all six destinations in all four themes at desktop and phone-browser widths, with further checks at 320px. It covers account-menu dismissal, public-name validation, funding overdraft rejection, call filters, comparison history, documentation, loading/error states, transaction review and appearance persistence. RPC values are fixtures and transaction writes are blocked. Screenshot records and results are stored alongside this note.
 
 Production verification uses the hosted testnet record and keeper in read-only mode. Physical passkey authentication and real transaction confirmation require device testing and are separate from browser-layout validation. No contract, native signing or deployment-address changes are part of this redesign.
+
+The final local browser run passed 124 screen captures with zero runtime errors and zero transaction writes. A separate confirmation-refusal run passed 15 captures. The minimum tested text-token contrast ratios were Light 5.39:1, Ivory 4.60:1, Dark 7.38:1 and Forest 7.18:1. Type checking, lint and the production build passed.
+
+Source commit: `06073f7`. Production deployment: `dpl_A4RVafjVtrw7FRt1wTRLsQ8ikfqZ`, aliased to [upside-monad.vercel.app](https://upside-monad.vercel.app/). The first publish attempt returned a transient authorization error; project access was confirmed and the retry succeeded.
+
+The published-site check passed against actual hosted receipts and testnet calls. It confirmed all four appearances, saved preference after reload, caller-name labels, record comparison, fee documentation and simplified sign-in without the removed bullets or account-control copy. It reported no runtime errors or horizontal overflow. Production screenshots use actual hosted state; local screenshots use explicit fixtures.
