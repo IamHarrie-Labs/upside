@@ -24,10 +24,12 @@ The original three choices are available at `brand/logo-options/upside-three-log
 
 ## Verification and limits
 
-Current browser evidence is in `ui-qa-results.json`, `landing-interaction-results.json`, `accessibility-results.json` and `native-web-qa-results.json`. Fixtures block transactions. Native-browser checks are not physical-device tests. The Android build record is in `android-build-results.json` once cloud compilation completes.
+Current browser evidence is in `ui-qa-results.json`, `landing-interaction-results.json`, `accessibility-results.json` and `native-web-qa-results.json`. Fixtures block transactions. Native-browser checks are not physical-device tests. The finished Android build record is in `android-build-results.json` (build `250f354b-80aa-4dc6-8f82-7b1f5c01fa2a`, source `6efa636`). Physical-device verification remains pending.
 
 The independent native route checks include legacy website links, custom-scheme call links and unchanged vault paths. Web and native type checks and source lint pass; Expo Doctor passes 21/21 after adding required Router dependencies and pinning optional animation dependencies to SDK 57 versions.
 
 Completed browser checks: 69 web page/state captures at 320, 390 and 1440 pixels; 38 native preview captures at 320, 390 and 430 pixels, including a 320×640 welcome. Separate refusal checks produced 15 web and 19 native captures. Both fixture suites report zero runtime errors and zero transaction writes. Reduced motion, keyboard skip navigation, pinned reading, fee progression and the dark fee surface passed targeted checks. The deployed website passed a read-only testnet history and receipt check after publication.
 
 Still requiring phones: passkey create/restore, OS keyboard behavior, system font scaling, screen-reader announcements, Android back gestures, and signed native trade completion. A native iPhone build additionally requires Apple developer signing and association. Smart contract and trading limitations documented in the project review are unchanged.
+
+Current web deployment: `dpl_BSsKBR6Dq4awLCF6AE58KaUFuiyj`, published to https://upside-monad.vercel.app/ and verified read-only after deployment.
