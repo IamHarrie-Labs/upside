@@ -1,13 +1,45 @@
 {
-  "date": "2026-10-09T08:34:08.2009612Z",
+  "date": "2026-10-09T15:54:31.787Z",
   "fixtureOnly": true,
   "platform": "Expo web (not a physical phone)",
   "runtimeErrors": [],
   "transactionWrites": 0,
-  "confirmationRefusals": 4,
+  "confirmationRefusals": 6,
   "screens": [
     {
+      "name": "onboarding-320",
+      "overflow": false
+    },
+    {
+      "name": "welcome-benefits-320",
+      "overflow": false
+    },
+    {
+      "name": "welcome-account-320",
+      "overflow": false
+    },
+    {
+      "name": "calls-320",
+      "overflow": false
+    },
+    {
+      "name": "trade-review-320",
+      "overflow": false
+    },
+    {
+      "name": "review-error-320",
+      "overflow": false
+    },
+    {
       "name": "onboarding-390",
+      "overflow": false
+    },
+    {
+      "name": "welcome-benefits-390",
+      "overflow": false
+    },
+    {
+      "name": "welcome-account-390",
       "overflow": false
     },
     {
@@ -23,19 +55,31 @@
       "overflow": false
     },
     {
-      "name": "onboarding-768",
+      "name": "onboarding-430",
       "overflow": false
     },
     {
-      "name": "calls-768",
+      "name": "welcome-benefits-430",
       "overflow": false
     },
     {
-      "name": "trade-review-768",
+      "name": "welcome-account-430",
       "overflow": false
     },
     {
-      "name": "review-error-768",
+      "name": "calls-430",
+      "overflow": false
+    },
+    {
+      "name": "trade-review-430",
+      "overflow": false
+    },
+    {
+      "name": "review-error-430",
+      "overflow": false
+    },
+    {
+      "name": "welcome-short-screen",
       "overflow": false
     }
   ]

@@ -61,7 +61,7 @@ await context.route('**/*',async(route:any)=>{
 const page=await context.newPage();page.setDefaultTimeout(45000);
 const errors:string[]=[];page.on('pageerror',(e:any)=>errors.push(e.message));page.on('console',(m:any)=>{if(m.type()==='error')errors.push(m.text());});
 const shots:any[]=[];
-async function snap(name:string){await page.evaluate(()=>document.fonts.ready);await page.waitForFunction(()=>[...document.images].every(i=>i.complete&&i.naturalWidth>0));await page.waitForTimeout(150);const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/native-${name}.png`,fullPage:true});shots.push({name,overflow});}
+async function snap(name:string){await page.evaluate(()=>document.fonts.ready);await page.waitForFunction(()=>[...document.images].every(i=>i.complete&&i.naturalWidth>0));await page.waitForTimeout(150);const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/${failureOnly?"native-error-check":"native"}-${name}.png`,fullPage:true});shots.push({name,overflow});}
 
 for (const width of [320,390,430]) {
   mode='normal';await page.setViewportSize({width,height:720});await page.goto(nativeUrl,{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Get started',exact:true}).waitFor();const welcomeFits=await page.getByRole('button',{name:'Explore calls',exact:true}).evaluate(el=>el.getBoundingClientRect().bottom<=innerHeight);if(!welcomeFits)throw Error('Initial welcome requires scrolling');await snap(`onboarding-${width}`);

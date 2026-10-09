@@ -28,4 +28,6 @@ Current browser evidence is in `ui-qa-results.json`, `landing-interaction-result
 
 The independent native route checks include legacy website links, custom-scheme call links and unchanged vault paths. Web and native type checks and source lint pass; Expo Doctor passes 21/21 after adding required Router dependencies and pinning optional animation dependencies to SDK 57 versions.
 
+Completed browser checks: 69 web page/state captures at 320, 390 and 1440 pixels; 38 native preview captures at 320, 390 and 430 pixels, including a 320×640 welcome. Separate refusal checks produced 15 web and 19 native captures. Both fixture suites report zero runtime errors and zero transaction writes. Reduced motion, keyboard skip navigation, pinned reading, fee progression and the dark fee surface passed targeted checks. The deployed website passed a read-only testnet history and receipt check after publication.
+
 Still requiring phones: passkey create/restore, OS keyboard behavior, system font scaling, screen-reader announcements, Android back gestures, and signed native trade completion. A native iPhone build additionally requires Apple developer signing and association. Smart contract and trading limitations documented in the project review are unchanged.
