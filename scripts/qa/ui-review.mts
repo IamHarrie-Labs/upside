@@ -47,6 +47,7 @@ function rpc(req:any) {
 }
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
 const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+await context.addInitScript('window.__name = (fn) => fn;');
 await context.route('**/*',async(route:any)=>{
   const url=route.request().url();
   if(url.includes(':8547')||url.includes('rpc.monad.xyz')){
@@ -61,11 +62,23 @@ await context.route('**/*',async(route:any)=>{
 const page=await context.newPage();
 const errors:string[]=[];page.on('pageerror',(e:any)=>errors.push(e.message));
 const shots:any[]=[];
+const themeChecks:any[]=[];
+async function checkPalette(theme:string){
+ const ratios=await page.evaluate(()=>{
+  const style=getComputedStyle(document.querySelector('.workspace-surface')!);
+  const luminance=(hex:string)=>{const rgb=hex.trim().replace('#','').match(/../g)!.map(v=>parseInt(v,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;};
+  const values:any[]=[];
+  for(const fg of ['ink','muted','accent','up','down','warn'])for(const bg of ['bg','panel','panel-2']){const a=luminance(style.getPropertyValue('--'+fg)),b=luminance(style.getPropertyValue('--'+bg));values.push({fg,bg,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)});}
+  return values;
+ });
+ if(ratios.some((v:any)=>v.ratio<4.5))throw Error(theme+' palette contrast failed: '+JSON.stringify(ratios.filter((v:any)=>v.ratio<4.5)));
+ themeChecks.push({theme,minimumTextContrast:Math.min(...ratios.map((v:any)=>v.ratio))});
+}
 async function snap(name:string){await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(150);const styled=await page.evaluate(()=>getComputedStyle(document.body).backgroundColor==='rgb(244, 238, 229)');if(!styled)throw new Error(name+': stylesheet did not apply');const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/${name}.png`,fullPage:true});shots.push({name,overflow});}
 for(const width of [1440,390,320]){
   mode='normal';await page.setViewportSize({width,height:900});await page.goto('http://127.0.0.1:5173/');await page.getByRole('heading',{name:'Good calls. Shared upside.'}).waitFor();await snap(`landing-${width}`);
   if(await page.getByRole('button',{name:'Pause motion'}).count())throw Error('Removed motion control returned');
-  await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Create account with a passkey'}).waitFor();await snap(`onboarding-${width}`);
+  await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Continue with passkey'}).waitFor();await snap(`onboarding-${width}`);
   await page.getByRole('button',{name:'Local account 3'}).click();await page.locator('.call').first().waitFor();await snap(`calls-${width}`);
   if(await page.locator('.tabs').evaluate(el=>getComputedStyle(el).position)!=='static')throw Error('Web nav is still floating');
   const beforeReview=writes;await page.getByRole('button',{name:'Follow $50',exact:true}).first().click();await page.getByRole('dialog').waitFor();await snap(`trade-review-${width}`);
@@ -74,11 +87,34 @@ for(const width of [1440,390,320]){
   await page.getByRole('button',{name:'Live',exact:true}).click();if(await page.locator('.call').count()!==2)throw new Error('Live filter failed');
   await page.getByRole('button',{name:'Scored',exact:true}).click();if(await page.locator('.call').count()!==2)throw new Error('Scored filter failed');
   await page.getByRole('button',{name:'All calls',exact:true}).click();await page.getByRole('searchbox').fill('not-present');await page.getByRole('heading',{name:'Nothing in this view yet.'}).waitFor();await page.getByRole('button',{name:'Show all calls'}).click();
+  await page.getByLabel('Open account menu').click();await page.getByRole('button',{name:'Edit profile',exact:true}).waitFor();
+  if(!await page.locator('.account-menu').evaluate((el:any)=>el.open))throw Error('Wallet did not open its menu');
+  await page.keyboard.press('Escape');if(await page.locator('.account-menu').evaluate((el:any)=>el.open))throw Error('Account menu did not close with Escape');
+  await page.getByLabel('Open account menu').click();await page.locator('.ticker').click();if(await page.locator('.account-menu').evaluate((el:any)=>el.open))throw Error('Account menu did not close outside');
+  if(width!==320)for(const theme of ['light','ivory','dark','forest']){
+   await page.getByLabel('Appearance',{exact:true}).selectOption(theme);await checkPalette(theme);
+   for(const destination of ['Calls','Create','Vault','Record','Profile','Funding']){
+    await page.getByRole('navigation',{name:'Workspace',exact:true}).getByRole('button',{name:destination,exact:true}).click();
+    if(destination==='Calls'){await page.locator('.call').first().waitFor();if(!await page.locator('.trader-name').first().innerText())throw Error('Caller name missing');}
+    if(destination==='Profile'){
+     await page.getByLabel('Public name',{exact:true}).waitFor();if(await page.getByLabel('Public name',{exact:true}).inputValue()!=='femi')throw Error('Profile did not load the public name');
+     await page.getByLabel('Public name',{exact:true}).fill('a');if(!await page.getByRole('button',{name:'Save public name'}).isDisabled())throw Error('Invalid public name accepted');await page.getByLabel('Public name',{exact:true}).fill('femi');
+    }
+    if(destination==='Funding'){
+     await page.getByRole('button',{name:'Copy account address'}).waitFor();await page.getByRole('button',{name:'Copy vault address'}).waitFor();
+     await page.getByLabel('Funding withdrawal amount').fill('999');if(!await page.getByRole('button',{name:'Withdraw to my account',exact:true}).isDisabled())throw Error('Funding overdraft accepted');await page.getByLabel('Funding withdrawal amount').fill('');
+    }
+    await snap(`workspace-${theme}-${destination.toLowerCase()}-${width}`);
+   }
+  }
+  if(width===1440){await page.getByRole('button',{name:'Calls',exact:true}).click();await page.getByRole('button',{name:'Follow $50',exact:true}).first().click();await page.getByRole('dialog').waitFor();await snap('workspace-forest-trade-review-1440');await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.locator('.call-context').first().getByText('Record & context',{exact:true}).click();await snap('workspace-forest-call-context-1440');}
+  await page.getByLabel('Appearance',{exact:true}).selectOption('light');
+  if(width===320)for(const destination of ['Profile','Funding']){await page.getByRole('navigation',{name:'Workspace',exact:true}).getByRole('button',{name:destination,exact:true}).click();await page.locator(destination==='Profile'?'.profile-grid':'.funding-grid').waitFor();await snap(`workspace-light-${destination.toLowerCase()}-${width}`);}
   await page.getByRole('button',{name:'Create',exact:true}).click();await page.getByRole('heading',{name:'Post a call',exact:true}).waitFor();await snap(`create-${width}`);
   await page.getByLabel('Your fee, % of new realized gains').fill('31');if(!await page.getByRole('button',{name:'Commit call onchain'}).isDisabled())throw new Error('Invalid fee accepted');await page.getByLabel('Your fee, % of new realized gains').fill('20');
   await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();await snap(`vault-${width}`);
-  await page.getByTitle('Switch account').click();await page.getByRole('button',{name:'Local account 1'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
-  await page.getByTitle('Switch account').click();await page.getByRole('button',{name:'Local account 3'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
+  await page.getByLabel('Open account menu').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Local account 1'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
+  await page.getByLabel('Open account menu').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Local account 3'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Exposure limit',exact:true}).click();await page.getByLabel('Exposure limit (AUSD)').fill('50');if(!await page.getByRole('button',{name:'Save exposure limit'}).isDisabled())throw new Error('Limit below open exposure accepted');await snap(`vault-edit-${width}`);
   await page.getByText('Fund or withdraw your vault',{exact:true}).click();await page.getByLabel('Withdraw available AUSD to your account').fill('999');if(!await page.getByRole('button',{name:'Withdraw to my account'}).isDisabled())throw new Error('Overdraft accepted');await snap(`vault-funding-${width}`);
   await page.getByRole('button',{name:'Record',exact:true}).click();await page.locator('.leader').first().waitFor();await page.getByRole('heading',{name:'Compare the whole record.',exact:true}).waitFor();
@@ -102,6 +138,7 @@ for(const state of failureOnly?[]:['empty','stale','error','new-vault','loading'
  if(state==='new-vault'){await page.locator('.call').first().waitFor();await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getByRole('heading',{name:'Your vault',exact:true}).waitFor()}
  await snap(`state-${state}`);
 }
+if(!failureOnly){mode='normal';await page.goto('http://127.0.0.1:5173/#/docs/fees');await page.getByLabel('Appearance',{exact:true}).selectOption('forest');await page.reload();await page.locator('.docs-content').waitFor();if(await page.getByLabel('Appearance',{exact:true}).inputValue()!=='forest')throw Error('Appearance did not survive reload');await snap('workspace-forest-docs-persisted-390');for(const route of ['privacy','terms']){await page.goto('http://127.0.0.1:5173/#/'+route);await page.locator('.info-page').waitFor();await snap(`workspace-forest-${route}-390`);}await page.getByLabel('Appearance',{exact:true}).selectOption('light');}
 const reviewGuards=await page.evaluate(async()=>{
   const {confirmFollow}=await import('/src/lib/upside.ts');
   const owner='0x1111111111111111111111111111111111111111';
@@ -116,5 +153,5 @@ const reviewGuards=await page.evaluate(async()=>{
 if(errors.length)throw new Error('Runtime errors: '+errors.join('; '));
 if(writes)throw new Error('Unexpected write attempts: '+writes);
 if(failureOnly&&confirmationRefusals===0)throw Error('Confirmation failure path was not exercised');
-writeFileSync(failureOnly?'docs/design/review-error-web-results.json':'docs/design/ui-qa-results.json',JSON.stringify({date:new Date().toISOString(),fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,confirmationRefusals,reviewGuards,screens:shots},null,2));
+writeFileSync(failureOnly?'docs/design/review-error-web-results.json':'docs/design/ui-qa-results.json',JSON.stringify({date:new Date().toISOString(),fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,confirmationRefusals,reviewGuards,themeChecks,screens:shots},null,2));
 console.log(JSON.stringify({screens:shots.length,runtimeErrors:errors,transactionWrites:writes}));await browser.close();

@@ -30,12 +30,29 @@ try{
   await page.locator('.call').first().waitFor({timeout:45_000});
   assert.equal(await page.locator('.environment-strip').count(),0);
   assert.equal(await page.locator('.tabs').evaluate(el=>getComputedStyle(el).position),'static');
+  await page.setViewportSize({width:1440,height:1000});
+  for(const theme of ['light','ivory','dark','forest']){
+    await page.getByLabel('Appearance',{exact:true}).selectOption(theme);
+    assert.equal(await page.locator('.workspace-surface').getAttribute('data-workspace-theme'),theme);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await page.screenshot({path:`docs/design/screens/hosted-workspace-${theme}-1440.png`,fullPage:true});
+  }
+  assert.match(await page.locator('.trader-name').first().innerText(),/^@|^Trader /);
+  await page.reload();await page.locator('.call').first().waitFor({timeout:45_000});
+  assert.equal(await page.getByLabel('Appearance',{exact:true}).inputValue(),'forest');
+  await page.getByLabel('Appearance',{exact:true}).selectOption('light');
+  await page.setViewportSize({width:390,height:844});
   await page.getByRole('button',{name:'Record',exact:true}).click();
   await page.locator('.caller-comparison').waitFor({timeout:45_000});
   assert.equal(await page.locator('.comparison-table tbody tr').count(),8);
   await page.goto('https://upside-monad.vercel.app/#/docs/fees');
   await page.locator('.docs-content').waitFor();
   assert.match(await page.locator('.docs-content').innerText(),/open position losses are excluded/i);
+  await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  await page.getByRole('button',{name:'Continue with passkey',exact:true}).waitFor();
+  assert.equal(await page.locator('.onboard li').count(),0);
+  assert.doesNotMatch(await page.locator('.onboard').innerText(),/chain 10143|demo venue|your account controls|your account/i);
+  await page.screenshot({path:'docs/design/screens/hosted-sign-in-390.png',fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   assert.deepEqual(errors,[]);
   writeFileSync('docs/design/hosted-read-only-results.json',JSON.stringify({date:new Date().toISOString(),url:'https://upside-monad.vercel.app',actualHostedReceipt:true,completeHistory:true,matchingTransaction:true,landingArtwork:true,mainSections:6,proofTransactions:4,callerComparison:true,browseTestnetCalls:true,guideDisclosure:true,horizontalOverflow:false,runtimeErrors:errors,scope:'Read-only hosted browser and keeper check; no phone authentication or trading'},null,2));

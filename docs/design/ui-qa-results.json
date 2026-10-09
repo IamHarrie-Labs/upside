@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-09T15:36:22.529Z",
+  "date": "2026-10-09T20:10:48.252Z",
   "fixtureOnly": true,
   "transactionWrites": 0,
   "runtimeErrors": [],
@@ -8,6 +8,40 @@
     "changed account",
     "expired quote",
     "no gas"
+  ],
+  "themeChecks": [
+    {
+      "theme": "light",
+      "minimumTextContrast": 5.389476345360754
+    },
+    {
+      "theme": "ivory",
+      "minimumTextContrast": 4.597764090824803
+    },
+    {
+      "theme": "dark",
+      "minimumTextContrast": 7.384641560367121
+    },
+    {
+      "theme": "forest",
+      "minimumTextContrast": 7.1831223342935075
+    },
+    {
+      "theme": "light",
+      "minimumTextContrast": 5.389476345360754
+    },
+    {
+      "theme": "ivory",
+      "minimumTextContrast": 4.597764090824803
+    },
+    {
+      "theme": "dark",
+      "minimumTextContrast": 7.384641560367121
+    },
+    {
+      "theme": "forest",
+      "minimumTextContrast": 7.1831223342935075
+    }
   ],
   "screens": [
     {
@@ -24,6 +58,110 @@
     },
     {
       "name": "trade-review-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-calls-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-create-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-vault-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-record-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-profile-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-funding-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-calls-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-create-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-vault-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-record-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-profile-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-funding-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-calls-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-create-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-vault-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-record-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-profile-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-funding-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-calls-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-create-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-vault-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-record-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-profile-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-funding-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-trade-review-1440",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-call-context-1440",
       "overflow": false
     },
     {
@@ -111,6 +249,102 @@
       "overflow": false
     },
     {
+      "name": "workspace-light-calls-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-create-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-vault-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-record-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-profile-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-funding-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-calls-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-create-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-vault-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-record-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-profile-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-ivory-funding-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-calls-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-create-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-vault-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-record-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-profile-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-dark-funding-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-calls-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-create-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-vault-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-record-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-profile-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-funding-390",
+      "overflow": false
+    },
+    {
       "name": "create-390",
       "overflow": false
     },
@@ -192,6 +426,14 @@
     },
     {
       "name": "trade-review-320",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-profile-320",
+      "overflow": false
+    },
+    {
+      "name": "workspace-light-funding-320",
       "overflow": false
     },
     {
@@ -284,6 +526,18 @@
     },
     {
       "name": "state-loading",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-docs-persisted-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-privacy-390",
+      "overflow": false
+    },
+    {
+      "name": "workspace-forest-terms-390",
       "overflow": false
     }
   ]

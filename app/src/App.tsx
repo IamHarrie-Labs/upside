@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isAddress, type Address } from "viem";
+import { formatEther, isAddress, type Address } from "viem";
 import {
   createPasskeyAccount,
   describeError,
@@ -39,7 +39,7 @@ import {
   type Call,
   type CallerStats,
 } from "./lib/upside";
-import { deployment, EXPLORER, IS_LOCAL, REFRESH_MS } from "./env";
+import { chain, deployment, EXPLORER, IS_LOCAL, REFRESH_MS, publicClient } from "./env";
 import { getPerplPositions, perplEnabled, perplUrl, type PerplPosition } from "./lib/perpl";
 import { getNansen, type NansenInfo } from "./lib/nansen";
 import Landing from "./Landing";
@@ -47,9 +47,11 @@ import { BrandMark, WalletGlyph } from "./Brand";
 import InfoPage from "./InfoPage";
 import Docs from "./Docs";
 import Footer from "./Footer";
+import { DashboardFrame, DashboardOverview } from "./Dashboard";
+import { initialTheme, THEMES, type DashboardTab, type Theme } from "./workspace";
 const infoRoutes = ["guide", "privacy", "terms"];
 
-type Tab = "feed" | "post" | "portfolio" | "board";
+type Tab = DashboardTab;
 type VaultState = Awaited<ReturnType<typeof getVaultState>>;
 type Toast = { kind: "info" | "ok" | "err"; text: string; hash?: string } | null;
 
@@ -61,7 +63,7 @@ let HANDLES = new Map<string, string>();
 let PERPL = new Map<string, PerplPosition | null>();
 // Nansen labels per caller (Smart Money etc.), via the keeper.
 let NANSEN = new Map<string, NansenInfo | null>();
-const nameOf = (a: string) => short(a);
+const nameOf = (a: string) => { const handle = HANDLES.get(a.toLowerCase()); return handle ? `@${handle}` : `Trader ${a.slice(2,6).toUpperCase()}`; };
 const go = (hash: string) => (location.hash = hash);
 /** "#/" and "#" are the home screen; detail routes are "#/call/N" and "#/caller/0x…". */
 const currentRoute = () => (location.hash === "#/" || location.hash === "#" ? "" : location.hash);
@@ -99,6 +101,8 @@ export default function App() {
   const [browsing, setBrowsing] = useState(() => location.hash.startsWith("#/"));
   const [joining, setJoining] = useState(false);
   const [tab, setTab] = useState<Tab>("feed");
+  const [theme, setTheme] = useState<Theme>(initialTheme);
+  useEffect(() => { try { localStorage.setItem("upside.workspace.theme", theme); } catch { /* Appearance works without storage. */ } }, [theme]);
   const [mid, setMid] = useState<bigint | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
   const [stats, setStats] = useState<Map<Address, CallerStats>>(new Map());
@@ -197,32 +201,16 @@ export default function App() {
   const invalidRoute = route.startsWith("#/") && !callRoute && !callerRoute && !isInfo;
 
   return (
-    <div className="shell">
-      <a className="skip" href="#workspace">Skip to content</a>
-      <header className="top">
-        <button className="wordmark home-button" onClick={() => { setBrowsing(false); setJoining(false); go(""); }} aria-label="Upside home"><BrandMark />Upside</button>
-        <div className="ticker" title="Order-book mid, pushed by the keeper">
-          {BASE_SYMBOL}/{QUOTE_SYMBOL}{" "}
-          <b>{mid ? humanPrice(mid).toFixed(4) : "—"}</b>
-          {!mid && <span className="warn"> stale</span>}
-        </div>
-        {session ? (
-          <button className="chip" disabled={busy} onClick={() => (session.end(), adoptSession(null), setBrowsing(false))} title="Switch account">
-            {short(session.account.address)}
-          </button>
-        ) : (
-          <button className="chip" onClick={signIn}>
-            Sign in
-          </button>
-        )}
-      </header>
-
+    <DashboardFrame tab={tab} detail={route.startsWith("#/")} theme={theme} setTheme={setTheme} navigate={next => { setTab(next); go(""); window.scrollTo(0,0); }} home={() => { setBrowsing(false); setJoining(false); go(""); }} account={session ? { name: nameOf(session.account.address), address: session.account.address } : undefined} busy={busy} signIn={signIn} signOut={() => { session?.end(); adoptSession(null); setBrowsing(false); setJoining(true); }} mid={mid}>
       <main id="workspace" tabIndex={-1}>
         {isInfo && (isDocs ? <Docs topic={infoName.startsWith("docs/") ? infoName.slice(5) : ""}/> : <InfoPage name={infoName} />)}
         {invalidRoute && <StatePanel title="This page is off the map." text="The link does not point to a supported Upside page." action={() => go("")} label="Back to calls" />}
 
         {!isInfo && !invalidRoute && loadError && <div className="connection-error" role="alert"><p>{loadError}</p><button className="ghost" onClick={() => refresh().catch(() => {})}>Retry connection</button></div>}
-        {!route.startsWith("#/") && <div className="workspace-heading"><h1>{({ feed: "Calls", post: "Create a call", portfolio: "Vault", board: "Records" })[tab]}</h1></div>}
+        {!route.startsWith("#/") && <div className="workspace-heading"><h1>{({ feed: "Calls", post: "Create a call", portfolio: "Vault", board: "Records", profile: "Your profile", funding: "Funding" })[tab]}</h1></div>}
+        {!route.startsWith("#/") && tab === "feed" && <DashboardOverview calls={calls} state={vs} signedIn={!!session} loading={loading}/>}
+        {!route.startsWith("#/") && tab === "profile" && !loading && !loadError && (session ? <AccountProfile key={session.account.address} session={session} busy={busy} run={run} theme={theme} setTheme={setTheme} stats={stats}/> : <SignInPrompt signIn={signIn} what="edit your profile"/>)}
+        {!route.startsWith("#/") && tab === "funding" && !loading && !loadError && (session ? <Funding key={session.account.address} session={session} vault={vault} state={vs} busy={busy} run={run} onVault={() => setTab("portfolio")}/> : <SignInPrompt signIn={signIn} what="fund your account"/>)}
         {!isInfo && !invalidRoute && !loadError && loading && <div className="skeleton-stack" role="status" aria-label="Loading the onchain record"><div/><div/><span>Reading the onchain record…</span></div>}
         {callRoute && !loading && !loadError && (
           <Detail>
@@ -291,28 +279,13 @@ export default function App() {
         </div>
       )}
 
-      <nav className="tabs" aria-label="Workspace">
-        {(
-          [
-            ["feed", "Calls"],
-            ["post", "Create"],
-            ["portfolio", "Vault"],
-            ["board", "Record"],
-          ] as [Tab, string][]
-        ).map(([t, label]) => (
-          <button key={t} aria-current={tab === t && !route.startsWith("#/") ? "page" : undefined} className={tab === t && !route.startsWith("#/") ? "on" : ""} onClick={() => (setTab(t), go(""))}>
-            {label}
-          </button>
-        ))}
-      </nav>
-    </div>
+    </DashboardFrame>
   );
 }
 
 // ----------------------------------------------------------------- onboarding
 
 function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => void; onBrowse: () => void; onBack: () => void }) {
-  const [name, setName] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const start = async (fn: () => Promise<Session>) => {
@@ -333,39 +306,12 @@ function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => v
       <button className="back" disabled={busy} onClick={onBack}>Back to Upside</button>
       <div className="hero">
         <BrandMark className="onboard-mark" />
-        <p className="eyebrow">Your account</p>
-        <h1>Start with your<br />own account.</h1>
-        <p className="lede">Sign in with a passkey. Your account controls your vault.</p>
-        <ul className="points">
-          <li>Every call is committed on Monad before the move. No deleting losers.</li>
-          <li>Callers earn a share of new realized gains. Closed losses are recovered first.</li>
-          <li>Inspect committed calls and scored outcomes before you follow.</li>
-        </ul>
+        <h1>Welcome to Upside.</h1>
+
       </div>
       <div className="card">
-        <label className="field">
-          <span>Display name</span>
-          <input autoComplete="nickname" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} placeholder="What should we call you?" />
-          <small>Choose your public onchain handle from your vault after funding.</small>
-        </label>
-        <button
-          className="primary"
-          disabled={busy}
-          onClick={() =>
-            start(async () => {
-              const s = await createPasskeyAccount(name || "Upside user");
-              await devFundGas(s.account.address);
-              return s;
-            })
-          }
-        >
-          Create account with a passkey
-        </button>
-        {(
-          <button className="ghost" disabled={busy} onClick={() => start(signInWithPasskey)}>
-            Sign in with your passkey
-          </button>
-        )}
+        <button className="primary" disabled={busy} onClick={() => start(hasPasskey() ? signInWithPasskey : () => createPasskeyAccount("Upside user"))}>Continue with passkey</button>
+        {hasPasskey() && <button className="text-link account-create" disabled={busy} onClick={() => start(() => createPasskeyAccount("Upside user"))}>Create a different account</button>}
         <p className="fine">{hasPasskey() ? "A passkey was previously used on this browser. " : ""}Use a passkey provider with PRF support. Keep access to your original passkey.</p>
         {busy && <p role="status" className="fine">Waiting for your passkey provider…</p>}
         {err && <p className="error" role="alert">{err}</p>}
@@ -383,10 +329,7 @@ function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => v
       <button className="back center-btn" onClick={onBrowse}>
         Just browse calls
       </button>
-      <p className="fine center">
-        Chain {deployment.chainId}
-        {deployment.demo ? " · demo venue (test tokens)" : ""}
-      </p>
+
     </div>
   );
 }
@@ -398,7 +341,7 @@ type Runner = (label: string, fn: () => Promise<string | void>) => Promise<void>
 function CallerBadge({ s }: { s?: CallerStats }) {
   if (!s) return null;
   return (
-    <span className={`badge ${s.verified ? "ok" : "muted"}`} title={deployment.demo ? "Current test attestation from the demo gate" : "Current gate attestation; not a guarantee of results"}>{s.verified ? (deployment.demo ? "Test verified" : "Verified") : "Unverified · earns $0"}</span>
+    <span className={`badge ${s.verified ? "ok" : "muted"}`} title={!s.verified ? "Unverified callers receive no fee" : deployment.demo ? "Current test attestation from the demo gate" : "Current gate attestation; not a guarantee of results"}>{s.verified ? (deployment.demo ? "Test verified" : "Verified") : "Unverified"}</span>
   );
 }
 
@@ -433,7 +376,7 @@ function Feed(props: {
   const [review,setReview] = useState<{call:Call;quote:FollowReview}|null>(null);
   const [preparing,setPreparing] = useState(false);
   const [reviewError,setReviewError] = useState("");
-  const shown = calls.filter(c => (filter === "all" || (filter === "live" ? !c.scored && c.expiry > now : c.scored)) && `${nameOf(c.caller)} ${c.caller} ${c.id}`.toLowerCase().includes(query.toLowerCase().trim()));
+  const shown = calls.filter(c => (filter === "all" || (filter === "live" ? !c.scored && c.expiry > now : c.scored)) && `${nameOf(c.caller)} ${c.caller} ${c.id}`.toLowerCase().includes(query.toLowerCase().trim())).sort((a,b) => Number(!b.scored && b.expiry > now) - Number(!a.scored && a.expiry > now) || b.postedAt - a.postedAt);
   if (!calls.length) return <StatePanel title={props.emptyTitle ?? "The next call is still unwritten."} text={props.emptyText ?? "Committed calls will appear here with their full record. Explore the docs or sign in to create the first one."} />;
 
   return (
@@ -461,32 +404,10 @@ function Feed(props: {
         return (
           <article key={c.id} className={`call ${active ? "" : "done"}`}>
             <div className="call-label"><span>CALL / {String(c.id).padStart(3,"0")}</span><span className={`call-status ${active ? "live" : ""}`}>{c.scored ? "Scored" : active ? "Live thesis" : "Awaiting score"}</span></div>
-            <div className="row">
-              <div className="caller-identity">
-                <WalletGlyph address={c.caller} />
-                <div>
-                <div className="who">
-                  <a className="link" href={`#/caller/${c.caller}`}>
-                    {nameOf(c.caller)}
-                  </a>{" "}
-                  <CallerBadge s={s} />
-                  <NansenChip caller={c.caller} />
-                </div>
-                <Record s={s} />
-                </div>
-              </div>
-              <div className="fee">
-                {c.feeBps / 100}% of new realized gains
-                <br />
-                <span title="Number of executed follows; one vault may follow a call more than once.">{c.followers<0 ? "Activity indexing" : `${c.followers} ${c.followers === 1 ? "follow" : "follows"} · ${fmtQuote(c.followedVolume, 0)} ${QUOTE_SYMBOL}`}</span>
-              </div>
-            </div>
-            <div className="thesis">
-              <span className="long">{c.side === 0 ? "LONG" : "SHORT"}</span> {BASE_SYMBOL}/{QUOTE_SYMBOL} from <b>{humanPrice(c.entryMid).toFixed(4)}</b>
-              <span className="lv"> target {humanPrice(c.targetMid).toFixed(4)}</span>
-              <span className="lv"> stop {humanPrice(c.stopMid).toFixed(4)}</span>
-            </div>
-            <PerplBadge caller={c.caller} side={c.side} />
+            <div className="call-market"><div><span className={`direction ${c.side === 0 ? "up" : "down"}`}>{c.side === 0 ? "Long" : "Short"}</span><h2>{BASE_SYMBOL}<span> / {QUOTE_SYMBOL}</span></h2></div><div className="call-fee"><strong>{c.feeBps / 100}%</strong><span>performance fee</span></div></div>
+            <div className="caller-identity"><WalletGlyph address={c.caller}/><div className="who"><a className="link trader-name" title={c.caller} href={`#/caller/${c.caller}`}>{nameOf(c.caller)}</a><CallerBadge s={s}/></div></div>
+            <dl className="call-levels"><div><dt>Entry mid</dt><dd>{humanPrice(c.entryMid).toFixed(4)}</dd></div><div><dt>Target</dt><dd>{humanPrice(c.targetMid).toFixed(4)}</dd></div><div><dt>Stop</dt><dd>{humanPrice(c.stopMid).toFixed(4)}</dd></div></dl>
+            <details className="call-context"><summary>Record & context</summary><Record s={s}/><NansenChip caller={c.caller}/><PerplBadge caller={c.caller} side={c.side}/><p className="fine">{c.followers < 0 ? "Follow activity is indexing." : `${c.followers} executed follows · ${fmtQuote(c.followedVolume,0)} ${QUOTE_SYMBOL} committed.`} Fees apply only to new realized gains with this caller.</p></details>
             <div className="row foot">
               <span className="sub">
                 <a className="link" href={`#/call/${c.id}`}>
@@ -700,7 +621,6 @@ function Portfolio(props: {
         <details className="vault-access"><summary>Fund or withdraw your vault</summary><p className="fine">Deposit {QUOTE_SYMBOL} on this network to the vault address. MON is needed in your account for gas.</p><div className="address-block"><span>Vault address</span><code>{vault}</code><button className="share" onClick={() => navigator.clipboard.writeText(vault).then(() => window.dispatchEvent(new CustomEvent("upside:notice", { detail:"Vault address copied." }))).catch(() => setToastNotice("Clipboard unavailable. Select and copy the address above."))}>Copy address</button></div><label className="field"><span>Withdraw available {QUOTE_SYMBOL} to your account</span><input inputMode="decimal" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} placeholder="Amount" /></label><button className="ghost" disabled={busy || !/^\d+(\.\d{1,6})?$/.test(withdrawAmount) || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > Number(fmtQuote(vs.cash,6))} onClick={() => run("Withdrawing available cash", async () => { const hash = await withdrawCash(session, vault, parseQuote(withdrawAmount)); setWithdrawAmount(""); return hash; })}>Withdraw to my account</button></details>
       </div>
 
-      <details className="account-settings"><summary>Public handle</summary><HandleCard key={session.account.address + (HANDLES.get(session.account.address.toLowerCase()) ?? "")} session={session} run={run} busy={busy}/></details>
       <h3>Open</h3>
       {!open.length && <Empty text="No open follows." />}
       {open.map((p) => {
@@ -860,7 +780,7 @@ function Detail({ children }: { children: React.ReactNode }) {
   );
 }
 
-function CallerProfile({ address, stats }: { address: Address; stats: Map<Address, CallerStats> }) {
+function CallerProfile({ address, stats, embedded = false }: { address: Address; stats: Map<Address, CallerStats>; embedded?: boolean }) {
   const s = [...stats.values()].find((x) => x.address.toLowerCase() === address.toLowerCase());
   return (
     <div className="card profile">
@@ -889,7 +809,7 @@ function CallerProfile({ address, stats }: { address: Address; stats: Map<Addres
       )}
       <NansenLabels caller={address} />
       <PerplBadge caller={address} side={0} profile />
-      <p className="sub">Every call this address ever posted is below, losers included. Calls cannot be deleted.</p>
+      <p className="sub">{embedded ? "Your public record includes every posted call, losers included. Calls cannot be deleted." : "Every call this address ever posted is below, losers included. Calls cannot be deleted."}</p>
       <button
         className="ghost"
         onClick={() =>
@@ -911,20 +831,34 @@ function HandleCard({ session, run, busy }: { session: Session; run: Runner; bus
   const [v, setV] = useState(current ?? "");
   return (
     <div className="card">
-      <div className="sub">Public handle</div>
+      <h2>Your public name</h2>
       <div className="row handle-row">
-        <input aria-label="Public handle" className="inline" maxLength={20} value={v} onChange={(e) => setV(toHandle(e.target.value))} placeholder="your_handle" />
+        <input aria-label="Public name" className="inline" maxLength={20} value={v} onChange={(e) => setV(toHandle(e.target.value))} placeholder="your_handle" />
         <button
           className="ghost"
           disabled={busy || v.length < 3 || v === current}
           onClick={() => run("Saving handle", () => setHandle(session, v))}
         >
-          Save
+          Save public name
         </button>
       </div>
-      <p className="fine">3–20 lowercase letters, numbers, or underscores. Saved publicly onchain.</p>
+      <p className="fine">3–20 lowercase letters, numbers or underscores. Your @name is saved publicly onchain; saving requires network gas.</p>
     </div>
   );
+}
+
+function AccountProfile({ session, busy, run, theme, setTheme, stats }: { session: Session; busy: boolean; run: Runner; theme: Theme; setTheme: (theme: Theme) => void; stats: Map<Address, CallerStats> }) {
+  return <div className="profile-grid"><div className="profile-editor"><HandleCard key={HANDLES.get(session.account.address.toLowerCase()) ?? ""} session={session} busy={busy} run={run}/><section className="card"><h2>Appearance</h2><p className="sub">Choose the workspace that feels right for you. Saved on this browser.</p><div className="theme-options" role="group" aria-label="Workspace appearance">{THEMES.map(([key,label]) => <button key={key} aria-pressed={theme === key} onClick={() => setTheme(key)}><span className={`theme-swatch ${key}`} aria-hidden="true"/>{label}</button>)}</div></section><section className="card"><h2>Your signing account</h2><code className="full-address">{session.account.address}</code><p className="sub">Your name can change. Posted calls and their outcomes remain onchain.</p><a className="text-link" href={`#/caller/${session.account.address}`}>View your public record</a></section></div><CallerProfile address={session.account.address} stats={stats} embedded/></div>;
+}
+
+function Funding({ session, vault, state, busy, run, onVault }: { session: Session; vault: Address | null; state: VaultState | null; busy: boolean; run: Runner; onVault: () => void }) {
+  const [gas, setGas] = useState<bigint | null>(null);
+  const [amount, setAmount] = useState("");
+  useEffect(() => { let active = true; publicClient.getBalance({address:session.account.address}).then(value => {if(active)setGas(value);}).catch(() => {}); return () => { active=false; }; }, [session.account.address]);
+  const copy = (address: string) => navigator.clipboard.writeText(address).then(() => setToastNotice("Address copied.")).catch(() => setToastNotice("Select and copy the address shown above."));
+  const valid = /^\d+(\.\d{1,6})?$/.test(amount) && Number(amount)>0;
+  return <div className="funding-grid"><section className="card funding-card"><span className="funding-kind">Account · network gas</span><h2>MON for your transactions</h2><p className="sub">Send MON on {chain.name} to your signing account. The vault address is separate.</p><strong className="funding-balance">{gas === null ? "Balance unavailable" : `${Number(formatEther(gas)).toFixed(4)} MON`}</strong><div className="address-block"><span>Account address</span><code>{session.account.address}</code><button className="ghost" onClick={() => copy(session.account.address)}>Copy account address</button></div>{EXPLORER && <a className="text-link" target="_blank" rel="noreferrer" href={`${EXPLORER}/address/${session.account.address}`}>View account activity</a>}</section>
+    <section className="card funding-card"><span className="funding-kind">Vault · trading funds</span><h2>{QUOTE_SYMBOL} for your follows</h2><p className="sub">{deployment.demo ? "This deployment uses test AUSD, not redeemable mainnet AUSD." : "Use the configured settlement token on this network."}</p>{vault && state ? <><strong className="funding-balance">{fmtQuote(state.cash)} {QUOTE_SYMBOL}</strong><div className="address-block"><span>Vault address</span><code>{vault}</code><button className="ghost" onClick={() => copy(vault)}>Copy vault address</button></div>{deployment.demo && <button className="ghost" disabled={busy} onClick={() => run("Adding 500 test AUSD", () => demoFaucet(session, vault, parseQuote("500")))}>Add 500 test AUSD</button>}<label className="field"><span>Withdraw available AUSD</span><input aria-label="Funding withdrawal amount" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00"/></label><button className="primary" disabled={busy || !valid || (valid && parseQuote(amount)>state.cash)} onClick={() => run("Withdrawing cash", async () => {const hash = await withdrawCash(session,vault,parseQuote(amount));setAmount("");return hash;})}>Withdraw to my account</button></> : <><p className="sub">Create your vault before depositing trading funds.</p><button className="primary" disabled={busy} onClick={onVault}>Set up your vault</button></>}</section></div>;
 }
 
 function SignInPrompt({ signIn, what }: { signIn: () => void; what: string }) {

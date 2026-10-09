@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-09T15:50:04.475Z",
+  "date": "2026-10-09T20:11:20.566Z",
   "fixtureOnly": true,
   "transactionWrites": 0,
   "runtimeErrors": [],
@@ -9,6 +9,7 @@
     "expired quote",
     "no gas"
   ],
+  "themeChecks": [],
   "screens": [
     {
       "name": "landing-1440",
