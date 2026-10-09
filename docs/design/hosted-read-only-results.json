@@ -1,16 +1,20 @@
 {
-  "date": "2026-10-09T20:15:32.576Z",
+  "date": "2026-10-09T20:46:35.656Z",
   "url": "https://upside-monad.vercel.app",
   "actualHostedReceipt": true,
   "completeHistory": true,
   "matchingTransaction": true,
+  "actualTestnetCall": true,
   "landingArtwork": true,
   "mainSections": 6,
   "proofTransactions": 4,
-  "callerComparison": true,
-  "browseTestnetCalls": true,
+  "dashboardAuthenticationGate": true,
+  "cleanDirectPaths": true,
+  "legacyCallLink": true,
+  "publicResources": true,
+  "productionDevAccountsAbsent": true,
   "guideDisclosure": true,
   "horizontalOverflow": false,
   "runtimeErrors": [],
-  "scope": "Read-only hosted browser and keeper check; no phone authentication or trading"
+  "scope": "Read-only hosted gate, public resources, RPC and keeper checks. Signing and dashboard interactions tested locally with fixtures; hardware passkeys remain separate."
 }

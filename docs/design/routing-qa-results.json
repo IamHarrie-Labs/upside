@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-09T20:47:46.483Z",
+  "fixtureOnly": true,
+  "transactionWrites": 0,
+  "runtimeErrors": [],
+  "confirmationRefusals": 0,
+  "reviewGuards": [
+    "changed account",
+    "expired quote",
+    "no gas"
+  ],
+  "themeChecks": [],
+  "routeChecks": [
+    "Sign-in returns to /dashboard/calls",
+    "Sign-in returns to /dashboard/calls",
+    "Sign-in returns to /dashboard/create",
+    "Sign-in returns to /dashboard/vault",
+    "Sign-in returns to /dashboard/record",
+    "Sign-in returns to /dashboard/profile",
+    "Sign-in returns to /dashboard/funding",
+    "Sign-in returns to /dashboard/calls/0",
+    "Sign-in returns to /dashboard/traders/0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+    "Section URL and active nav: calls",
+    "Section URL and active nav: create",
+    "Section URL and active nav: vault",
+    "Section URL and active nav: record",
+    "Section URL and active nav: profile",
+    "Section URL and active nav: funding",
+    "Account menu and public record links",
+    "Call detail and return",
+    "Public help and dashboard return",
+    "Sign-out and browser-back guard",
+    "Legacy shared call link",
+    "Generated mobile-compatible share link",
+    "External login redirect rejected",
+    "Home and signed-in landing return",
+    "Public resource /docs",
+    "Public resource /docs/assets",
+    "Public resource /docs/calls",
+    "Public resource /docs/fees",
+    "Public resource /docs/vault",
+    "Public resource /docs/security",
+    "Public resource /privacy",
+    "Public resource /terms"
+  ],
+  "screens": [
+    {
+      "name": "signed-out-history-1440",
+      "overflow": false
+    }
+  ]
+}

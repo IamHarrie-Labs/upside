@@ -9,7 +9,7 @@ const ADA='0x70997970c51812dc3a010c7d01b50e0d17dc79c8';
 const SYBIL='0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc';
 const VAULT='0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const now=Math.floor(Date.now()/1000);
-let mode='normal'; let writes=0;let confirmationRefusals=0;const failureOnly=process.env.UPSIDE_REVIEW_FAILURE_ONLY==='1';
+let mode='normal'; let writes=0;let confirmationRefusals=0;const failureOnly=process.env.UPSIDE_REVIEW_FAILURE_ONLY==='1';const routeOnly=process.env.UPSIDE_ROUTE_ONLY==='1';
 const call=(id:number)=>({caller:id%2?SYBIL:ADA,base:VAULT,quote:VAULT,side:0,feeBps:2000,verifiedAtPost:id%2===0,scored:id>=2,postedAt:now-4000+id*100,expiry:id>=2?now-30:now+3600,entryMid:35000n,targetMid:36500n,stopMid:34000n,exitMid:id>=2?35500n:0n,returnBps:id===2?142n:id===3?-210n:0n});
 const position=(id:number)=>({callId:BigInt(id),caller:id%2?SYBIL:ADA,base:VAULT,baseAmount:1500n*10n**18n,cost:50000000n,open:id<2});
 function rpc(req:any) {
@@ -78,7 +78,7 @@ async function checkPalette(theme:string){
 async function appearance(theme:string){const toggle=page.getByRole('button',{name:'Dark mode',exact:true});if((await toggle.getAttribute('aria-pressed')==='true')!==(theme==='dark'))await toggle.click();}
 async function privatePage(path:string){await page.goto('http://127.0.0.1:5173'+path);await page.getByRole('button',{name:'Local account 3'}).click();await page.waitForURL('**'+path);}
 async function snap(name:string){await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(150);const styled=await page.evaluate(()=>getComputedStyle(document.body).backgroundColor==='rgb(244, 238, 229)');if(!styled)throw new Error(name+': stylesheet did not apply');const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/${failureOnly ? "routing-error-v2" : "routing-v2"}-${name}.png`,fullPage:true});shots.push({name,overflow});}
-for(const width of [1440,390,320]){
+for(const width of routeOnly?[]:[1440,390,320]){
   mode='normal';await page.setViewportSize({width,height:900});await page.goto('http://127.0.0.1:5173/');await page.getByRole('heading',{name:'Good calls. Shared upside.'}).waitFor();await snap(`landing-${width}`);
   if(await page.getByRole('button',{name:'Pause motion'}).count())throw Error('Removed motion control returned');
   await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Continue with passkey'}).waitFor();await snap(`onboarding-${width}`);
@@ -132,7 +132,7 @@ for(const width of [1440,390,320]){
   await privatePage('/dashboard/traders/not-a-wallet');await page.getByRole('heading',{name:'This page is off the map.'}).waitFor();await snap(`not-found-${width}`);
 }
 await page.setViewportSize({width:390,height:844});
-for(const state of failureOnly?[]:['empty','stale','error','new-vault','loading']){
+for(const state of failureOnly||routeOnly?[]:['empty','stale','error','new-vault','loading']){
  mode=state;await page.goto('http://127.0.0.1:5173/');await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Local account 3'}).click();
  if(state==='loading')await page.getByRole('status',{name:'Loading the onchain record'}).waitFor();
  if(state==='empty')await page.getByRole('heading',{name:'The next call is still unwritten.'}).waitFor();
@@ -141,7 +141,7 @@ for(const state of failureOnly?[]:['empty','stale','error','new-vault','loading'
  if(state==='new-vault'){await page.locator('.call').first().waitFor();await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getByRole('heading',{name:'Your vault',exact:true}).waitFor()}
  await snap(`state-${state}`);
 }
-if(!failureOnly){
+if(!failureOnly&&!routeOnly){
  mode='normal';await privatePage('/dashboard/calls');await appearance('dark');await page.reload();await page.getByRole('button',{name:'Local account 3'}).click();await page.locator('.call').first().waitFor();if(await page.getByRole('button',{name:'Dark mode',exact:true}).getAttribute('aria-pressed')!=='true')throw Error('Appearance did not survive reload');await snap('workspace-dark-persisted-390');
  for(const route of ['docs/fees','privacy','terms']){await page.goto('http://127.0.0.1:5173/'+route);await page.locator(route.startsWith('docs')?'.docs-content':'.info-page').waitFor();await snap(`public-${route.replaceAll('/','-')}-390`);if(await page.locator('.dashboard-shell').count())throw Error('Public help/legal pages contain private dashboard chrome');}
 }
@@ -166,7 +166,8 @@ if(!failureOnly){
  await page.getByRole('button',{name:'Create',exact:true}).click();await page.getByRole('button',{name:'Record',exact:true}).click();await page.getByRole('button',{name:'Vault',exact:true}).click();
  await page.getByLabel('Open account menu').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.waitForURL('**/signin');if(await page.locator('.dashboard-shell').count())throw Error('Sign-out left the dashboard open');
  await page.goBack();await page.waitForURL('**/signin?next=*');if(await page.locator('.dashboard-shell').count())throw Error('Back button bypassed sign-out');routeChecks.push('Sign-out and browser-back guard');await snap('signed-out-history-1440');
- await page.goto('http://127.0.0.1:5173/#/call/0');await page.getByRole('button',{name:'Local account 3'}).click();await page.waitForURL('**/dashboard/calls/0');await page.locator('.call').waitFor();routeChecks.push('Legacy shared call link');
+  await page.goto('http://127.0.0.1:5173/#/call/0');await page.getByRole('button',{name:'Local account 3'}).click();await page.waitForURL('**/dashboard/calls/0');await page.locator('.call').waitFor();routeChecks.push('Legacy shared call link');
+  await page.evaluate(()=>{Object.defineProperty(navigator,'share',{configurable:true,value:undefined});Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{(window as any).__sharedLink=text;}}});});await page.locator('.call').getByRole('button',{name:'Share',exact:true}).click();if(!await page.evaluate(()=>(window as any).__sharedLink?.includes('/#/call/0')))throw Error('Generated share link lost installed mobile compatibility');routeChecks.push('Generated mobile-compatible share link');
  await page.goto('http://127.0.0.1:5173/signin?next=https%3A%2F%2Fexample.com');await page.getByRole('button',{name:'Local account 3'}).click();await page.waitForURL('**/dashboard/calls');routeChecks.push('External login redirect rejected');
  await page.getByRole('button',{name:'Upside home',exact:true}).click();await page.waitForURL('http://127.0.0.1:5173/');await page.getByRole('button',{name:'Open Upside',exact:true}).click();await page.waitForURL('**/dashboard/calls');routeChecks.push('Home and signed-in landing return');
  for(const path of ['/docs','/docs/assets','/docs/calls','/docs/fees','/docs/vault','/docs/security','/privacy','/terms']){
@@ -187,5 +188,5 @@ const reviewGuards=await page.evaluate(async()=>{
 if(errors.length)throw new Error('Runtime errors: '+errors.join('; '));
 if(writes)throw new Error('Unexpected write attempts: '+writes);
 if(failureOnly&&confirmationRefusals===0)throw Error('Confirmation failure path was not exercised');
-writeFileSync(failureOnly?'docs/design/review-error-web-results.json':'docs/design/ui-qa-results.json',JSON.stringify({date:new Date().toISOString(),fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,confirmationRefusals,reviewGuards,themeChecks,routeChecks,screens:shots},null,2));
+writeFileSync(failureOnly?'docs/design/review-error-web-results.json':routeOnly?'docs/design/routing-qa-results.json':'docs/design/ui-qa-results.json',JSON.stringify({date:new Date().toISOString(),fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,confirmationRefusals,reviewGuards,themeChecks,routeChecks,screens:shots},null,2));
 console.log(JSON.stringify({screens:shots.length,runtimeErrors:errors,transactionWrites:writes}));await browser.close();

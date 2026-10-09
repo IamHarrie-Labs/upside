@@ -66,7 +66,10 @@ let NANSEN = new Map<string, NansenInfo | null>();
 const nameOf = (a: string) => { const handle = HANDLES.get(a.toLowerCase()); return handle ? `@${handle}` : `Trader ${a.slice(2,6).toUpperCase()}`; };
 
 async function share(title: string, text: string, hash: string) {
-  const url = new URL(hash, location.origin).href;
+  // The installed mobile build recognizes these shared entry links. Web navigation
+  // immediately converts them to the canonical dashboard path after opening.
+  const compatiblePath = hash.replace(/^\/dashboard\/calls\/(\d+)$/, "/#/call/$1").replace(/^\/dashboard\/traders\/(0x[a-fA-F0-9]{40})$/, "/#/caller/$1");
+  const url = new URL(compatiblePath, location.origin).href;
   try {
     if (navigator.share) return await navigator.share({ title, text, url });
     await navigator.clipboard.writeText(`${text} ${url}`);
