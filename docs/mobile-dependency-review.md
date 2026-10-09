@@ -1,6 +1,6 @@
 # Mobile dependency check — 8 October 2026
 
-The first signed Android build completed. Its cloud Expo Doctor check passed 20/21 checks because `expo` 57.0.26 and `expo-linking` 57.0.11 were one patch behind the current SDK requirements. The project now uses 57.0.27 and 57.0.12; local Expo Doctor passes 21/21, and TypeScript passes. A replacement signed preview will use this corrected lockfile.
+The first signed Android build completed. Its cloud Expo Doctor check passed 20/21 checks because `expo` 57.0.26 and `expo-linking` 57.0.11 were one patch behind the current SDK requirements. The project now uses 57.0.27 and 57.0.12; local Expo Doctor passes 21/21, and TypeScript passes. The final replacement build `bf78f3df-4480-4e21-b400-b13741ea4406` finished on 9 October using the corrected lockfile; its cloud Expo Doctor also passed 21/21 and native compilation completed.
 
 `npm audit` reports 22 affected dependency entries (15 high, seven moderate), propagated from three advisory roots. Updating compatible transitive versions did not resolve them. These entries overlap; they are not 22 independent findings in application code.
 

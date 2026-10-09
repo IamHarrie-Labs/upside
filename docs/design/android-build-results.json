@@ -1,13 +1,21 @@
 {
-  "date": "2026-10-08T19:22:41.9995970Z",
-  "id": "df217ebf-6926-4b27-98c7-09a772573924",
+  "date": "2026-10-09T09:14:37.123Z",
+  "id": "bf78f3df-4480-4e21-b400-b13741ea4406",
   "status": "FINISHED",
-  "sourceCommit": "6e55ae8",
+  "sourceCommit": "a936d3689987e9e38daa37e88787b0beced8dfc5",
   "profile": "preview",
   "platform": "ANDROID",
-  "url": "https://expo.dev/accounts/iamharrie/projects/upside/builds/df217ebf-6926-4b27-98c7-09a772573924",
+  "url": "https://expo.dev/accounts/iamharrie/projects/upside/builds/bf78f3df-4480-4e21-b400-b13741ea4406",
   "physicalDeviceVerified": false,
   "signingFingerprint": "15:93:64:40:B0:3F:F6:F2:AA:F2:83:91:E5:DD:F5:B3:EC:0E:5B:96:DF:BC:BB:F5:AF:CC:00:78:F8:0B:2C:1B",
-  "apkUrl": "https://expo.dev/artifacts/eas/TRitU_EqtwTN-x0gOUoaPzoEcYmKCLTSNWsbz5kY4y0.apk",
-  "cloudDoctorChecksPassed": "20/21; replacement dependency-corrected build required"
+  "apkUrl": "https://expo.dev/artifacts/eas/m01NQCrW9z8DcG3Yw1d0DMFRfQSIWfrs6yeSHLptTW0.apk",
+  "cloudDoctorEvidence": [
+    "21/21 checks passed. No issues detected!"
+  ],
+  "supersedes": {
+    "id": "df217ebf-6926-4b27-98c7-09a772573924",
+    "sourceCommit": "6e55ae8",
+    "status": "FINISHED"
+  },
+  "canceledIntermediateBuild": "86b66c37-8e64-4a10-b12a-39d5a84accff"
 }
