@@ -828,7 +828,7 @@ function CallerComparison({stats,calls}:{stats:CallerStats[];calls:Call[]}) {
   const pair=[first,second];
   const histories=pair.map(s=>calls.filter(c=>c.caller.toLowerCase()===s.address.toLowerCase()));
   const feeRange=(history:Call[])=>{if(!history.length)return "—";const fees=history.map(c=>c.feeBps/100);const low=Math.min(...fees),high=Math.max(...fees);return low===high?`${low}%`:`${low}–${high}%`;};
-  const dates=(history:Call[])=>{if(!history.length)return "—";const times=history.map(c=>c.postedAt);const date=(t:number)=>new Date(t*1000).toISOString().slice(0,10);return `${date(Math.min(...times))} to ${date(Math.max(...times))}`;};
+  const dates=(history:Call[])=>{if(!history.length)return "—";const times=history.map(c=>c.postedAt);const date=(t:number)=>new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(t*1000));const first=date(Math.min(...times)),last=date(Math.max(...times));return first===last?first:`${first} to ${last}`;};
   const rows:[string,string[]][]=[
     ["Calls posted",pair.map(s=>String(s.posted))],
     ["Calls scored",pair.map(s=>String(s.scored))],

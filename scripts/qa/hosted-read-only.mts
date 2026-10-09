@@ -23,14 +23,20 @@ try{
   await page.locator('.cabin-illustration').waitFor();
   await page.waitForFunction(()=>{const img=document.querySelector('.cabin-illustration') as HTMLImageElement;return img?.complete&&img.naturalWidth>0;});
   assert.equal(await page.locator('.cabin-illustration').evaluate((img:any)=>img.complete&&img.naturalWidth>0),true);
+  assert.match(await page.locator('.cabin-illustration').getAttribute('src')??'',/cabin-expressive-v3\.webp$/);
+  assert.equal(await page.locator('#landing-main > section').count(),6);
+  assert.equal(await page.locator('.proof-timeline a').count(),4);
   await page.getByRole('button',{name:'Explore the calls',exact:true}).click();
   await page.locator('.call').first().waitFor({timeout:45_000});
   assert.match(await page.locator('body').innerText(),/test tokens only/i);
+  await page.getByRole('button',{name:'Record',exact:true}).click();
+  await page.locator('.caller-comparison').waitFor({timeout:45_000});
+  assert.equal(await page.locator('.comparison-table tbody tr').count(),8);
   await page.goto('https://upside-monad.vercel.app/#/guide');
   await page.locator('.info-page').waitFor();
   assert.match(await page.locator('.info-page').innerText(),/open position losses are excluded/i);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   assert.deepEqual(errors,[]);
-  writeFileSync('docs/design/hosted-read-only-results.json',JSON.stringify({date:new Date().toISOString(),url:'https://upside-monad.vercel.app',actualHostedReceipt:true,completeHistory:true,matchingTransaction:true,landingArtwork:true,browseTestnetCalls:true,guideDisclosure:true,horizontalOverflow:false,runtimeErrors:errors,scope:'Read-only hosted browser and keeper check; no phone authentication or trading'},null,2));
+  writeFileSync('docs/design/hosted-read-only-results.json',JSON.stringify({date:new Date().toISOString(),url:'https://upside-monad.vercel.app',actualHostedReceipt:true,completeHistory:true,matchingTransaction:true,landingArtwork:true,mainSections:6,proofTransactions:4,callerComparison:true,browseTestnetCalls:true,guideDisclosure:true,horizontalOverflow:false,runtimeErrors:errors,scope:'Read-only hosted browser and keeper check; no phone authentication or trading'},null,2));
   console.log('Hosted receipt, original artwork, testnet browsing and guide checks passed.');
 }finally{await browser.close();}

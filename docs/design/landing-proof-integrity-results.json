@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-09T10:37:46.288Z",
+  "chainId": 10143,
+  "readOnly": true,
+  "checks": [
+    {
+      "hash": "0xfa8caca8a64fe558a76bfc84a2024ece26d6d1a2b8888b21072af31c274a09fb",
+      "success": true,
+      "expectedContract": true,
+      "expectedAccount": true
+    },
+    {
+      "hash": "0xba660f9fc12533021c598dc10b49d2d743a1cb0e88394fe7618affb05b52f631",
+      "success": true,
+      "expectedContract": true,
+      "expectedAccount": true
+    },
+    {
+      "hash": "0x8db57557cfd52bc27bbd641714efc35e7310207b408600de3cf3a478fc648c94",
+      "success": true,
+      "expectedContract": true,
+      "expectedAccount": true
+    },
+    {
+      "hash": "0x78e8f54ddd6a5c6955907cb6701dc15fa76848af759c4f73b3a633685640aec5",
+      "success": true,
+      "expectedContract": true,
+      "expectedAccount": true
+    }
+  ]
+}
