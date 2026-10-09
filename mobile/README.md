@@ -14,7 +14,9 @@ npm install
 npx expo start --web --port 8081
 ```
 
-With the local chain running (see the root README), the sign-in screen offers the three demo accounts.
+With the local chain running (see the root README), the last welcome step offers three local development accounts.
+
+The app has a three-step welcome flow, safe-area-aware screens and an accessible floating icon dock. It uses Expo Router routes under `src/app/`; the root layout keeps the wallet session alive across navigation. Shared website hash links are normalized by `+native-intent.tsx`.
 
 ## Build an installable Android app (APK)
 

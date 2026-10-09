@@ -30,6 +30,7 @@ for(const stage of [0,1,2]){
  if((await page.locator('.fee-due b').innerText())!==expected)throw Error('Incorrect example fee at stage '+stage);
 }
 if(await page.locator('.proof-timeline a').count()!==4)throw Error('Missing proof transactions');
+if(await page.locator('.fee-story').evaluate(el=>getComputedStyle(el).backgroundColor)!=='rgb(25, 43, 37)')throw Error('Dark fee section missing');
 await page.screenshot({path:'docs/design/screens/grotesk-fees.png'});
 await page.locator('#proof').scrollIntoViewIfNeeded();await page.screenshot({path:'docs/design/screens/landing-proof-desktop.png'});
 await page.locator('.vault-example').scrollIntoViewIfNeeded();await page.waitForFunction(()=>document.querySelector('.vault-example')?.classList.contains('is-in-view'));
@@ -38,16 +39,11 @@ const question=page.locator('.questions-list summary').first();await question.fo
 if(!await page.locator('.questions-list details').first().evaluate(el=>el.open))throw Error('FAQ did not open');
 await page.screenshot({path:'docs/design/screens/grotesk-questions.png'});
 await page.keyboard.press('Enter');if(await page.locator('.questions-list details').first().evaluate(el=>el.open))throw Error('FAQ did not close');
-await page.getByRole('button',{name:'Pause motion'}).click();
-if(await page.locator('.receipt-stamp').evaluate(el=>getComputedStyle(el).animationPlayState)!=='paused')throw Error('Decorative pause failed');
-const frozenDepth=await page.locator('.landing').evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-depth'));
-await scrollTo(0);
-if(await page.locator('.landing').evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-depth'))!==frozenDepth)throw Error('Cloud depth moved while paused');
-if((await page.locator('.fee-due b').innerText())!=='2 AUSD')throw Error('Paused mode did not show the complete fee example');
+if(await page.getByRole('button',{name:'Pause motion'}).count())throw Error('Unwanted motion control');
 await page.emulateMedia({reducedMotion:'reduce'});
 if(await page.locator('.receipt-stamp').evaluate(el=>getComputedStyle(el).animationName)!=='none')throw Error('Reduced motion ignored');
 if(await page.locator('.cloud-depth').evaluate(el=>getComputedStyle(el).transform)!=='none')throw Error('Reduced-motion cloud depth still active');
 for(const width of [320,390,768,1024]){await page.setViewportSize({width,height:844});await scrollTo(0);if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Overflow at '+width);if(width<=390){if(await page.locator('.section-intro').evaluate(el=>getComputedStyle(el).position)!=='static')throw Error('Sticky copy blocks phone content');await page.screenshot({path:'docs/design/screens/grotesk-hero-'+width+'.png'});}}
 if(errors.length)throw Error(errors.join('; '));
-writeFileSync('docs/design/landing-interaction-results.json',JSON.stringify({date:new Date().toISOString(),mainSections:6,groteskLoaded:true,decorativeArrows:0,pinnedHeading:{firstTop,secondTop,releasesAtSectionEnd:true},thirdStepActive:true,feeStages:[0,0,2],proofTransactions:4,keyboardFAQ:true,pauseDecorativeMotion:true,reducedMotion:true,phoneFlow:true,viewportWidths:[320,390,768,1024,1440],runtimeErrors:errors},null,2));
+writeFileSync('docs/design/landing-interaction-results.json',JSON.stringify({date:new Date().toISOString(),mainSections:6,groteskLoaded:true,decorativeArrows:0,pinnedHeading:{firstTop,secondTop,releasesAtSectionEnd:true},thirdStepActive:true,feeStages:[0,0,2],proofTransactions:4,keyboardFAQ:true,finiteHeroEntrance:true,reducedMotion:true,phoneFlow:true,darkFeeSection:true,viewportWidths:[320,390,768,1024,1440],runtimeErrors:errors},null,2));
 await browser.close();console.log('Grotesk, six sections, receipt progression, proof, sticky reading, FAQ and motion checks passed.');

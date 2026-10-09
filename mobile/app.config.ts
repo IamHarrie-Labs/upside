@@ -22,6 +22,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "xyz.upside.app",
+    softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {
       backgroundColor: "#f4eee5",
       foregroundImage: "./assets/android-icon-foreground.png",
@@ -40,6 +41,7 @@ const config: ExpoConfig = {
   },
   web: { favicon: "./assets/favicon.png", bundler: "metro" },
   plugins: [
+    "expo-router",
     "expo-secure-store",
     ["expo-font", { fonts: ["./assets/fonts/SpaceGrotesk-Regular.ttf", "./assets/fonts/SpaceGrotesk-Medium.ttf", "./assets/fonts/SpaceGrotesk-Bold.ttf"] }],
     [

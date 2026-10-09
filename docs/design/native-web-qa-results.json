@@ -1,12 +1,65 @@
 {
-  "date": "2026-10-08",
+  "date": "2026-10-09T15:48:26.324Z",
   "fixtureOnly": true,
   "platform": "Expo web (not a physical phone)",
   "runtimeErrors": [],
   "transactionWrites": 0,
+  "confirmationRefusals": 0,
   "screens": [
     {
+      "name": "onboarding-320",
+      "overflow": false
+    },
+    {
+      "name": "welcome-benefits-320",
+      "overflow": false
+    },
+    {
+      "name": "welcome-account-320",
+      "overflow": false
+    },
+    {
+      "name": "calls-320",
+      "overflow": false
+    },
+    {
+      "name": "trade-review-320",
+      "overflow": false
+    },
+    {
+      "name": "create-320",
+      "overflow": false
+    },
+    {
+      "name": "vault-320",
+      "overflow": false
+    },
+    {
+      "name": "vault-editor-320",
+      "overflow": false
+    },
+    {
+      "name": "record-320",
+      "overflow": false
+    },
+    {
+      "name": "caller-320",
+      "overflow": false
+    },
+    {
+      "name": "detail-320",
+      "overflow": false
+    },
+    {
       "name": "onboarding-390",
+      "overflow": false
+    },
+    {
+      "name": "welcome-benefits-390",
+      "overflow": false
+    },
+    {
+      "name": "welcome-account-390",
       "overflow": false
     },
     {
@@ -42,39 +95,47 @@
       "overflow": false
     },
     {
-      "name": "onboarding-768",
+      "name": "onboarding-430",
       "overflow": false
     },
     {
-      "name": "calls-768",
+      "name": "welcome-benefits-430",
       "overflow": false
     },
     {
-      "name": "trade-review-768",
+      "name": "welcome-account-430",
       "overflow": false
     },
     {
-      "name": "create-768",
+      "name": "calls-430",
       "overflow": false
     },
     {
-      "name": "vault-768",
+      "name": "trade-review-430",
       "overflow": false
     },
     {
-      "name": "vault-editor-768",
+      "name": "create-430",
       "overflow": false
     },
     {
-      "name": "record-768",
+      "name": "vault-430",
       "overflow": false
     },
     {
-      "name": "caller-768",
+      "name": "vault-editor-430",
       "overflow": false
     },
     {
-      "name": "detail-768",
+      "name": "record-430",
+      "overflow": false
+    },
+    {
+      "name": "caller-430",
+      "overflow": false
+    },
+    {
+      "name": "detail-430",
       "overflow": false
     },
     {
@@ -91,6 +152,10 @@
     },
     {
       "name": "state-new-vault",
+      "overflow": false
+    },
+    {
+      "name": "welcome-short-screen",
       "overflow": false
     }
   ]

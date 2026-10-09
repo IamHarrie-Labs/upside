@@ -45,6 +45,8 @@ import { getNansen, type NansenInfo } from "./lib/nansen";
 import Landing from "./Landing";
 import { BrandMark, WalletGlyph } from "./Brand";
 import InfoPage from "./InfoPage";
+import Docs from "./Docs";
+import Footer from "./Footer";
 const infoRoutes = ["guide", "privacy", "terms"];
 
 type Tab = "feed" | "post" | "portfolio" | "board";
@@ -59,10 +61,7 @@ let HANDLES = new Map<string, string>();
 let PERPL = new Map<string, PerplPosition | null>();
 // Nansen labels per caller (Smart Money etc.), via the keeper.
 let NANSEN = new Map<string, NansenInfo | null>();
-const nameOf = (a: string) => {
-  const h = HANDLES.get(a.toLowerCase());
-  return h ? `@${h}` : short(a);
-};
+const nameOf = (a: string) => short(a);
 const go = (hash: string) => (location.hash = hash);
 /** "#/" and "#" are the home screen; detail routes are "#/call/N" and "#/caller/0x…". */
 const currentRoute = () => (location.hash === "#/" || location.hash === "#" ? "" : location.hash);
@@ -109,7 +108,6 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [route, setRoute] = useState(currentRoute);
   const [, setHandleTick] = useState(0);
   const refreshVersion = useRef(0);
@@ -162,7 +160,6 @@ export default function App() {
       setHandleTick((t) => t + 1);
       setLoading(false);
       setLoadError("");
-      setUpdatedAt(Date.now());
     } catch (error) { if (version === refreshVersion.current) throw error; }
   }, [session]);
 
@@ -193,7 +190,8 @@ export default function App() {
     : <Landing onStart={() => setJoining(true)} onBrowse={() => setBrowsing(true)} />;
   const signIn = () => { setJoining(true); setBrowsing(false); };
   const infoName = route.slice(2);
-  const isInfo = infoRoutes.includes(infoName);
+  const isDocs = infoName === "docs" || infoName.startsWith("docs/") || infoName === "guide";
+  const isInfo = isDocs || infoRoutes.includes(infoName);
   const callRoute = /^#\/call\/\d+$/.test(route);
   const callerRoute = route.startsWith("#/caller/") && isAddress(route.slice(9));
   const invalidRoute = route.startsWith("#/") && !callRoute && !callerRoute && !isInfo;
@@ -210,7 +208,7 @@ export default function App() {
         </div>
         {session ? (
           <button className="chip" disabled={busy} onClick={() => (session.end(), adoptSession(null), setBrowsing(false))} title="Switch account">
-            {session.label.split(" ")[0]} · {short(session.account.address)}
+            {short(session.account.address)}
           </button>
         ) : (
           <button className="chip" onClick={signIn}>
@@ -220,11 +218,11 @@ export default function App() {
       </header>
 
       <main id="workspace" tabIndex={-1}>
-        {isInfo && <InfoPage name={infoName} />}
+        {isInfo && (isDocs ? <Docs topic={infoName.startsWith("docs/") ? infoName.slice(5) : ""}/> : <InfoPage name={infoName} />)}
         {invalidRoute && <StatePanel title="This page is off the map." text="The link does not point to a supported Upside page." action={() => go("")} label="Back to calls" />}
-        {!isInfo && !invalidRoute && <div className="environment-strip"><span className="status-dot"/><span>{deployment.demo ? "Preview / test tokens only" : "Monad / onchain record"}</span><span>{updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Connecting to the record"}</span><a href="#/guide">Guide</a></div>}
+
         {!isInfo && !invalidRoute && loadError && <div className="connection-error" role="alert"><p>{loadError}</p><button className="ghost" onClick={() => refresh().catch(() => {})}>Retry connection</button></div>}
-        {!route.startsWith("#/") && <div className="workspace-heading"><p className="eyebrow">{({ feed: "01 / Find your conviction", post: "02 / Make it a commitment", portfolio: "03 / Stay in control", board: "04 / Evidence over attention" })[tab]}</p><h1>{({ feed: "The call sheet.", post: "Put it on record.", portfolio: "Your vault. Your upside.", board: "A following is earned." })[tab]}</h1><p className="sub">{({ feed: "Find a thesis. Inspect its author. Make your own move.", post: "A clear thesis, committed before the outcome.", portfolio: "See your exposure, your positions, and what a caller has earned.", board: "Scored commitments, including the ones that missed." })[tab]}</p></div>}
+        {!route.startsWith("#/") && <div className="workspace-heading"><h1>{({ feed: "Calls", post: "Create a call", portfolio: "Vault", board: "Records" })[tab]}</h1></div>}
         {!isInfo && !invalidRoute && !loadError && loading && <div className="skeleton-stack" role="status" aria-label="Loading the onchain record"><div/><div/><span>Reading the onchain record…</span></div>}
         {callRoute && !loading && !loadError && (
           <Detail>
@@ -275,7 +273,7 @@ export default function App() {
         )}
         {!route.startsWith("#/") && tab === "board" && !loading && !loadError && <Board stats={stats} calls={calls} />}
       </main>
-      <footer className="workspace-footer"><span>Upside / Good calls. Shared upside.</span><nav aria-label="Product resources"><a href="#/guide">Guide</a><a href="#/privacy">Privacy</a><a href="#/terms">Preview terms</a></nav></footer>
+      <Footer/>
 
       {toast && (
         <div className={`toast ${toast.kind}`} role={toast.kind === "err" ? "alert" : "status"}>
@@ -303,7 +301,7 @@ export default function App() {
           ] as [Tab, string][]
         ).map(([t, label]) => (
           <button key={t} aria-current={tab === t && !route.startsWith("#/") ? "page" : undefined} className={tab === t && !route.startsWith("#/") ? "on" : ""} onClick={() => (setTab(t), go(""))}>
-            <span className="nav-number" aria-hidden="true">{({feed:"01",post:"02",portfolio:"03",board:"04"})[t]}</span>{label}
+            {label}
           </button>
         ))}
       </nav>
@@ -377,7 +375,7 @@ function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => v
           <div className="dev-title">Local demo accounts</div>
           {DEV_ACCOUNTS.map((a, i) => (
             <button key={a.label} className="ghost" disabled={busy} onClick={() => onSession(devSession(i))}>
-              {a.label}
+              {`Local account ${i + 1}`}
             </button>
           ))}
         </div>
@@ -436,7 +434,7 @@ function Feed(props: {
   const [preparing,setPreparing] = useState(false);
   const [reviewError,setReviewError] = useState("");
   const shown = calls.filter(c => (filter === "all" || (filter === "live" ? !c.scored && c.expiry > now : c.scored)) && `${nameOf(c.caller)} ${c.caller} ${c.id}`.toLowerCase().includes(query.toLowerCase().trim()));
-  if (!calls.length) return <StatePanel title={props.emptyTitle ?? "The next call is still unwritten."} text={props.emptyText ?? "Committed calls will appear here with their full record. Explore the guide or sign in to create the first one."} />;
+  if (!calls.length) return <StatePanel title={props.emptyTitle ?? "The next call is still unwritten."} text={props.emptyText ?? "Committed calls will appear here with their full record. Explore the docs or sign in to create the first one."} />;
 
   return (
     <div className="feed-layout">
@@ -843,12 +841,12 @@ function CallerComparison({stats,calls}:{stats:CallerStats[];calls:Call[]}) {
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="empty"><BrandMark /><p>{text}</p><a href="#/guide">Read the guide</a></div>;
+  return <div className="empty"><BrandMark /><p>{text}</p><a href="#/docs">Read the docs</a></div>;
 }
 
 function setToastNotice(text: string) { window.dispatchEvent(new CustomEvent("upside:notice", { detail: text })); }
 function StatePanel({ title, text, action, label }: { title: string; text: string; action?: () => void; label?: string }) {
-  return <section className="state-panel"><BrandMark /><h2>{title}</h2><p>{text}</p>{action ? <button className="ghost" onClick={action}>{label}</button> : <a className="text-link" href="#/guide">Read the guide</a>}</section>;
+  return <section className="state-panel"><BrandMark /><h2>{title}</h2><p>{text}</p>{action ? <button className="ghost" onClick={action}>{label}</button> : <a className="text-link" href="#/docs">Read the docs</a>}</section>;
 }
 
 function Detail({ children }: { children: React.ReactNode }) {

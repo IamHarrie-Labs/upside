@@ -1,3 +1,11 @@
+# Current UI revision — 9 October 2026
+
+The latest redesign separates desktop workspace navigation from the native icon dock. Documentation now has six topics, with distinct privacy and terms pages. The landing fee story uses a forest surface with light text; the cabin illustration has smaller faces. The motion toggle is removed and the brief hero entrance stops automatically; reduced-motion preferences still apply.
+
+See [the platform design review](platform-design-review-2026-10-09.md) and current JSON results for this revision. The earlier review below remains historical context. Logo replacement is pending the user's choice among Lift, Accord and Cabin; the current Cabin mark is retained in this release.
+
+---
+
 # Upside design and product review
 
 Reviewed 8 October 2026.

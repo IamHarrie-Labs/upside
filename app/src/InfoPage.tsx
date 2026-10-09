@@ -9,13 +9,13 @@ const pages: Record<string, { title: string; intro: string; sections: Section[] 
     { title: "Passkeys and funding", text: "Mera derives your account from your passkey provider's PRF output. Device and provider support varies. Keep access to your original passkey; a different passkey can create a different account. MON pays network gas. Test AUSD funds the demo venue. You may need both before trading." },
     { title: "Preview boundaries and ranking", text: "Demo deployments use test tokens and a demo router. A stale or unavailable keeper price prevents both new trades and closing existing positions. Base tokens backing open positions stay locked; there is no emergency exit in this preview. The owner can replace the price source and permitted routers. Rankings sort by average call return multiplied by the square root of scored call count. Followers and reviews do not enter that formula. Unresolved calls remain visible. Verification API access, phone passkeys, and production services require separate validation." }
   ]},
-  privacy: { title: "Privacy in the preview.", intro: "Current application behavior. Updated 8 October 2026.", sections: [
+  privacy: { title: "Privacy", intro: "Current application behavior. Updated 8 October 2026.", sections: [
     { title: "Public activity", text: "Addresses, public handles, calls, vault activity, and transactions are recorded onchain and can be viewed by others. A pseudonymous address does not make that activity private. Choose a handle that you are comfortable publishing." },
     { title: "On your device", text: "The web app stores a passkey credential identifier in local browser storage; native uses device storage. Signing material is derived in memory. The interface does not ask you to paste a private key. Signing out ends the signing session." },
     { title: "Service requests", text: "RPC providers, hosting providers, and the keeper process requests and standard network metadata. Optional Nansen and Perpl requests may include public addresses. Those services have their own policies. The preview has no dedicated product analytics tracker." },
     { title: "Removing local data", text: "Clearing storage removes the local credential reference, not your provider's passkey or onchain records. This hackathon preview does not yet have a dedicated privacy support channel." }
   ]},
-  terms: { title: "Preview terms & boundaries.", intro: "Read before using this hackathon prototype. Updated 8 October 2026.", sections: [
+  terms: { title: "Terms of use", intro: "Read before using this hackathon prototype. Updated 8 October 2026.", sections: [
     { title: "For evaluation", text: "The demo uses test tokens with no redemption promise. The preview is not a production custody service. Verify the network and purpose of any address before sending assets." },
     { title: "Your decisions", text: "You choose what to follow, how much to commit, and when to close. Blockchain transactions cannot simply be undone. Scores, labels, and opinions are information, not advice or a promise of profit." },
     { title: "Execution and fees", text: "Each call declares a performance fee capped at 30% by the current contract. Settlement depends on recorded proceeds, relationship accounting, verification, and protocol configuration. Network and venue costs may apply. Estimates can differ from the settled result." },
@@ -24,5 +24,5 @@ const pages: Record<string, { title: string; intro: string; sections: Section[] 
 };
 export default function InfoPage({ name }: { name: string }) {
   const page = pages[name];
-  return <article className="info-page"><a className="text-link" href="#/">Back to calls</a><p className="eyebrow">{name === "guide" ? "Using Upside" : name === "privacy" ? "Your privacy" : "About this preview"}</p><h1>{page.title}</h1><p className="info-intro">{page.intro}</p>{page.sections.map(s => <section key={s.title}><h2>{s.title}</h2><p>{s.text}</p></section>)}</article>;
+  return <article className="info-page"><a className="text-link" href="#/">Back to calls</a><p className="eyebrow">{name === "guide" ? "Using Upside" : name === "privacy" ? "Your privacy" : "Terms of use"}</p><h1>{page.title}</h1><p className="info-intro">{page.intro}</p>{page.sections.map(s => <section key={s.title}><h2>{s.title}</h2><p>{s.text}</p></section>)}</article>;
 }

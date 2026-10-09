@@ -1,9 +1,9 @@
 {
-  "date": "2026-10-08",
+  "date": "2026-10-09",
   "keyboardSkip": true,
-  "pauseMotion": true,
+  "finiteHeroEntrance": true,
   "reducedMotion": true,
   "namedButtons": true,
-  "illustrationPause": true,
+  "automaticReducedMotion": true,
   "scope": "Targeted browser checks, not a full accessibility certification"
 }

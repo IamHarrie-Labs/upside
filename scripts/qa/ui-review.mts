@@ -64,9 +64,10 @@ const shots:any[]=[];
 async function snap(name:string){await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(150);const styled=await page.evaluate(()=>getComputedStyle(document.body).backgroundColor==='rgb(244, 238, 229)');if(!styled)throw new Error(name+': stylesheet did not apply');const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/${name}.png`,fullPage:true});shots.push({name,overflow});}
 for(const width of [1440,390,320]){
   mode='normal';await page.setViewportSize({width,height:900});await page.goto('http://127.0.0.1:5173/');await page.getByRole('heading',{name:'Good calls. Shared upside.'}).waitFor();await snap(`landing-${width}`);
-  if(width===1440){await page.getByRole('button',{name:'Resume motion'}).click();await page.getByRole('button',{name:'Pause motion'}).waitFor();}
+  if(await page.getByRole('button',{name:'Pause motion'}).count())throw Error('Removed motion control returned');
   await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Create account with a passkey'}).waitFor();await snap(`onboarding-${width}`);
-  await page.getByRole('button',{name:'Femi (follower)'}).click();await page.locator('.call').first().waitFor();await snap(`calls-${width}`);
+  await page.getByRole('button',{name:'Local account 3'}).click();await page.locator('.call').first().waitFor();await snap(`calls-${width}`);
+  if(await page.locator('.tabs').evaluate(el=>getComputedStyle(el).position)!=='static')throw Error('Web nav is still floating');
   const beforeReview=writes;await page.getByRole('button',{name:'Follow $50',exact:true}).first().click();await page.getByRole('dialog').waitFor();await snap(`trade-review-${width}`);
   if(failureOnly){mode='confirmation-refused';await page.getByRole('button',{name:'Confirm follow',exact:true}).click();await page.getByRole('dialog').getByRole('alert').waitFor();await snap(`review-error-${width}`);mode='normal';}
   await page.getByRole('button',{name:'Cancel',exact:true}).click();if(writes!==beforeReview)throw Error('Canceled review sent a transaction');if(failureOnly)continue;
@@ -76,8 +77,8 @@ for(const width of [1440,390,320]){
   await page.getByRole('button',{name:'Create',exact:true}).click();await page.getByRole('heading',{name:'Post a call',exact:true}).waitFor();await snap(`create-${width}`);
   await page.getByLabel('Your fee, % of new realized gains').fill('31');if(!await page.getByRole('button',{name:'Commit call onchain'}).isDisabled())throw new Error('Invalid fee accepted');await page.getByLabel('Your fee, % of new realized gains').fill('20');
   await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();await snap(`vault-${width}`);
-  await page.getByTitle('Switch account').click();await page.getByRole('button',{name:'Ada (verified caller)'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
-  await page.getByTitle('Switch account').click();await page.getByRole('button',{name:'Femi (follower)'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
+  await page.getByTitle('Switch account').click();await page.getByRole('button',{name:'Local account 1'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
+  await page.getByTitle('Switch account').click();await page.getByRole('button',{name:'Local account 3'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Exposure limit',exact:true}).click();await page.getByLabel('Exposure limit (AUSD)').fill('50');if(!await page.getByRole('button',{name:'Save exposure limit'}).isDisabled())throw new Error('Limit below open exposure accepted');await snap(`vault-edit-${width}`);
   await page.getByText('Fund or withdraw your vault',{exact:true}).click();await page.getByLabel('Withdraw available AUSD to your account').fill('999');if(!await page.getByRole('button',{name:'Withdraw to my account'}).isDisabled())throw new Error('Overdraft accepted');await snap(`vault-funding-${width}`);
   await page.getByRole('button',{name:'Record',exact:true}).click();await page.locator('.leader').first().waitFor();await page.getByRole('heading',{name:'Compare the whole record.',exact:true}).waitFor();
@@ -88,12 +89,12 @@ for(const width of [1440,390,320]){
   if((await comparison.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Calls posted',exact:true})}).getByRole('cell').allTextContents()).join(',')!=='2,2')throw Error('Caller comparison switch failed');
   await snap(`record-${width}`);await page.locator('.leader').first().click();await page.locator('.profile').waitFor();await snap(`caller-${width}`);
   await page.goto('http://127.0.0.1:5173/#/call/0');await page.locator('.call').waitFor();await snap(`detail-${width}`);await page.goto('http://127.0.0.1:5173/#/call/999');await page.getByRole('heading',{name:'That call is not on this record.'}).waitFor();await snap(`missing-call-${width}`);
-  for(const route of ['guide','privacy','terms']){await page.goto('http://127.0.0.1:5173/#/'+route);await page.locator('.info-page').waitFor();await snap(`${route}-${width}`)}
+  for(const route of ['docs','docs/assets','docs/calls','docs/fees','docs/vault','docs/security','privacy','terms']){await page.goto('http://127.0.0.1:5173/#/'+route);await page.locator(route.startsWith('docs')?'.docs-content':'.info-page').waitFor();await snap(`${route.replaceAll("/","-")}-${width}`)}
   await page.goto('http://127.0.0.1:5173/#/caller/not-a-wallet');await page.getByRole('heading',{name:'This page is off the map.'}).waitFor();await snap(`not-found-${width}`);
 }
 await page.setViewportSize({width:390,height:844});
 for(const state of failureOnly?[]:['empty','stale','error','new-vault','loading']){
- mode=state;await page.goto('http://127.0.0.1:5173/');await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Femi (follower)'}).click();
+ mode=state;await page.goto('http://127.0.0.1:5173/');await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Local account 3'}).click();
  if(state==='loading')await page.getByRole('status',{name:'Loading the onchain record'}).waitFor();
  if(state==='empty')await page.getByRole('heading',{name:'The next call is still unwritten.'}).waitFor();
  if(state==='error'){await page.getByRole('button',{name:'Retry connection'}).waitFor();await snap('error-before-retry');mode='normal';await page.getByRole('button',{name:'Retry connection'}).click();await page.locator('.call').first().waitFor();}

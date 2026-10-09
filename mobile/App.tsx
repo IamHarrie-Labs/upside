@@ -1,7 +1,7 @@
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
 import { isLoaded, useFonts } from "expo-font";
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -14,9 +14,14 @@ import {
   Text as NativeText,
   TextInput,
   View,
-  StatusBar as RNStatusBar,
+  KeyboardAvoidingView,
+  Keyboard,
+  useWindowDimensions,
 } from "react-native";
 import type { Address } from "viem";
+import { Slot, usePathname, useRouter } from "expo-router";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path, Rect, Circle } from "react-native-svg";
 import { deployment, EXPLORER, IS_LOCAL, REFRESH_MS, WEB_URL } from "./src/env";
 import { getPerplPositions, perplEnabled, perplUrl, type PerplPosition } from "./src/lib/perpl";
 import { getNansen, type NansenInfo } from "./src/lib/nansen";
@@ -77,18 +82,7 @@ let HANDLES = new Map<string, string>();
 let PERPL = new Map<string, PerplPosition | null>();
 // Nansen labels per caller (Smart Money etc.), via the keeper.
 let NANSEN = new Map<string, NansenInfo | null>();
-const nameOf = (a: string) => {
-  const h = HANDLES.get(a.toLowerCase());
-  return h ? `@${h}` : short(a);
-};
-
-/** upside://call/3, upside://caller/0x…, or the web app's https://…/#/call/3 */
-function parseRoute(url: string | null): Route {
-  if (!url) return { name: "tabs" };
-  const m = url.match(/(?:#\/|:\/\/)(call|caller)\/([^/?#]+)/);
-  if (!m) return { name: "tabs" };
-  return m[1] === "call" ? { name: "call", id: Number(m[2]) } : { name: "caller", address: m[2] as Address };
-}
+const nameOf = (a: string) => short(a);
 
 async function shareLink(text: string, hashPath: string) {
   const url = `${WEB_URL}/#/${hashPath}`;
@@ -131,14 +125,30 @@ export default function App() {
     "SpaceGrotesk-Bold": require("./assets/fonts/SpaceGrotesk-Bold.ttf"),
   });
   if (!loaded && !error) return <View style={{ flex: 1, backgroundColor: C.bg, justifyContent: "center" }}><ActivityIndicator color={C.ink} accessibilityLabel="Loading Upside"/></View>;
-  return <UpsideApp/>;
+  return <SafeAreaProvider><UpsideApp><Slot/></UpsideApp></SafeAreaProvider>;
 }
 
-function UpsideApp() {
+const NativeScreenContext = createContext<ReactNode>(null);
+export function NativeRouteScreen() { return useContext(NativeScreenContext); }
+const paths: Record<Tab, "/" | "/create" | "/vault" | "/record"> = { feed: "/", post: "/create", portfolio: "/vault", board: "/record" };
+
+function UpsideApp({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  const tab: Tab = pathname === "/create" ? "post" : pathname === "/vault" ? "portfolio" : pathname === "/record" ? "board" : "feed";
+  const callMatch = pathname.match(/^\/call\/(\d+)$/);
+  const callerMatch = pathname.match(/^\/caller\/(0x[a-fA-F0-9]{40})$/);
+  const route: Route = callMatch ? { name: "call", id: Number(callMatch[1]) } : callerMatch ? { name: "caller", address: callerMatch[1] as Address } : { name: "tabs" };
+  const render = (screen: ReactNode) => <NativeScreenContext.Provider value={screen}>{children}</NativeScreenContext.Provider>;
   const [session, setSession] = useState<Session | null>(null);
   const [browsing, setBrowsing] = useState(false);
-  const [tab, setTab] = useState<Tab>("feed");
-  const [route, setRoute] = useState<Route>({ name: "tabs" });
   const [mid, setMid] = useState<bigint | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
   const [stats, setStats] = useState<Map<Address, CallerStats>>(new Map());
@@ -155,15 +165,8 @@ function UpsideApp() {
     setLoading(true); setLoadError(""); setVault(null); setVs(null); setSession(next);
   };
 
-  // Deep links: open straight to a call or caller, readable without an account.
-  const url = Linking.useLinkingURL();
-  useEffect(() => {
-    const r = parseRoute(url);
-    if (r.name !== "tabs") {
-      setRoute(r);
-      setBrowsing(true);
-    }
-  }, [url]);
+  // The root layout keeps the signing session alive across routed screens.
+  useEffect(() => { if (pathname !== "/") setBrowsing(true); }, [pathname]);
 
   const refresh = useCallback(async () => {
     const version = ++refreshVersion.current;
@@ -218,17 +221,17 @@ function UpsideApp() {
   };
 
   const signIn = () => setBrowsing(false);
-  const goHome = () => setRoute({ name: "tabs" });
+  const goHome = () => router.canGoBack() ? router.back() : router.navigate("/");
 
   if (!session && !browsing)
-    return (
+    return render(
       <Screen>
         <Onboard onSession={(s) => (adoptSession(s), setBrowsing(false))} onBrowse={() => setBrowsing(true)} />
       </Screen>
     );
 
   const feedProps = { stats, mid, vault, session, signIn, busy, run };
-  const openCaller = (address: Address) => setRoute({ name: "caller", address });
+  const openCaller = (address: Address) => router.push(`/caller/${address}`);
 
   let body: ReactNode;
   if (route.name === "call") {
@@ -268,28 +271,25 @@ function UpsideApp() {
     body = <Board stats={stats} onCaller={openCaller} />;
   }
 
-  return (
+  return render(
     <Screen>
       <View style={s.top}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}><Image source={require("./assets/brand-mark.png")} style={{ width: 24, height: 24 }} /><Text style={s.brand}>Upside</Text></View>
-        <Text style={s.ticker}>
-          {BASE_SYMBOL}/{QUOTE_SYMBOL} <Text style={{ color: C.ink, fontWeight: "700" }}>{mid ? humanPrice(mid).toFixed(4) : "—"}</Text>
-          {!mid && <Text style={{ color: C.warn }}> stale</Text>}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}><Image source={require("./assets/brand-mark.png")} style={{ width: 28, height: 28 }} /><Text style={s.brand}>Upside</Text></View>
         <Pressable
           style={s.chip}
+          accessibilityRole="button"
+          accessibilityLabel={session ? "Switch account" : "Sign in"}
           disabled={busy}
           onPress={() => (session ? (session.end(), adoptSession(null), setBrowsing(false)) : signIn())}
         >
-          <Text style={s.chipText}>{session ? `${session.label.split(" ")[0]} · ${short(session.account.address)}` : "Sign in"}</Text>
+          <Text style={s.chipText}>{session ? short(session.account.address) : "Sign in"}</Text>
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-        <Text style={s.label}>{deployment.demo ? "PREVIEW / TEST TOKENS ONLY" : "MONAD / ONCHAIN RECORD"}</Text>
-        {route.name === "tabs" && <View style={{ gap: 8, marginVertical: 15 }}><Text style={[s.label, { color: C.accent }]}>{({feed:"01 / FIND YOUR CONVICTION",post:"02 / MAKE IT A COMMITMENT",portfolio:"03 / STAY IN CONTROL",board:"04 / EVIDENCE OVER ATTENTION"})[tab]}</Text><Text style={[s.h1, { fontSize: 34, letterSpacing: -1.2 }]}>{({feed:"The call sheet.",post:"Put it on record.",portfolio:"Your vault. Your upside.",board:"A following is earned."})[tab]}</Text></View>}
+      <ScrollView contentContainerStyle={[s.content, { paddingBottom: 112 + insets.bottom }]} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={Platform.OS === "ios"} showsVerticalScrollIndicator={false}>
+        {route.name === "tabs" && <View style={{ gap: 5, marginBottom: 16 }}><Text accessibilityRole="header" style={[s.h1, { fontSize: 30, letterSpacing: -1 }]}>{({ feed: "Calls", post: "Create a call", portfolio: "Vault", board: "Records" })[tab]}</Text></View>}
         {loading ? <View style={{ padding: 35, gap: 15 }}><ActivityIndicator color={C.accent}/><Text style={s.muted}>Reading the onchain record…</Text></View> : loadError ? <Card style={{ gap: 15 }}><Text accessibilityRole="alert" style={s.notice}>{loadError}</Text><Btn ghost title="Retry connection" onPress={() => refresh().catch(() => {})}/></Card> : body}
-        <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`${WEB_URL}/#/guide`)} style={{ paddingVertical: 16 }}><Text style={s.link}>Upside guide</Text></Pressable>
+
       </ScrollView>
 
       {toast && (
@@ -306,7 +306,7 @@ function UpsideApp() {
         </Pressable>
       )}
 
-      <View style={s.tabs}>
+      {!keyboardVisible && <View style={[s.tabs, { bottom: Math.max(12, insets.bottom + 8) }]} accessibilityRole="tablist">
         {(
           [
             ["feed", "Calls"],
@@ -315,11 +315,11 @@ function UpsideApp() {
             ["board", "Record"],
           ] as [Tab, string][]
         ).map(([t, label]) => (
-          <Pressable key={t} style={s.tabBtn} onPress={() => (setTab(t), goHome())}>
-            <Text style={[s.tabText, tab === t && route.name === "tabs" && { color: C.accent }]}>{label}</Text>
+          <Pressable key={t} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: tab === t && route.name === "tabs" }} style={[s.tabBtn, tab === t && route.name === "tabs" && { backgroundColor: C.ink }]} onPress={() => router.navigate(paths[t])}>
+            <NavIcon tab={t} color={tab === t && route.name === "tabs" ? C.panel : C.muted}/>
           </Pressable>
         ))}
-      </View>
+      </View>}
     </Screen>
   );
 }
@@ -327,8 +327,9 @@ function UpsideApp() {
 // ----------------------------------------------------------------- shared bits
 
 function Screen({ children }: { children: ReactNode }) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={[s.screen, { paddingTop: Platform.OS === "android" ? (RNStatusBar.currentHeight ?? 24) : 52 }]}>
+    <View style={[s.screen, { paddingTop: insets.top }]}>
       <StatusBar style="dark" />
       <View style={s.column}>{children}</View>
     </View>
@@ -355,7 +356,7 @@ function Btn(props: { title: string; onPress: () => void; disabled?: boolean; gh
 
 function Back({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={{ paddingVertical: 6 }}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={{ paddingVertical: 6 }}>
       <Text style={s.muted}>Back</Text>
     </Pressable>
   );
@@ -423,73 +424,53 @@ function Onboard({ onSession, onBrowse }: { onSession: (s: Session) => void; onB
     }
   };
 
-  return (
-    <ScrollView contentContainerStyle={[s.content, { paddingTop: 24 }]} keyboardShouldPersistTaps="handled">
-      <Image source={require("./assets/brand-mark.png")} style={{ width: 45, height: 45 }} accessibilityLabel="Upside"/>
-      <Text style={[s.label, { color: C.accent, fontStyle: "italic", fontSize: 17, marginTop: 12 }]}>Follow a call through your own vault.</Text>
-      <Text style={[s.h1, { fontSize: 42, letterSpacing: -1.8 }]}>Good calls.
-        {"\n"}Shared upside.</Text>
-      <Text style={s.lede}>Traders earn a share after earlier losses are recovered.</Text>
-      <Image source={require("./assets/community-strip.png")} style={{ width: "100%", height: 165, marginVertical: 8 }} resizeMode="cover" accessible={false} />
-      {[
-        "Every call is committed on Monad before the move. No deleting losers.",
-        "Callers earn a share of new realized gains. Closed losses are recovered first.",
-        "Inspect committed calls and scored outcomes before you follow.",
-      ].map((t) => (
-        <Text key={t} style={[s.muted, { marginBottom: 6 }]}>
-          •  {t}
-        </Text>
-      ))}
-
-      <Card style={{ marginTop: 14, gap: 10 }}>
-        <Text style={s.label}>Display name</Text>
-        <TextInput
-          accessibilityLabel="Display name"
-          style={s.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="e.g. femi"
-          placeholderTextColor={C.muted}
-          autoCapitalize="none"
-        />
-        <Text style={s.small}>Choose your onchain handle from your vault after funding.</Text>
-        <Btn
-          title="Create account with a passkey"
-          disabled={busy}
-          onPress={() =>
-            start(async () => {
-              const sess = await createPasskeyAccount(name || "Upside user");
-              await devFundGas(sess.account.address);
-
-              return sess;
-            })
-          }
-        />
-        <Btn ghost title="Sign in with your passkey" disabled={busy} onPress={() => start(signInWithPasskey)} />
-        {returning && <Text style={s.small}>A passkey was previously used on this device.</Text>}
-        {busy && <ActivityIndicator color={C.accent} />}
-        <Text style={s.small}>No seed phrase. Your passkey derives your Monad account on this device (Mera).</Text>
-        {!!err && <Text style={{ color: C.down, fontSize: 13 }}>{err}</Text>}
-      </Card>
-
-      {IS_LOCAL && (
-        <Card style={{ marginTop: 12, gap: 8, borderStyle: "dashed" }}>
-          <Text style={s.label}>LOCAL DEMO ACCOUNTS</Text>
-          {DEV_ACCOUNTS.map((a, i) => (
-            <Btn key={a.label} ghost title={a.label} disabled={busy} onPress={() => onSession(devSession(i))} />
-          ))}
-        </Card>
-      )}
-      <Pressable onPress={onBrowse} style={{ alignSelf: "center", padding: 14 }}>
-        <Text style={s.muted}>Just browse calls</Text>
-      </Pressable>
-      <Text style={[s.small, { textAlign: "center" }]}>
-        Chain {deployment.chainId}
-        {deployment.demo ? " · demo venue (test tokens)" : ""}
-      </Text>
-    </ScrollView>
-  );
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const [step, setStep] = useState(0);
+  const compact = height < 720;
+  const header = <View style={n.welcomeHeader}><View style={n.brandRow}><Image source={require("./assets/brand-mark.png")} style={{ width: 28, height: 28 }}/><Text style={n.brandName}>Upside</Text></View><Pressable accessibilityRole="button" accessibilityLabel={step ? "Back" : "Sign in"} onPress={() => setStep(step ? step - 1 : 2)} style={n.textAction}><Text style={s.muted}>{step ? "Back" : "Sign in"}</Text></Pressable></View>;
+  const dots = <View style={n.dots} accessibilityLabel={`Welcome step ${step + 1} of 3`}>{[0,1,2].map(i => <View key={i} style={[n.dot, i === step && { width: 22, backgroundColor: C.ink }]}/>)}</View>;
+  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+    {header}
+    {step === 0 ? <View style={n.welcomeBody}>
+      <View style={{ flex: 1, justifyContent: "center", gap: compact ? 14 : 26 }}>
+        <View style={n.artFrame}><Image source={require("./assets/community-strip.png")} style={{ width: "100%", height: compact ? 120 : 155 }} resizeMode="cover" accessible={false}/></View>
+        <View style={{ gap: 14 }}><Text accessibilityRole="header" style={[n.welcomeTitle, compact && { fontSize: 34 }]}>A call worth{"\n"}making your own.</Text><Text style={n.welcomeDescription}>Read the record. Choose your exposure. Share only new realized gains.</Text></View>
+      </View>
+      <View style={[n.welcomeActions, { paddingBottom: Math.max(16, insets.bottom) }]}>{dots}<Btn title="Get started" onPress={() => setStep(1)}/><Btn ghost title="Explore calls" onPress={onBrowse}/></View>
+    </View> : step === 1 ? <View style={n.welcomeBody}>
+      <View style={{ flex: 1, justifyContent: "center", gap: compact ? 18 : 28 }}><Text accessibilityRole="header" style={[n.welcomeTitle, { fontSize: compact ? 32 : 38 }]}>Your decisions.{'\n'}A public record.</Text>
+        {[ ["feed", "Read the full story", "Wins, losses and open calls stay on the record."], ["portfolio", "Keep your own vault", "Choose an amount and sign each trade yourself."], ["board", "Recover losses first", "Closed losses count before a caller earns a fee."] ].map(([icon, title, detail]) => <View key={title} style={n.benefit}><View style={n.benefitIcon}><NavIcon tab={icon as Tab} color={C.ink}/></View><View style={{ flex: 1, gap: 5 }}><Text style={n.benefitTitle}>{title}</Text><Text style={s.muted}>{detail}</Text></View></View>)}
+      </View><View style={[n.welcomeActions, { paddingBottom: Math.max(16, insets.bottom) }]}>{dots}<Btn title="Continue" onPress={() => setStep(2)}/><Btn ghost title="Explore calls" onPress={onBrowse}/></View>
+    </View> : <ScrollView contentContainerStyle={[n.welcomeBody, { paddingBottom: Math.max(24, insets.bottom) }]} keyboardShouldPersistTaps="handled">
+      <Text accessibilityRole="header" style={[n.welcomeTitle, { fontSize: 34, marginTop: 24 }]}>Make it yours.</Text><Text style={n.welcomeDescription}>Create an account with a passkey, or return to the one you already use.</Text>
+      <View style={{ gap: 14, marginTop: 30 }}><Text style={s.muted}>Account name (optional)</Text><TextInput accessibilityLabel="Account name" value={name} onChangeText={setName} style={s.input} placeholder="Your name" placeholderTextColor={C.muted} autoComplete="name" maxLength={40}/><Btn title="Create with a passkey" disabled={busy} onPress={() => start(() => createPasskeyAccount(name || "Upside user"))}/><Btn ghost title="Use an existing passkey" disabled={busy} onPress={() => start(signInWithPasskey)}/>{returning && <Text style={s.small}>A passkey was previously used on this device.</Text>}{busy && <ActivityIndicator color={C.ink}/>}{!!err && <Text accessibilityRole="alert" style={{ color: C.down }}>{err}</Text>}<Text style={s.small}>Keep access to your original passkey. Device support varies.</Text></View>
+      {IS_LOCAL && <View style={{ gap: 10, marginTop: 24 }}><Text style={s.small}>Local development accounts</Text>{DEV_ACCOUNTS.map((a,i) => <Btn key={a.label} ghost title={`Local account ${i + 1}`} onPress={() => onSession(devSession(i))} disabled={busy}/>)}</View>}
+      <Pressable accessibilityRole="link" onPress={() => Linking.openURL(`${WEB_URL}/#/docs/security`)} style={n.textAction}><Text style={s.link}>About accounts & security</Text></Pressable>{dots}
+    </ScrollView>}
+  </KeyboardAvoidingView>;
 }
+
+function NavIcon({ tab, color }: { tab: Tab; color: string }) {
+  return <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden={true}>{tab === "feed" ? <><Rect x={4} y={6} width={16} height={15} rx={3}/><Path d="M8 2h8M6 4h12M8 11h8M8 15h5"/></> : tab === "post" ? <><Rect x={3} y={3} width={18} height={18} rx={5}/><Path d="M12 8v8M8 12h8"/></> : tab === "portfolio" ? <><Path d="M20 8V6a2 2 0 0 0-2-2H6a3 3 0 0 0-3 3v11a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2V8H6a1 1 0 0 1 0-2"/><Path d="M20 12h-5v4h5"/><Circle cx={16.8} cy={14} r={.5}/></> : <><Rect x={5} y={3} width={14} height={18} rx={3}/><Path d="M9 8h6M9 12h6M9 16h3"/></>}</Svg>;
+}
+
+const n = StyleSheet.create({
+  welcomeHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 24, paddingTop: 12 },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  brandName: { color: C.ink, fontSize: 20, fontWeight: "600" },
+  textAction: { paddingVertical: 14, paddingHorizontal: 4, minHeight: 44 },
+  welcomeBody: { flexGrow: 1, flexBasis: 0, paddingHorizontal: 24, gap: 14 },
+  welcomeTitle: { color: C.ink, fontSize: 40, lineHeight: 45, fontWeight: "500", letterSpacing: -1.6 },
+  welcomeDescription: { color: C.muted, fontSize: 16, lineHeight: 24, maxWidth: 340 },
+  artFrame: { borderRadius: 24, overflow: "hidden", backgroundColor: C.panel2 },
+  welcomeActions: { gap: 10, paddingTop: 10 },
+  dots: { flexDirection: "row", gap: 6, alignSelf: "center", paddingVertical: 12 },
+  dot: { width: 6, height: 6, borderRadius: 8, backgroundColor: C.line },
+  benefit: { flexDirection: "row", gap: 16, alignItems: "center" },
+  benefitIcon: { width: 48, height: 48, justifyContent: "center", alignItems: "center", backgroundColor: C.panel2, borderRadius: 16 },
+  benefitTitle: { color: C.ink, fontSize: 17, fontWeight: "600" },
+});
 
 // ----------------------------------------------------------------- feed
 
@@ -654,8 +635,8 @@ function Post(props: { session: Session; mid: bigint | null; stats: Map<Address,
 
   return (
     <Card style={{ gap: 10 }}>
-      <Text style={s.h2}>Post a call</Text>
-      <Text style={s.muted}>Committed onchain now and scored against the market mid when scored after expiry. Losers count.</Text>
+      <Text style={s.h2}>The trade plan</Text>
+      <Text style={s.muted}>Choose your levels and timeframe. The call stays on the record, whatever happens next.</Text>
       {me && !me.verified && (
         <Text style={s.notice}>You can post but won't rank or earn fees without a current gate attestation.{deployment.demo ? " This preview uses test attestations." : " Production verification requires the configured verification service."}</Text>
       )}
@@ -1001,8 +982,8 @@ function PerplBadge({ caller, side, profile }: { caller: Address; side: number; 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg, alignItems: "center" },
   column: { flex: 1, width: "100%", maxWidth: 520 },
-  top: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingBottom: 10 },
-  brand: { color: C.ink, fontWeight: "800", fontSize: 16 },
+  top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingHorizontal: 20, paddingVertical: 12 },
+  brand: { color: C.ink, fontWeight: "600", fontSize: 20 },
   ticker: { marginLeft: "auto", color: C.muted, fontSize: 13 },
   chip: { borderWidth: 1, borderColor: C.line, backgroundColor: C.panel, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   chipText: { color: C.ink, fontSize: 12 },
@@ -1041,17 +1022,19 @@ const s = StyleSheet.create({
   stat: { flex: 1, backgroundColor: C.panel2, borderRadius: 10, padding: 10, gap: 2 },
   tabs: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    left: 24,
+    right: 24,
+    bottom: 12,
     flexDirection: "row",
     backgroundColor: "rgba(255,250,243,0.97)",
-    borderTopWidth: 1,
-    borderTopColor: C.line,
-    paddingBottom: Platform.OS === "ios" ? 26 : 8,
-    paddingTop: 6,
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 28,
+    padding: 6,
+    gap: 6,
+    boxShadow: "0px 8px 28px rgba(25,43,37,0.12)",
   },
-  tabBtn: { flex: 1, alignItems: "center", paddingVertical: 12 },
+  tabBtn: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 52, borderRadius: 22 },
   tabText: { color: C.muted, fontWeight: "600", fontSize: 12 },
   toast: { position: "absolute", left: 16, right: 16, bottom: 84, backgroundColor: C.panel2, borderColor: C.line, borderWidth: 1, borderRadius: 12, padding: 12, gap: 4 },
   toastOk: { borderColor: "rgba(61,220,151,0.5)" },

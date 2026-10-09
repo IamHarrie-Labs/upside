@@ -59,13 +59,13 @@ await context.route('**/*',async(route:any)=>{
   return route.continue();
 });
 const page=await context.newPage();page.setDefaultTimeout(45000);
-const errors:string[]=[];page.on('pageerror',(e:any)=>errors.push(e.message));
+const errors:string[]=[];page.on('pageerror',(e:any)=>errors.push(e.message));page.on('console',(m:any)=>{if(m.type()==='error')errors.push(m.text());});
 const shots:any[]=[];
 async function snap(name:string){await page.evaluate(()=>document.fonts.ready);await page.waitForFunction(()=>[...document.images].every(i=>i.complete&&i.naturalWidth>0));await page.waitForTimeout(150);const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/native-${name}.png`,fullPage:true});shots.push({name,overflow});}
 
-for (const width of [390,768]) {
-  mode='normal';await page.setViewportSize({width,height:900});await page.goto(nativeUrl,{waitUntil:'domcontentloaded'});await page.getByText('Good calls.',{exact:false}).waitFor();await snap(`onboarding-${width}`);
-  await page.getByRole('button',{name:'Femi (follower)'}).click();await page.getByText('@ada',{exact:true}).first().waitFor();await snap(`calls-${width}`);await page.getByRole('button',{name:'Follow $50',exact:true}).click();await page.getByText('Review your follow',{exact:true}).waitFor();await snap(`trade-review-${width}`);
+for (const width of [320,390,430]) {
+  mode='normal';await page.setViewportSize({width,height:720});await page.goto(nativeUrl,{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Get started',exact:true}).waitFor();const welcomeFits=await page.getByRole('button',{name:'Explore calls',exact:true}).evaluate(el=>el.getBoundingClientRect().bottom<=innerHeight);if(!welcomeFits)throw Error('Initial welcome requires scrolling');await snap(`onboarding-${width}`);
+  await page.getByRole('button',{name:'Get started',exact:true}).click();await snap(`welcome-benefits-${width}`);await page.getByRole('button',{name:'Continue',exact:true}).click();await snap(`welcome-account-${width}`);await page.getByRole('button',{name:'Local account 3'}).click();await page.getByText(/0x7099…79c8/i).first().waitFor();await snap(`calls-${width}`);await page.getByRole('button',{name:'Follow $50',exact:true}).click();await page.getByText('Review your follow',{exact:true}).waitFor();await snap(`trade-review-${width}`);
   if(failureOnly){mode='confirmation-refused';await page.getByRole('button',{name:'Confirm follow',exact:true}).click();await page.getByRole('dialog').getByRole('alert').waitFor();await snap(`review-error-${width}`);mode='normal';}
   await page.getByRole('button',{name:'Cancel',exact:true}).click();if(failureOnly)continue;
   if(await page.getByRole('button',{name:'Follow $50',exact:true}).count()!==1)throw new Error('Short calls must not offer spot follow');
@@ -73,20 +73,21 @@ for (const width of [390,768]) {
   if(await page.getByRole('button',{name:'Follow $50',exact:true}).count())throw new Error('Scored filter includes followable calls');
   await page.getByLabel('Search calls').fill('no-matching-handle');await page.getByText('No calls match these filters.',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Reset filters'}).click();await page.getByRole('button',{name:'Follow $50',exact:true}).waitFor();
-  await page.getByText('Create',{exact:true}).click();await page.getByText('Post a call',{exact:true}).waitFor();await snap(`create-${width}`);
-  await page.getByText('Vault',{exact:true}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();await snap(`vault-${width}`);
+  await page.getByRole('tab',{name:'Create',exact:true}).click();await page.getByText('The trade plan',{exact:true}).waitFor();await snap(`create-${width}`);
+  await page.getByRole('tab',{name:'Vault',exact:true}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();await snap(`vault-${width}`);
   await page.getByRole('button',{name:'Exposure limit',exact:true}).click();await page.getByRole('button',{name:'Save exposure limit'}).waitFor();await snap(`vault-editor-${width}`);
-  await page.getByText('Record',{exact:true}).click();await page.getByText('Leaders',{exact:true}).waitFor();await snap(`record-${width}`);
-  await page.getByText('@ada',{exact:true}).first().click();await page.getByRole('button',{name:'Share profile'}).waitFor();await snap(`caller-${width}`);await page.goto(new URL('#/call/0',nativeUrl).href,{waitUntil:'domcontentloaded'});await page.getByText('Back',{exact:true}).waitFor();await snap(`detail-${width}`);
+  await page.getByRole('tab',{name:'Record',exact:true}).click();await page.getByText('Leaders',{exact:true}).waitFor();await snap(`record-${width}`);if(!await page.getByRole('button',{name:'Switch account',exact:true}).count())throw Error('Session lost across native routes');
+  await page.getByText(/0x7099…79c8/i).first().click();await page.getByRole('button',{name:'Share profile'}).waitFor();await snap(`caller-${width}`);await page.goto(new URL('/call/0',nativeUrl).href,{waitUntil:'domcontentloaded'});await page.getByText('Back',{exact:true}).waitFor();await snap(`detail-${width}`);
 }
 for (const state of failureOnly?[]:['empty','stale','error','new-vault']) {
-  mode=state;await page.goto(nativeUrl,{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Femi (follower)'}).click();
+  mode=state;await page.goto(nativeUrl,{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'Get started',exact:true}).click();await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('button',{name:'Local account 3'}).click();
   if(state==='empty')await page.getByText('No calls here yet.',{exact:true}).waitFor();
   if(state==='error')await page.getByRole('button',{name:'Retry connection'}).waitFor();
-  if(state==='stale'){await page.getByText('@ada',{exact:true}).first().waitFor();await page.getByText('Create',{exact:true}).click();await page.getByText('Waiting for a fresh price before you can commit this call.',{exact:true}).waitFor();}
-  if(state==='new-vault'){await page.getByText('@ada',{exact:true}).first().waitFor();await page.getByText('Vault',{exact:true}).click();await page.getByText('Your vault',{exact:true}).waitFor();}
+  if(state==='stale'){await page.getByText(/0x7099…79c8/i).first().waitFor();await page.getByRole('tab',{name:'Create',exact:true}).click();await page.getByText('Waiting for a fresh price before you can commit this call.',{exact:true}).waitFor();}
+  if(state==='new-vault'){await page.getByText(/0x7099…79c8/i).first().waitFor();await page.getByRole('tab',{name:'Vault',exact:true}).click();await page.getByText('Your vault',{exact:true}).waitFor();}
   await snap(`state-${state}`);
 }
+await page.setViewportSize({width:320,height:640});await page.goto(nativeUrl);await page.getByRole('button',{name:'Get started',exact:true}).waitFor();if(!await page.getByRole('button',{name:'Explore calls',exact:true}).evaluate(el=>el.getBoundingClientRect().bottom<=innerHeight))throw Error('Welcome actions overflow a short screen');await snap('welcome-short-screen');
 if(errors.length)throw new Error('Native-web runtime errors: '+errors.join('; '));
 if(failureOnly&&confirmationRefusals===0)throw Error('Native confirmation failure path was not exercised');
 if(writes)throw Error('Unexpected native write attempts');

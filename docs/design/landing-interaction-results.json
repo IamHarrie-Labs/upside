@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-09T10:35:53.366Z",
+  "date": "2026-10-09T15:35:45.147Z",
   "mainSections": 6,
   "groteskLoaded": true,
   "decorativeArrows": 0,
@@ -16,9 +16,10 @@
   ],
   "proofTransactions": 4,
   "keyboardFAQ": true,
-  "pauseDecorativeMotion": true,
+  "finiteHeroEntrance": true,
   "reducedMotion": true,
   "phoneFlow": true,
+  "darkFeeSection": true,
   "viewportWidths": [
     320,
     390,
