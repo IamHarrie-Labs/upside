@@ -1,6 +1,6 @@
 # Cabin artwork and landing motion review
 
-Reviewed 9 October 2026. This is a design review and artwork comparison, not a deployed redesign.
+Reviewed 9 October 2026. The user approved the direction and implementation in the same session. The original orientation preview is retained alongside the final expressive artwork.
 
 ## Why the faces changed
 
@@ -34,3 +34,11 @@ Keep native scrolling. All added movement must stop with the existing pause cont
 - Measure whether prospective users can explain when a fee is charged after seeing the page. Interview results remain pending; no preference or conversion findings are assumed.
 
 The product is a substantial testnet prototype. Real-device validation, genuine sponsor-specific execution evidence and independent review remain more consequential than adding additional decorative sections. The next visual pass should preserve the approved layout and improve cabin coherence, character expression and the explanation of settlement.
+
+## Implemented after approval
+
+The final `cabin-expressive-v3` illustration restores larger expressive portraits with coherent left-facing seats. The web uses a 206 KB WebP; native onboarding shares the PNG source. Phone layouts show all five windows and put the motion control below the artwork. Scroll-driven cloud depth is capped at 24 pixels and freezes on pause. The fee example has three stages with total fees of 0, 0 and 2 AUSD; pause and reduced motion show the complete final receipt. Decorative cards settle once without hiding reading copy.
+
+The sixth landing section links to the recorded testnet call, follow, close and withdrawal. It explicitly labels the demo venue, generated prices and small realized loss. The web Record page now compares two selected callers using actual loaded onchain histories: posted/scored calls, scored losses, unresolved calls, average signal return, wins, fee ranges and UTC posting dates. It states that signal scores are not follower returns.
+
+Verification includes the 54-state read-only web fixture suite, comparison selection and loss inclusion, six-section landing checks at five viewport widths, fee arithmetic, sticky release, keyboard FAQ, pause and reduced motion. Physical phone authentication remains separate.

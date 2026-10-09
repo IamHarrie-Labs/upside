@@ -1,6 +1,6 @@
 {
-  "date": "2026-10-08",
-  "mainSections": 5,
+  "date": "2026-10-09T10:35:53.366Z",
+  "mainSections": 6,
   "groteskLoaded": true,
   "decorativeArrows": 0,
   "pinnedHeading": {
@@ -9,6 +9,12 @@
     "releasesAtSectionEnd": true
   },
   "thirdStepActive": true,
+  "feeStages": [
+    0,
+    0,
+    2
+  ],
+  "proofTransactions": 4,
   "keyboardFAQ": true,
   "pauseDecorativeMotion": true,
   "reducedMotion": true,

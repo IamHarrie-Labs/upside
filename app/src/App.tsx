@@ -273,7 +273,7 @@ export default function App() {
             <SignInPrompt signIn={signIn} what="see your portfolio" />
           )
         )}
-        {!route.startsWith("#/") && tab === "board" && !loading && !loadError && <Board stats={stats} />}
+        {!route.startsWith("#/") && tab === "board" && !loading && !loadError && <Board stats={stats} calls={calls} />}
       </main>
       <footer className="workspace-footer"><span>Upside / Good calls. Shared upside.</span><nav aria-label="Product resources"><a href="#/guide">Guide</a><a href="#/privacy">Privacy</a><a href="#/terms">Preview terms</a></nav></footer>
 
@@ -781,7 +781,7 @@ function SettlementReceipt({position:p,receipt:r,feeBps}:{position:VaultState["p
 
 // ----------------------------------------------------------------- leaderboard
 
-function Board({ stats }: { stats: Map<Address, CallerStats> }) {
+function Board({ stats, calls }: { stats: Map<Address, CallerStats>; calls: Call[] }) {
   const all = [...stats.values()];
   const ranked = all
     .filter((s) => s.verified && s.scored > 0)
@@ -796,6 +796,7 @@ function Board({ stats }: { stats: Map<Address, CallerStats> }) {
           count and reviews are not inputs.
         </p>
       </div>
+      <CallerComparison stats={all} calls={calls} />
       {!ranked.length && <Empty text="No scored calls from verified callers yet." />}
       {ranked.map((s, i) => (
         <a key={s.address} className="leader link" href={`#/caller/${s.address}`}>
@@ -817,6 +818,28 @@ function Board({ stats }: { stats: Map<Address, CallerStats> }) {
       ))}
     </div>
   );
+}
+
+function CallerComparison({stats,calls}:{stats:CallerStats[];calls:Call[]}) {
+  const [chosen,setChosen] = useState<[string,string]>(["",""]);
+  if(stats.length<2)return <div className="card"><h3>Compare the whole record.</h3><p className="sub">A comparison becomes available when two callers have posted calls.</p></div>;
+  const first=stats.find(s=>s.address===chosen[0])??stats[0];
+  const second=stats.find(s=>s.address===chosen[1]&&s.address!==first.address)??stats.find(s=>s.address!==first.address)!;
+  const pair=[first,second];
+  const histories=pair.map(s=>calls.filter(c=>c.caller.toLowerCase()===s.address.toLowerCase()));
+  const feeRange=(history:Call[])=>{if(!history.length)return "—";const fees=history.map(c=>c.feeBps/100);const low=Math.min(...fees),high=Math.max(...fees);return low===high?`${low}%`:`${low}–${high}%`;};
+  const dates=(history:Call[])=>{if(!history.length)return "—";const times=history.map(c=>c.postedAt);const date=(t:number)=>new Date(t*1000).toISOString().slice(0,10);return `${date(Math.min(...times))} to ${date(Math.max(...times))}`;};
+  const rows:[string,string[]][]=[
+    ["Calls posted",pair.map(s=>String(s.posted))],
+    ["Calls scored",pair.map(s=>String(s.scored))],
+    ["Losing scored calls",histories.map(h=>String(h.filter(c=>c.scored&&c.returnBps<0).length))],
+    ["Awaiting a score",pair.map(s=>String(Math.max(0,s.posted-s.scored)))],
+    ["Average signal return",pair.map(s=>s.scored?pct(s.avgReturnBps):"Not scored yet")],
+    ["Winning scored calls",pair.map(s=>s.scored?`${s.wins} / ${s.scored}`:"Not scored yet")],
+    ["Call fee rates",histories.map(feeRange)],
+    ["Posting period (UTC)",histories.map(dates)],
+  ];
+  return <section className="card caller-comparison" aria-labelledby="comparison-title"><h2 id="comparison-title">Compare the whole record.</h2><p className="sub">Look at losses, unanswered calls and fees together. These are signal-price scores, not follower profits.</p><div className="comparison-selectors">{pair.map((s,i)=><label key={i}>Caller {i+1}<select aria-label={`Caller ${i+1}`} value={s.address} onChange={e=>{const next:[string,string]=[first.address,second.address];next[i]=e.target.value;setChosen(next);}}>{stats.filter(option=>option.address!==pair[1-i].address).map(option=><option key={option.address} value={option.address}>{nameOf(option.address)}</option>)}</select></label>)}</div><table className="comparison-table"><caption className="sr-only">Onchain call history comparison</caption><thead><tr><th scope="col">Record</th>{pair.map(s=><th key={s.address} scope="col"><a href={`#/caller/${s.address}`}>{nameOf(s.address)}</a></th>)}</tr></thead><tbody>{rows.map(([label,values])=><tr key={label}><th scope="row">{label}</th>{values.map((value,i)=><td key={i}>{value}</td>)}</tr>)}</tbody></table><p className="fine">All posted calls in this deployment. Pending calls can change the picture. Fees differ by call; fills, closing time and gas affect your own result. A score does not guarantee future returns.</p></section>;
 }
 
 function Empty({ text }: { text: string }) {

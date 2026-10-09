@@ -80,7 +80,13 @@ for(const width of [1440,390,320]){
   await page.getByTitle('Switch account').click();await page.getByRole('button',{name:'Femi (follower)'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Exposure limit',exact:true}).click();await page.getByLabel('Exposure limit (AUSD)').fill('50');if(!await page.getByRole('button',{name:'Save exposure limit'}).isDisabled())throw new Error('Limit below open exposure accepted');await snap(`vault-edit-${width}`);
   await page.getByText('Fund or withdraw your vault',{exact:true}).click();await page.getByLabel('Withdraw available AUSD to your account').fill('999');if(!await page.getByRole('button',{name:'Withdraw to my account'}).isDisabled())throw new Error('Overdraft accepted');await snap(`vault-funding-${width}`);
-  await page.getByRole('button',{name:'Record',exact:true}).click();await page.locator('.leader').first().waitFor();await snap(`record-${width}`);await page.locator('.leader').first().click();await page.locator('.profile').waitFor();await snap(`caller-${width}`);
+  await page.getByRole('button',{name:'Record',exact:true}).click();await page.locator('.leader').first().waitFor();await page.getByRole('heading',{name:'Compare the whole record.',exact:true}).waitFor();
+  const comparison=page.getByRole('table',{name:'Onchain call history comparison'});
+  const losingRow=comparison.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Losing scored calls',exact:true})});
+  if((await losingRow.getByRole('cell').allTextContents()).sort().join(',')!=='0,1')throw Error('Comparison did not include the losing scored call');
+  const callerOne=page.getByLabel('Caller 1',{exact:true});await callerOne.selectOption({index:1});
+  if((await comparison.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Calls posted',exact:true})}).getByRole('cell').allTextContents()).join(',')!=='2,2')throw Error('Caller comparison switch failed');
+  await snap(`record-${width}`);await page.locator('.leader').first().click();await page.locator('.profile').waitFor();await snap(`caller-${width}`);
   await page.goto('http://127.0.0.1:5173/#/call/0');await page.locator('.call').waitFor();await snap(`detail-${width}`);await page.goto('http://127.0.0.1:5173/#/call/999');await page.getByRole('heading',{name:'That call is not on this record.'}).waitFor();await snap(`missing-call-${width}`);
   for(const route of ['guide','privacy','terms']){await page.goto('http://127.0.0.1:5173/#/'+route);await page.locator('.info-page').waitFor();await snap(`${route}-${width}`)}
   await page.goto('http://127.0.0.1:5173/#/caller/not-a-wallet');await page.getByRole('heading',{name:'This page is off the map.'}).waitFor();await snap(`not-found-${width}`);
@@ -109,5 +115,5 @@ const reviewGuards=await page.evaluate(async()=>{
 if(errors.length)throw new Error('Runtime errors: '+errors.join('; '));
 if(writes)throw new Error('Unexpected write attempts: '+writes);
 if(failureOnly&&confirmationRefusals===0)throw Error('Confirmation failure path was not exercised');
-writeFileSync(failureOnly?'docs/design/review-error-web-results.json':'docs/design/ui-qa-results.json',JSON.stringify({date:'2026-10-08',fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,confirmationRefusals,reviewGuards,screens:shots},null,2));
+writeFileSync(failureOnly?'docs/design/review-error-web-results.json':'docs/design/ui-qa-results.json',JSON.stringify({date:new Date().toISOString(),fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,confirmationRefusals,reviewGuards,screens:shots},null,2));
 console.log(JSON.stringify({screens:shots.length,runtimeErrors:errors,transactionWrites:writes}));await browser.close();

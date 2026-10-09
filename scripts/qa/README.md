@@ -14,7 +14,7 @@ node scripts/qa/contrast.cjs
 
 The UI suites intercept chain and keeper reads with labelled fixtures and reject transaction writes. They cover routes, phone layouts, errors, empties, stale prices, validation, and recovery. Results and screenshots are saved in `docs/design/`. Expo web exercises React Native rendering in a browser, not native device authentication.
 
-The landing interaction suite verifies actual Space Grotesk loading, five main sections, removal of decorative arrows, sticky heading bounds, third-step progression, FAQ keyboard controls and motion preferences. Its screenshots show the pinned reading state in addition to normal page layouts.
+The landing interaction suite verifies actual Space Grotesk loading, six main sections, removal of decorative arrows, sticky heading bounds, third-step progression, fee arithmetic at all three reading stages, four proof links, FAQ keyboard controls and motion preferences. Its screenshots show the pinned reading state in addition to normal page layouts. The web fixture suite checks caller comparison, including scored losses and switching the selected caller.
 
 The local end-to-end scripts require a **fresh** Anvil chain on port 8547 and the demo deployment from `scripts/setup-local.sh`. They use public Anvil keys, explicitly require chain 31337, and broadcast local transactions:
 

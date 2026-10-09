@@ -8,7 +8,7 @@ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto('http://127.0.0.1:5173');
 await page.getByRole('heading',{name:'Good calls. Shared upside.'}).waitFor();
 await page.evaluate(()=>document.fonts.ready);
-if(await page.locator('#landing-main > section').count()!==5)throw Error('Expected five main sections');
+if(await page.locator('#landing-main > section').count()!==6)throw Error('Expected six main sections');
 if(/[↗→↓←]/.test(await page.locator('.landing').innerText()))throw Error('Decorative arrows remain');
 if(!await page.evaluate(()=>document.fonts.check('500 18px "Space Grotesk"')&&getComputedStyle(document.body).fontFamily.includes('Space Grotesk')))throw Error('Grotesk not loaded');
 await page.screenshot({path:'docs/design/screens/grotesk-hero-desktop.png'});
@@ -22,7 +22,16 @@ await page.locator('[data-step="2"]').scrollIntoViewIfNeeded();await page.waitFo
 const bottom=await page.locator('#how-it-works').evaluate(el=>el.getBoundingClientRect().bottom+scrollY);
 await scrollTo(bottom+80);if(await page.locator('.section-intro').evaluate(el=>el.getBoundingClientRect().bottom)>0)throw Error('Sticky heading escaped its section');
 await page.locator('.fee-example').scrollIntoViewIfNeeded();await page.waitForFunction(()=>document.querySelector('.fee-example')?.classList.contains('is-in-view'));
+for(const stage of [0,1,2]){
+ const top=await page.locator(`[data-fee-step="${stage}"]`).evaluate(el=>el.getBoundingClientRect().top+scrollY);
+ await scrollTo(top-400);
+ await page.waitForFunction(stage=>document.querySelectorAll('[data-fee-step]')[stage]?.classList.contains('current-fee-step'),stage);
+ const expected=['0 AUSD','0 AUSD','2 AUSD'][stage];
+ if((await page.locator('.fee-due b').innerText())!==expected)throw Error('Incorrect example fee at stage '+stage);
+}
+if(await page.locator('.proof-timeline a').count()!==4)throw Error('Missing proof transactions');
 await page.screenshot({path:'docs/design/screens/grotesk-fees.png'});
+await page.locator('#proof').scrollIntoViewIfNeeded();await page.screenshot({path:'docs/design/screens/landing-proof-desktop.png'});
 await page.locator('.vault-example').scrollIntoViewIfNeeded();await page.waitForFunction(()=>document.querySelector('.vault-example')?.classList.contains('is-in-view'));
 await page.screenshot({path:'docs/design/screens/grotesk-vault.png'});
 const question=page.locator('.questions-list summary').first();await question.focus();await page.keyboard.press('Enter');
@@ -31,9 +40,14 @@ await page.screenshot({path:'docs/design/screens/grotesk-questions.png'});
 await page.keyboard.press('Enter');if(await page.locator('.questions-list details').first().evaluate(el=>el.open))throw Error('FAQ did not close');
 await page.getByRole('button',{name:'Pause motion'}).click();
 if(await page.locator('.receipt-stamp').evaluate(el=>getComputedStyle(el).animationPlayState)!=='paused')throw Error('Decorative pause failed');
+const frozenDepth=await page.locator('.landing').evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-depth'));
+await scrollTo(0);
+if(await page.locator('.landing').evaluate(el=>getComputedStyle(el).getPropertyValue('--cloud-depth'))!==frozenDepth)throw Error('Cloud depth moved while paused');
+if((await page.locator('.fee-due b').innerText())!=='2 AUSD')throw Error('Paused mode did not show the complete fee example');
 await page.emulateMedia({reducedMotion:'reduce'});
 if(await page.locator('.receipt-stamp').evaluate(el=>getComputedStyle(el).animationName)!=='none')throw Error('Reduced motion ignored');
+if(await page.locator('.cloud-depth').evaluate(el=>getComputedStyle(el).transform)!=='none')throw Error('Reduced-motion cloud depth still active');
 for(const width of [320,390,768,1024]){await page.setViewportSize({width,height:844});await scrollTo(0);if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Overflow at '+width);if(width<=390){if(await page.locator('.section-intro').evaluate(el=>getComputedStyle(el).position)!=='static')throw Error('Sticky copy blocks phone content');await page.screenshot({path:'docs/design/screens/grotesk-hero-'+width+'.png'});}}
 if(errors.length)throw Error(errors.join('; '));
-writeFileSync('docs/design/landing-interaction-results.json',JSON.stringify({date:'2026-10-08',mainSections:5,groteskLoaded:true,decorativeArrows:0,pinnedHeading:{firstTop,secondTop,releasesAtSectionEnd:true},thirdStepActive:true,keyboardFAQ:true,pauseDecorativeMotion:true,reducedMotion:true,phoneFlow:true,viewportWidths:[320,390,768,1024,1440],runtimeErrors:errors},null,2));
-await browser.close();console.log('Grotesk, five sections, sticky reading, FAQ and motion checks passed.');
+writeFileSync('docs/design/landing-interaction-results.json',JSON.stringify({date:new Date().toISOString(),mainSections:6,groteskLoaded:true,decorativeArrows:0,pinnedHeading:{firstTop,secondTop,releasesAtSectionEnd:true},thirdStepActive:true,feeStages:[0,0,2],proofTransactions:4,keyboardFAQ:true,pauseDecorativeMotion:true,reducedMotion:true,phoneFlow:true,viewportWidths:[320,390,768,1024,1440],runtimeErrors:errors},null,2));
+await browser.close();console.log('Grotesk, six sections, receipt progression, proof, sticky reading, FAQ and motion checks passed.');
