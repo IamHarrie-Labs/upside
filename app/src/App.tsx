@@ -48,10 +48,10 @@ import InfoPage from "./InfoPage";
 import Docs from "./Docs";
 import Footer from "./Footer";
 import { DashboardFrame, DashboardOverview } from "./Dashboard";
-import { initialTheme, THEMES, type DashboardTab, type Theme } from "./workspace";
+import { initialTheme, THEMES, type Theme } from "./workspace";
+import { currentRoute, navigate as go, DASHBOARD_PATHS, tabForPath, returnPath, installNavigation } from "./navigation";
 const infoRoutes = ["guide", "privacy", "terms"];
 
-type Tab = DashboardTab;
 type VaultState = Awaited<ReturnType<typeof getVaultState>>;
 type Toast = { kind: "info" | "ok" | "err"; text: string; hash?: string } | null;
 
@@ -64,12 +64,9 @@ let PERPL = new Map<string, PerplPosition | null>();
 // Nansen labels per caller (Smart Money etc.), via the keeper.
 let NANSEN = new Map<string, NansenInfo | null>();
 const nameOf = (a: string) => { const handle = HANDLES.get(a.toLowerCase()); return handle ? `@${handle}` : `Trader ${a.slice(2,6).toUpperCase()}`; };
-const go = (hash: string) => (location.hash = hash);
-/** "#/" and "#" are the home screen; detail routes are "#/call/N" and "#/caller/0x…". */
-const currentRoute = () => (location.hash === "#/" || location.hash === "#" ? "" : location.hash);
 
 async function share(title: string, text: string, hash: string) {
-  const url = `${location.origin}${location.pathname}${hash}`;
+  const url = new URL(hash, location.origin).href;
   try {
     if (navigator.share) return await navigator.share({ title, text, url });
     await navigator.clipboard.writeText(`${text} ${url}`);
@@ -98,11 +95,8 @@ function countdown(sec: number) {
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const [browsing, setBrowsing] = useState(() => location.hash.startsWith("#/"));
-  const [joining, setJoining] = useState(false);
-  const [tab, setTab] = useState<Tab>("feed");
   const [theme, setTheme] = useState<Theme>(initialTheme);
-  useEffect(() => { try { localStorage.setItem("upside.workspace.theme", theme); } catch { /* Appearance works without storage. */ } }, [theme]);
+  useEffect(() => { try { localStorage.setItem("upside.workspace.appearance.v2", theme); } catch { /* Appearance works without storage. */ } }, [theme]);
   const [mid, setMid] = useState<bigint | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
   const [stats, setStats] = useState<Map<Address, CallerStats>>(new Map());
@@ -113,17 +107,19 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [route, setRoute] = useState(currentRoute);
+  const tab = tabForPath(route) ?? (route.startsWith("/dashboard/traders/") ? "board" : "feed");
+  const isDashboard = route.startsWith("/dashboard/");
   const [, setHandleTick] = useState(0);
   const refreshVersion = useRef(0);
   const adoptSession = (next: Session | null) => {
+    if(session && session !== next) session.end();
     refreshVersion.current++;
     setLoading(true); setLoadError(""); setVault(null); setVs(null); setSession(next);
   };
 
   useEffect(() => {
-    const on = () => { const next = currentRoute(); setRoute(next); if (next.startsWith("#/")) setBrowsing(true); if (!next || next.startsWith("#/")) window.scrollTo(0, 0); };
-    addEventListener("hashchange", on);
-    return () => removeEventListener("hashchange", on);
+    const on = () => { setRoute(currentRoute()); window.scrollTo(0,0); };
+    return installNavigation(on);
   }, []);
 
   useEffect(() => {
@@ -168,19 +164,19 @@ export default function App() {
   }, [session]);
 
   useEffect(() => {
-    if (!browsing && !session) return;
+    if (!isDashboard || !session) return;
     const read = () => refresh().catch(() => { setLoading(false); setLoadError("We could not refresh the onchain record. Check your connection and try again."); });
     queueMicrotask(read);
     const t = setInterval(read, REFRESH_MS);
     return () => clearInterval(t);
-  }, [refresh, browsing, session]);
+  }, [refresh, isDashboard, session]);
 
   const run = async (label: string, fn: () => Promise<string | void>) => {
     setBusy(true);
     setToast({ kind: "info", text: label });
     try {
       const hash = await fn();
-      setToast({ kind: "ok", text: `${label} — done`, hash: hash || undefined });
+      setToast({ kind: "ok", text: `${label}. Done.`, hash: hash || undefined });
       await refresh().catch(() => setLoadError("Transaction confirmed. The record could not refresh yet; retry to see the latest state."));
     } catch (e) {
       setToast({ kind: "err", text: describeError(e) });
@@ -189,35 +185,43 @@ export default function App() {
     }
   };
 
-  if (!session && !browsing) return joining
-    ? <Onboard onSession={adoptSession} onBrowse={() => setBrowsing(true)} onBack={() => setJoining(false)} />
-    : <Landing onStart={() => setJoining(true)} onBrowse={() => setBrowsing(true)} />;
-  const signIn = () => { setJoining(true); setBrowsing(false); };
-  const infoName = route.slice(2);
+  const signIn = () => session ? go(DASHBOARD_PATHS.feed) : go(`/signin?next=${encodeURIComponent(isDashboard ? route : DASHBOARD_PATHS.feed)}`);
+  const infoName = route.slice(1);
   const isDocs = infoName === "docs" || infoName.startsWith("docs/") || infoName === "guide";
   const isInfo = isDocs || infoRoutes.includes(infoName);
-  const callRoute = /^#\/call\/\d+$/.test(route);
-  const callerRoute = route.startsWith("#/caller/") && isAddress(route.slice(9));
-  const invalidRoute = route.startsWith("#/") && !callRoute && !callerRoute && !isInfo;
+  const callRoute = /^\/dashboard\/calls\/\d+$/.test(route);
+  const callerRoute = route.startsWith("/dashboard/traders/") && isAddress(route.slice(19));
+  const sectionRoute = !!tabForPath(route);
+  const invalidRoute = !callRoute && !callerRoute && !sectionRoute;
+  useEffect(() => { if(isDashboard && !session) go(`/signin?next=${encodeURIComponent(route)}`,true); }, [isDashboard,session,route]);
+  useEffect(() => {
+    const titles:Record<string,string> = {feed:"Calls",post:"Create a call",portfolio:"Vault",board:"Records",profile:"Your profile",funding:"Funding"};
+    document.title = isDashboard ? `${titles[tab]} | Upside` : isInfo ? `${isDocs ? "Help" : infoName === "privacy" ? "Privacy" : "Terms"} | Upside` : route === "/signin" ? "Sign in | Upside" : "Upside";
+  }, [route,tab,isDashboard,isInfo,isDocs,infoName]);
+  const completeSignIn = (next:Session) => { adoptSession(next); go(returnPath(),true); };
+  if(route === "/") return <Landing onStart={signIn} onBrowse={() => go(DASHBOARD_PATHS.feed)}/>;
+  if(route === "/signin" || (isDashboard && !session)) return <Onboard onSession={completeSignIn} onBack={() => go("/")}/>;
+  if(isInfo) return <div className="public-resources"><header className="resource-header"><a className="wordmark" href="/"><BrandMark/>Upside</a><a className="ghost" href={session ? DASHBOARD_PATHS.feed : "/signin"}>{session ? "Back to dashboard" : "Sign in"}</a></header><main id="workspace">{isDocs ? <Docs topic={infoName.startsWith("docs/") ? infoName.slice(5) : ""}/> : <InfoPage name={infoName}/>}</main><Footer landing/></div>;
+  if(!isDashboard) return <div className="public-resources"><a className="wordmark" href="/"><BrandMark/>Upside</a><StatePanel title="Page not found" text="This link does not point to an Upside page." action={() => go("/")} label="Back to Upside"/><Footer landing/></div>;
 
   return (
-    <DashboardFrame tab={tab} detail={route.startsWith("#/")} theme={theme} setTheme={setTheme} navigate={next => { setTab(next); go(""); window.scrollTo(0,0); }} home={() => { setBrowsing(false); setJoining(false); go(""); }} account={session ? { name: nameOf(session.account.address), address: session.account.address } : undefined} busy={busy} signIn={signIn} signOut={() => { session?.end(); adoptSession(null); setBrowsing(false); setJoining(true); }} mid={mid}>
+    <DashboardFrame tab={tab} detail={!sectionRoute} theme={theme} setTheme={setTheme} navigate={next => go(DASHBOARD_PATHS[next])} home={() => go("/")} account={session ? { name: nameOf(session.account.address), address: session.account.address } : undefined} busy={busy} signIn={signIn} signOut={() => { adoptSession(null); setToast(null); go("/signin",true); }} mid={mid}>
       <main id="workspace" tabIndex={-1}>
-        {isInfo && (isDocs ? <Docs topic={infoName.startsWith("docs/") ? infoName.slice(5) : ""}/> : <InfoPage name={infoName} />)}
         {invalidRoute && <StatePanel title="This page is off the map." text="The link does not point to a supported Upside page." action={() => go("")} label="Back to calls" />}
 
         {!isInfo && !invalidRoute && loadError && <div className="connection-error" role="alert"><p>{loadError}</p><button className="ghost" onClick={() => refresh().catch(() => {})}>Retry connection</button></div>}
-        {!route.startsWith("#/") && <div className="workspace-heading"><h1>{({ feed: "Calls", post: "Create a call", portfolio: "Vault", board: "Records", profile: "Your profile", funding: "Funding" })[tab]}</h1></div>}
-        {!route.startsWith("#/") && tab === "feed" && <DashboardOverview calls={calls} state={vs} signedIn={!!session} loading={loading}/>}
-        {!route.startsWith("#/") && tab === "profile" && !loading && !loadError && (session ? <AccountProfile key={session.account.address} session={session} busy={busy} run={run} theme={theme} setTheme={setTheme} stats={stats}/> : <SignInPrompt signIn={signIn} what="edit your profile"/>)}
-        {!route.startsWith("#/") && tab === "funding" && !loading && !loadError && (session ? <Funding key={session.account.address} session={session} vault={vault} state={vs} busy={busy} run={run} onVault={() => setTab("portfolio")}/> : <SignInPrompt signIn={signIn} what="fund your account"/>)}
+        {sectionRoute && <div className="workspace-heading"><h1>{({ feed: "Calls", post: "Create a call", portfolio: "Vault", board: "Records", profile: "Your profile", funding: "Funding" })[tab]}</h1></div>}
+        {sectionRoute && tab === "feed" && <section className="workspace-guide" aria-label="Getting started"><p><b>A call is a trader’s plan.</b> Read their past results, choose an amount and review the trade before signing. Targets and stops do not close trades automatically.</p><a href="/docs">How Upside works</a></section>}
+        {sectionRoute && tab === "feed" && <DashboardOverview calls={calls} state={vs} signedIn={!!session} loading={loading}/>}
+        {sectionRoute && tab === "profile" && !loading && !loadError && (session ? <AccountProfile key={session.account.address} session={session} busy={busy} run={run} theme={theme} setTheme={setTheme} stats={stats}/> : <SignInPrompt signIn={signIn} what="edit your profile"/>)}
+        {sectionRoute && tab === "funding" && !loading && !loadError && (session ? <Funding key={session.account.address} session={session} vault={vault} state={vs} busy={busy} run={run} onVault={() => go(DASHBOARD_PATHS.portfolio)}/> : <SignInPrompt signIn={signIn} what="fund your account"/>)}
         {!isInfo && !invalidRoute && !loadError && loading && <div className="skeleton-stack" role="status" aria-label="Loading the onchain record"><div/><div/><span>Reading the onchain record…</span></div>}
         {callRoute && !loading && !loadError && (
           <Detail>
             <Feed key={session?.account.address ?? "visitor"}
               emptyTitle="That call is not on this record."
               emptyText="Check the call ID or return to the full call sheet."
-              calls={calls.filter((c) => String(c.id) === route.slice(7))}
+              calls={calls.filter((c) => String(c.id) === route.slice(17))}
               stats={stats}
               mid={mid}
               vault={vault}
@@ -231,11 +235,11 @@ export default function App() {
         )}
         {callerRoute && !loading && !loadError && (
           <Detail>
-            <CallerProfile address={route.slice(9) as Address} stats={stats} />
+            <CallerProfile address={route.slice(19) as Address} stats={stats} />
             <Feed key={session?.account.address ?? "visitor"}
               emptyTitle="No calls from this address yet."
               emptyText="When this address posts a call, its full record will appear here."
-              calls={calls.filter((c) => c.caller.toLowerCase() === route.slice(9).toLowerCase())}
+              calls={calls.filter((c) => c.caller.toLowerCase() === route.slice(19).toLowerCase())}
               stats={stats}
               mid={mid}
               vault={vault}
@@ -247,19 +251,19 @@ export default function App() {
             />
           </Detail>
         )}
-        {!route.startsWith("#/") && tab === "feed" && !loading && !loadError && (
+        {sectionRoute && tab === "feed" && !loading && !loadError && (
           <Feed key={session?.account.address ?? "visitor"} calls={calls} stats={stats} mid={mid} vault={vault} vs={vs} session={session} signIn={signIn} busy={busy || !!loadError} run={run} />
         )}
-        {!route.startsWith("#/") && tab === "post" && !loading &&
+        {sectionRoute && tab === "post" && !loading &&
           (session ? <Post session={session} mid={mid} stats={stats} busy={busy || !!loadError} run={run} /> : <SignInPrompt signIn={signIn} what="post a call" />)}
-        {!route.startsWith("#/") && tab === "portfolio" && !loading && (
+        {sectionRoute && tab === "portfolio" && !loading && (
           session ? (
             <Portfolio session={session} vault={vault} vs={vs} mid={mid} calls={calls} stats={stats} busy={busy || !!loadError} run={run} />
           ) : (
             <SignInPrompt signIn={signIn} what="see your portfolio" />
           )
         )}
-        {!route.startsWith("#/") && tab === "board" && !loading && !loadError && <Board stats={stats} calls={calls} />}
+        {sectionRoute && tab === "board" && !loading && !loadError && <Board stats={stats} calls={calls} />}
       </main>
       <Footer/>
 
@@ -285,7 +289,7 @@ export default function App() {
 
 // ----------------------------------------------------------------- onboarding
 
-function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => void; onBrowse: () => void; onBack: () => void }) {
+function Onboard({ onSession, onBack }: { onSession: (s: Session) => void; onBack: () => void }) {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const start = async (fn: () => Promise<Session>) => {
@@ -311,8 +315,9 @@ function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => v
       </div>
       <div className="card">
         <button className="primary" disabled={busy} onClick={() => start(hasPasskey() ? signInWithPasskey : () => createPasskeyAccount("Upside user"))}>Continue with passkey</button>
+        {!hasPasskey() && <button className="back account-create" disabled={busy} onClick={() => start(signInWithPasskey)}>Already have an account? Use your existing passkey</button>}
         {hasPasskey() && <button className="text-link account-create" disabled={busy} onClick={() => start(() => createPasskeyAccount("Upside user"))}>Create a different account</button>}
-        <p className="fine">{hasPasskey() ? "A passkey was previously used on this browser. " : ""}Use a passkey provider with PRF support. Keep access to your original passkey.</p>
+        <p className="fine">A passkey lets you sign in with your device. Use the same passkey each time to return to your account.</p>
         {busy && <p role="status" className="fine">Waiting for your passkey provider…</p>}
         {err && <p className="error" role="alert">{err}</p>}
       </div>
@@ -326,9 +331,7 @@ function Onboard({ onSession, onBrowse, onBack }: { onSession: (s: Session) => v
           ))}
         </div>
       )}
-      <button className="back center-btn" onClick={onBrowse}>
-        Just browse calls
-      </button>
+      <a className="back center-btn" href="/docs">New here? See how Upside works</a>
 
     </div>
   );
@@ -403,14 +406,14 @@ function Feed(props: {
         const live = mid && !c.scored ? Number(((mid - c.entryMid) * 10000n) / c.entryMid) * (c.side === 0 ? 1 : -1) : null;
         return (
           <article key={c.id} className={`call ${active ? "" : "done"}`}>
-            <div className="call-label"><span>CALL / {String(c.id).padStart(3,"0")}</span><span className={`call-status ${active ? "live" : ""}`}>{c.scored ? "Scored" : active ? "Live thesis" : "Awaiting score"}</span></div>
+            <div className="call-label"><span>CALL / {String(c.id).padStart(3,"0")}</span><span className={`call-status ${active ? "live" : ""}`}>{c.scored ? "Scored" : active ? "Live call" : "Awaiting score"}</span></div>
             <div className="call-market"><div><span className={`direction ${c.side === 0 ? "up" : "down"}`}>{c.side === 0 ? "Long" : "Short"}</span><h2>{BASE_SYMBOL}<span> / {QUOTE_SYMBOL}</span></h2></div><div className="call-fee"><strong>{c.feeBps / 100}%</strong><span>performance fee</span></div></div>
-            <div className="caller-identity"><WalletGlyph address={c.caller}/><div className="who"><a className="link trader-name" title={c.caller} href={`#/caller/${c.caller}`}>{nameOf(c.caller)}</a><CallerBadge s={s}/></div></div>
-            <dl className="call-levels"><div><dt>Entry mid</dt><dd>{humanPrice(c.entryMid).toFixed(4)}</dd></div><div><dt>Target</dt><dd>{humanPrice(c.targetMid).toFixed(4)}</dd></div><div><dt>Stop</dt><dd>{humanPrice(c.stopMid).toFixed(4)}</dd></div></dl>
-            <details className="call-context"><summary>Record & context</summary><Record s={s}/><NansenChip caller={c.caller}/><PerplBadge caller={c.caller} side={c.side}/><p className="fine">{c.followers < 0 ? "Follow activity is indexing." : `${c.followers} executed follows · ${fmtQuote(c.followedVolume,0)} ${QUOTE_SYMBOL} committed.`} Fees apply only to new realized gains with this caller.</p></details>
+            <div className="caller-identity"><WalletGlyph address={c.caller}/><div className="who"><a className="link trader-name" title={c.caller} href={`/dashboard/traders/${c.caller}`}>{nameOf(c.caller)}</a><CallerBadge s={s}/></div></div>
+            <dl className="call-levels"><div><dt>Entry price</dt><dd>{humanPrice(c.entryMid).toFixed(4)}</dd></div><div><dt>Target</dt><dd>{humanPrice(c.targetMid).toFixed(4)}</dd></div><div><dt>Stop</dt><dd>{humanPrice(c.stopMid).toFixed(4)}</dd></div></dl>
+            <details className="call-context"><summary>History & details</summary><Record s={s}/><NansenChip caller={c.caller}/><PerplBadge caller={c.caller} side={c.side}/><p className="fine">{c.followers < 0 ? "Follow activity is indexing." : `${c.followers} executed follows · ${fmtQuote(c.followedVolume,0)} ${QUOTE_SYMBOL} committed.`} Fees apply only to new realized gains with this caller.</p></details>
             <div className="row foot">
               <span className="sub">
-                <a className="link" href={`#/call/${c.id}`}>
+                <a className="link" href={`/dashboard/calls/${c.id}`}>
                   Call #{c.id}
                 </a>{" "}
                 · committed {new Date(c.postedAt * 1000).toLocaleTimeString()} ·{" "}
@@ -428,7 +431,7 @@ function Feed(props: {
                 share(
                   `Upside call #${c.id}`,
                   `${nameOf(c.caller)} called ${c.side === 0 ? "LONG" : "SHORT"} ${BASE_SYMBOL} at ${humanPrice(c.entryMid).toFixed(4)}, target ${humanPrice(c.targetMid).toFixed(4)}. Committed onchain; fees apply to new realized gains.`,
-                  `#/call/${c.id}`,
+                  `/dashboard/calls/${c.id}`,
                 )
               }
             >
@@ -461,7 +464,7 @@ function Feed(props: {
 function TradeReview({call,quote:q,busy,error,cancel,confirm}:{call:Call;quote:FollowReview;busy:boolean;error:string;cancel:()=>void;confirm:()=>void}) {
   const dialog=useRef<HTMLDialogElement>(null);
   useEffect(()=>{const previous=document.activeElement as HTMLElement|null;dialog.current?.showModal();return()=>previous?.focus();},[]);
-  return <dialog ref={dialog} className="trade-review" aria-labelledby="trade-review-title" onCancel={e=>{e.preventDefault();if(!busy)cancel();}}><div className="trade-review-content"><p className="eyebrow">Before you sign · Chain {deployment.chainId}</p><h2 id="trade-review-title">Review your follow.</h2><p>Call #{call.id} by {nameOf(call.caller)}</p><dl className="receipt-lines"><div><dt>You commit</dt><dd>{fmtQuote(q.amount)} {QUOTE_SYMBOL}{deployment.demo?" · test tokens":""}</dd></div><div><dt>Estimated position</dt><dd>{fmtBase(q.output)} {BASE_SYMBOL}</dd></div><div><dt>Minimum received</dt><dd>{fmtBase(q.minOut)} {BASE_SYMBOL}</dd></div><div><dt>Original-cost exposure after</dt><dd>{fmtQuote(q.exposure)} / {fmtQuote(q.limit)} {QUOTE_SYMBOL}</dd></div><div><dt>Venue</dt><dd>{deployment.demo?"DemoRouter · simulated fills":"Kuru Flow"}</dd></div><div><dt>Reference-price tolerance</dt><dd>2%</dd></div><div><dt>Performance fee</dt><dd>{call.feeBps/100}% of new realized gains</dd></div></dl><p className="fine">Earlier realized losses with this caller are recovered first. Open losses, earlier performance fees and network gas are excluded. Fees already paid are not refunded. Target and stop levels do not close your trade.</p>{q.createVault&&<p className="review-operation">First, create your vault with a {fmtQuote(q.limit)} {QUOTE_SYMBOL} original-cost exposure limit.</p>}{q.topUp>0n&&<p className="review-operation">Then, add {fmtQuote(q.topUp)} test {QUOTE_SYMBOL} from the demo faucet.</p>}<p className="fine">Your account signs each action and pays MON gas. This quote expires after 60 seconds.</p>{q.gasBalance===0n&&<p role="alert" className="error">Your account needs MON on this network before signing.</p>}{error && <p role="alert" className="error">{error}</p>}<div className="review-actions"><button className="ghost" disabled={busy} onClick={cancel}>Cancel</button><button className="primary" disabled={busy||q.gasBalance===0n} onClick={confirm}>{busy?"Waiting for confirmation…":"Confirm follow"}</button></div></div></dialog>;
+  return <dialog ref={dialog} className="trade-review" aria-labelledby="trade-review-title" onCancel={e=>{e.preventDefault();if(!busy)cancel();}}><div className="trade-review-content"><p className="eyebrow">Before you sign · Chain {deployment.chainId}</p><h2 id="trade-review-title">Review your follow.</h2><p>Call #{call.id} by {nameOf(call.caller)}</p><dl className="receipt-lines"><div><dt>You commit</dt><dd>{fmtQuote(q.amount)} {QUOTE_SYMBOL}{deployment.demo?" · test tokens":""}</dd></div><div><dt>Estimated position</dt><dd>{fmtBase(q.output)} {BASE_SYMBOL}</dd></div><div><dt>Minimum received</dt><dd>{fmtBase(q.minOut)} {BASE_SYMBOL}</dd></div><div><dt>Amount committed after this trade</dt><dd>{fmtQuote(q.exposure)} / {fmtQuote(q.limit)} {QUOTE_SYMBOL}</dd></div><div><dt>Venue</dt><dd>{deployment.demo?"DemoRouter · simulated fills":"Kuru Flow"}</dd></div><div><dt>Maximum reference-price difference</dt><dd>2%</dd></div><div><dt>Performance fee</dt><dd>{call.feeBps/100}% of new realized gains</dd></div></dl><p className="fine">Earlier realized losses with this caller are recovered first. Open losses, earlier performance fees and network gas are excluded. Fees already paid are not refunded. Target and stop levels do not close your trade.</p>{q.createVault&&<p className="review-operation">First, create your vault with a {fmtQuote(q.limit)} {QUOTE_SYMBOL} original-cost trading limit.</p>}{q.topUp>0n&&<p className="review-operation">Then, add {fmtQuote(q.topUp)} test {QUOTE_SYMBOL} from the demo faucet.</p>}<p className="fine">Your account signs each action and pays MON gas. This quote expires after 60 seconds.</p>{q.gasBalance===0n&&<p role="alert" className="error">Your account needs MON on this network before signing.</p>}{error && <p role="alert" className="error">{error}</p>}<div className="review-actions"><button className="ghost" disabled={busy} onClick={cancel}>Cancel</button><button className="primary" disabled={busy||q.gasBalance===0n} onClick={confirm}>{busy?"Waiting for confirmation…":"Confirm follow"}</button></div></div></dialog>;
 }
 
 // ----------------------------------------------------------------- post
@@ -484,15 +487,15 @@ function Post(props: { session: Session; mid: bigint | null; stats: Map<Address,
     <div className="card form">
       <h2>Post a call</h2>
       <p className="sub">
-        Your call is committed onchain and scored against the market mid when scored after expiry. Losers count.
+        Your call is saved before the result is known. Its score compares market reference prices when posted and when scored. Losing calls stay on your record.
       </p>
       {me && !me.verified && (
         <p className="notice">
-          You can post but won't rank or earn fees without a current gate attestation.{deployment.demo ? " This preview uses test attestations." : " Production verification requires the configured verification service."}
+          You can post a call, but verification is needed before you can earn fees or appear in the ranked list.{deployment.demo ? " This version uses test verification." : " Verification is provided by the configured service."}
         </p>
       )}
       <div className="thesis big">
-        <span className="long">LONG</span> {BASE_SYMBOL}/{QUOTE_SYMBOL} at {m ? m.toFixed(4) : "—"}
+        <span className="long">LONG</span> {BASE_SYMBOL}/{QUOTE_SYMBOL} at {m ? m.toFixed(4) : "–"}
       </div>
       <div className="grid2">
         <label className="field">
@@ -521,7 +524,7 @@ function Post(props: { session: Session; mid: bigint | null; stats: Map<Address,
           </select>
         </label>
       </div>
-      <p className="fine">Target and stop levels describe your thesis. They do not trigger an automatic close.</p>
+      <p className="fine">The target is your price goal. The stop is your planned loss level. Neither closes a trade automatically.</p>
       {!mid && <p className="notice">Waiting for a fresh price before this call can be committed.</p>}
       {validation && <p className="error" role="alert">{validation}</p>}
       <button
@@ -567,7 +570,7 @@ function Portfolio(props: {
           only from new realized gains with them.
         </p>
         <label className="field">
-          <span>Exposure limit ({QUOTE_SYMBOL})</span>
+          <span>Trading limit ({QUOTE_SYMBOL})</span>
           <input inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} />
           <small>The vault limits the original cost of open follows. It does not guarantee a maximum loss.</small>
         </label>
@@ -614,10 +617,10 @@ function Portfolio(props: {
             disabled={busy}
             onClick={() => { setLimit(fmtQuote(vs.maxExposure, 0)); setEditingLimit(!editingLimit); }}
           >
-            Exposure limit
+            Trading limit
           </button>
         </div>
-        {editingLimit && <div className="inline-editor"><label className="field"><span>Exposure limit ({QUOTE_SYMBOL})</span><input inputMode="decimal" value={limit} onChange={e => setLimit(e.target.value)} /></label><button className="primary" disabled={busy || !validLimit || (validLimit && parseQuote(limit) < vs.openCost)} onClick={() => run("Updating exposure limit", async () => { const hash = await setExposure(session, vault, parseQuote(limit)); setEditingLimit(false); return hash; })}>Save exposure limit</button><p className="fine">The limit must cover the original cost of open follows. It does not guarantee a maximum loss.</p></div>}
+        {editingLimit && <div className="inline-editor"><label className="field"><span>Trading limit ({QUOTE_SYMBOL})</span><input inputMode="decimal" value={limit} onChange={e => setLimit(e.target.value)} /></label><button className="primary" disabled={busy || !validLimit || (validLimit && parseQuote(limit) < vs.openCost)} onClick={() => run("Updating trading limit", async () => { const hash = await setExposure(session, vault, parseQuote(limit)); setEditingLimit(false); return hash; })}>Save trading limit</button><p className="fine">The limit must cover the original cost of open follows. It does not guarantee a maximum loss.</p></div>}
         <details className="vault-access"><summary>Fund or withdraw your vault</summary><p className="fine">Deposit {QUOTE_SYMBOL} on this network to the vault address. MON is needed in your account for gas.</p><div className="address-block"><span>Vault address</span><code>{vault}</code><button className="share" onClick={() => navigator.clipboard.writeText(vault).then(() => window.dispatchEvent(new CustomEvent("upside:notice", { detail:"Vault address copied." }))).catch(() => setToastNotice("Clipboard unavailable. Select and copy the address above."))}>Copy address</button></div><label className="field"><span>Withdraw available {QUOTE_SYMBOL} to your account</span><input inputMode="decimal" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} placeholder="Amount" /></label><button className="ghost" disabled={busy || !/^\d+(\.\d{1,6})?$/.test(withdrawAmount) || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > Number(fmtQuote(vs.cash,6))} onClick={() => run("Withdrawing available cash", async () => { const hash = await withdrawCash(session, vault, parseQuote(withdrawAmount)); setWithdrawAmount(""); return hash; })}>Withdraw to my account</button></details>
       </div>
 
@@ -717,7 +720,7 @@ function Board({ stats, calls }: { stats: Map<Address, CallerStats>; calls: Call
       <CallerComparison stats={all} calls={calls} />
       {!ranked.length && <Empty text="No scored calls from verified callers yet." />}
       {ranked.map((s, i) => (
-        <a key={s.address} className="leader link" href={`#/caller/${s.address}`}>
+        <a key={s.address} className="leader link" href={`/dashboard/traders/${s.address}`}>
           <span className="rank">{i + 1}</span>
           <span className="who"><WalletGlyph address={s.address} />{nameOf(s.address)}</span>
           <span className={s.avgReturnBps >= 0 ? "up" : "down"}>{pct(s.avgReturnBps)}</span>
@@ -728,7 +731,7 @@ function Board({ stats, calls }: { stats: Map<Address, CallerStats>; calls: Call
       ))}
       {!!unranked.length && <h3>Not ranked</h3>}
       {unranked.map((s) => (
-        <a key={s.address} className="leader muted link" href={`#/caller/${s.address}`}>
+        <a key={s.address} className="leader muted link" href={`/dashboard/traders/${s.address}`}>
           <span className="rank">–</span>
           <span className="who">{nameOf(s.address)}</span>
           <span className="sub">{s.verified ? "no scored calls yet" : "unverified"}</span>
@@ -745,35 +748,35 @@ function CallerComparison({stats,calls}:{stats:CallerStats[];calls:Call[]}) {
   const second=stats.find(s=>s.address===chosen[1]&&s.address!==first.address)??stats.find(s=>s.address!==first.address)!;
   const pair=[first,second];
   const histories=pair.map(s=>calls.filter(c=>c.caller.toLowerCase()===s.address.toLowerCase()));
-  const feeRange=(history:Call[])=>{if(!history.length)return "—";const fees=history.map(c=>c.feeBps/100);const low=Math.min(...fees),high=Math.max(...fees);return low===high?`${low}%`:`${low}–${high}%`;};
-  const dates=(history:Call[])=>{if(!history.length)return "—";const times=history.map(c=>c.postedAt);const date=(t:number)=>new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(t*1000));const first=date(Math.min(...times)),last=date(Math.max(...times));return first===last?first:`${first} to ${last}`;};
+  const feeRange=(history:Call[])=>{if(!history.length)return "–";const fees=history.map(c=>c.feeBps/100);const low=Math.min(...fees),high=Math.max(...fees);return low===high?`${low}%`:`${low}–${high}%`;};
+  const dates=(history:Call[])=>{if(!history.length)return "–";const times=history.map(c=>c.postedAt);const date=(t:number)=>new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(t*1000));const first=date(Math.min(...times)),last=date(Math.max(...times));return first===last?first:`${first} to ${last}`;};
   const rows:[string,string[]][]=[
     ["Calls posted",pair.map(s=>String(s.posted))],
     ["Calls scored",pair.map(s=>String(s.scored))],
     ["Losing scored calls",histories.map(h=>String(h.filter(c=>c.scored&&c.returnBps<0).length))],
     ["Awaiting a score",pair.map(s=>String(Math.max(0,s.posted-s.scored)))],
-    ["Average signal return",pair.map(s=>s.scored?pct(s.avgReturnBps):"Not scored yet")],
+    ["Average call score",pair.map(s=>s.scored?pct(s.avgReturnBps):"Not scored yet")],
     ["Winning scored calls",pair.map(s=>s.scored?`${s.wins} / ${s.scored}`:"Not scored yet")],
     ["Call fee rates",histories.map(feeRange)],
     ["Posting period (UTC)",histories.map(dates)],
   ];
-  return <section className="card caller-comparison" aria-labelledby="comparison-title"><h2 id="comparison-title">Compare the whole record.</h2><p className="sub">Look at losses, unanswered calls and fees together. These are signal-price scores, not follower profits.</p><div className="comparison-selectors">{pair.map((s,i)=><label key={i}>Caller {i+1}<select aria-label={`Caller ${i+1}`} value={s.address} onChange={e=>{const next:[string,string]=[first.address,second.address];next[i]=e.target.value;setChosen(next);}}>{stats.filter(option=>option.address!==pair[1-i].address).map(option=><option key={option.address} value={option.address}>{nameOf(option.address)}</option>)}</select></label>)}</div><table className="comparison-table"><caption className="sr-only">Onchain call history comparison</caption><thead><tr><th scope="col">Record</th>{pair.map(s=><th key={s.address} scope="col"><a href={`#/caller/${s.address}`}>{nameOf(s.address)}</a></th>)}</tr></thead><tbody>{rows.map(([label,values])=><tr key={label}><th scope="row">{label}</th>{values.map((value,i)=><td key={i}>{value}</td>)}</tr>)}</tbody></table><p className="fine">All posted calls in this deployment. Pending calls can change the picture. Fees differ by call; fills, closing time and gas affect your own result. A score does not guarantee future returns.</p></section>;
+  return <section className="card caller-comparison" aria-labelledby="comparison-title"><h2 id="comparison-title">Compare the whole record.</h2><p className="sub">Look at losses, unanswered calls and fees together. These are signal-price scores, not follower profits.</p><div className="comparison-selectors">{pair.map((s,i)=><label key={i}>Caller {i+1}<select aria-label={`Caller ${i+1}`} value={s.address} onChange={e=>{const next:[string,string]=[first.address,second.address];next[i]=e.target.value;setChosen(next);}}>{stats.filter(option=>option.address!==pair[1-i].address).map(option=><option key={option.address} value={option.address}>{nameOf(option.address)}</option>)}</select></label>)}</div><table className="comparison-table"><caption className="sr-only">Onchain call history comparison</caption><thead><tr><th scope="col">Record</th>{pair.map(s=><th key={s.address} scope="col"><a href={`/dashboard/traders/${s.address}`}>{nameOf(s.address)}</a></th>)}</tr></thead><tbody>{rows.map(([label,values])=><tr key={label}><th scope="row">{label}</th>{values.map((value,i)=><td key={i}>{value}</td>)}</tr>)}</tbody></table><p className="fine">All posted calls in this deployment. Pending calls can change the picture. Fees differ by call; fills, closing time and gas affect your own result. A score does not guarantee future returns.</p></section>;
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="empty"><BrandMark /><p>{text}</p><a href="#/docs">Read the docs</a></div>;
+  return <div className="empty"><BrandMark /><p>{text}</p><a href="/docs">Read the docs</a></div>;
 }
 
 function setToastNotice(text: string) { window.dispatchEvent(new CustomEvent("upside:notice", { detail: text })); }
 function StatePanel({ title, text, action, label }: { title: string; text: string; action?: () => void; label?: string }) {
-  return <section className="state-panel"><BrandMark /><h2>{title}</h2><p>{text}</p>{action ? <button className="ghost" onClick={action}>{label}</button> : <a className="text-link" href="#/docs">Read the docs</a>}</section>;
+  return <section className="state-panel"><BrandMark /><h2>{title}</h2><p>{text}</p>{action ? <button className="ghost" onClick={action}>{label}</button> : <a className="text-link" href="/docs">Read the docs</a>}</section>;
 }
 
 function Detail({ children }: { children: React.ReactNode }) {
   return (
     <div className="detail-stack">
-      <button className="back" onClick={() => go("")}>
-        Back
+      <button className="back" onClick={() => go(currentRoute().startsWith("/dashboard/traders/") ? DASHBOARD_PATHS.board : DASHBOARD_PATHS.feed)}>
+        {currentRoute().startsWith("/dashboard/traders/") ? "Back to records" : "Back to calls"}
       </button>
       {children}
     </div>
@@ -794,11 +797,11 @@ function CallerProfile({ address, stats, embedded = false }: { address: Address;
       {s && (
         <div className="stats">
           <div>
-            <b className={s.avgReturnBps >= 0 ? "up" : "down"}>{s.scored ? pct(s.avgReturnBps) : "—"}</b>
-            <span>avg return</span>
+            <b className={s.avgReturnBps >= 0 ? "up" : "down"}>{s.scored ? pct(s.avgReturnBps) : "–"}</b>
+            <span>average call score</span>
           </div>
           <div>
-            <b>{s.scored ? `${Math.round((s.wins / s.scored) * 100)}%` : "—"}</b>
+            <b>{s.scored ? `${Math.round((s.wins / s.scored) * 100)}%` : "–"}</b>
             <span>hit rate</span>
           </div>
           <div>
@@ -816,7 +819,7 @@ function CallerProfile({ address, stats, embedded = false }: { address: Address;
           share(
             `${nameOf(address)} on Upside`,
             `${nameOf(address)}: full, undeletable trading record on Upside.`,
-            `#/caller/${address}`,
+            `/dashboard/traders/${address}`,
           )
         }
       >
@@ -842,13 +845,13 @@ function HandleCard({ session, run, busy }: { session: Session; run: Runner; bus
           Save public name
         </button>
       </div>
-      <p className="fine">3–20 lowercase letters, numbers or underscores. Your @name is saved publicly onchain; saving requires network gas.</p>
+      <p className="fine">3–20 lowercase letters, numbers or underscores. Your @name is public. Saving it requires a small network fee in MON.</p>
     </div>
   );
 }
 
 function AccountProfile({ session, busy, run, theme, setTheme, stats }: { session: Session; busy: boolean; run: Runner; theme: Theme; setTheme: (theme: Theme) => void; stats: Map<Address, CallerStats> }) {
-  return <div className="profile-grid"><div className="profile-editor"><HandleCard key={HANDLES.get(session.account.address.toLowerCase()) ?? ""} session={session} busy={busy} run={run}/><section className="card"><h2>Appearance</h2><p className="sub">Choose the workspace that feels right for you. Saved on this browser.</p><div className="theme-options" role="group" aria-label="Workspace appearance">{THEMES.map(([key,label]) => <button key={key} aria-pressed={theme === key} onClick={() => setTheme(key)}><span className={`theme-swatch ${key}`} aria-hidden="true"/>{label}</button>)}</div></section><section className="card"><h2>Your signing account</h2><code className="full-address">{session.account.address}</code><p className="sub">Your name can change. Posted calls and their outcomes remain onchain.</p><a className="text-link" href={`#/caller/${session.account.address}`}>View your public record</a></section></div><CallerProfile address={session.account.address} stats={stats} embedded/></div>;
+  return <div className="profile-grid"><div className="profile-editor"><HandleCard key={HANDLES.get(session.account.address.toLowerCase()) ?? ""} session={session} busy={busy} run={run}/><section className="card"><h2>Appearance</h2><p className="sub">Light matches the landing page. Dark uses the same warm green palette. Saved on this browser.</p><div className="theme-options" role="group" aria-label="Workspace appearance">{THEMES.map(([key,label]) => <button key={key} aria-pressed={theme === key} onClick={() => setTheme(key)}><span className={`theme-swatch ${key}`} aria-hidden="true"/>{label}</button>)}</div></section><section className="card"><h2>Your account</h2><code className="full-address">{session.account.address}</code><p className="sub">Your name can change. Posted calls and their outcomes remain onchain.</p><a className="text-link" href={`/dashboard/traders/${session.account.address}`}>View your public record</a></section></div><CallerProfile address={session.account.address} stats={stats} embedded/></div>;
 }
 
 function Funding({ session, vault, state, busy, run, onVault }: { session: Session; vault: Address | null; state: VaultState | null; busy: boolean; run: Runner; onVault: () => void }) {

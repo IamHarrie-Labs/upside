@@ -81,8 +81,8 @@ export default function Landing({ onStart, onBrowse }: { onStart: () => void; on
   return <div ref={root} className={`landing ${paused ? "motion-paused" : ""}`}>
     <a className="skip" href="#landing-main">Skip to content</a>
     <header className="landing-header">
-      <a className="wordmark" href="#" aria-label="Upside home"><BrandMark />Upside</a>
-      <nav aria-label="About Upside" className="landing-nav"><a href="#how-it-works">How it works</a><a href="#fees">Fees</a><a href="#/docs">Docs</a></nav>
+      <a className="wordmark" href="/" aria-label="Upside home"><BrandMark />Upside</a>
+      <nav aria-label="About Upside" className="landing-nav"><a href="#how-it-works">How it works</a><a href="#fees">Fees</a><a href="/docs">Docs</a></nav>
       <button className="ink-button small" onClick={onStart}>Open Upside</button>
     </header>
     <main id="landing-main" tabIndex={-1}>
@@ -120,7 +120,7 @@ export default function Landing({ onStart, onBrowse }: { onStart: () => void; on
         <div className="vault-example" data-decorative-motion><div className="vault-example-top"><BrandMark/><span>Example vault</span></div><div className="vault-example-balance"><span>Available cash</span><strong>500 <small>AUSD</small></strong></div><div className="vault-example-exposure"><span>Open exposure</span><b>100 / 500 AUSD</b></div><div className="vault-example-meter"><span/></div><div className="vault-example-receipt"><span>Exposure limit</span><b>Set by you</b></div><div className="vault-example-receipt"><span>Available cash</span><b>Withdraw to your account</b></div><p>Illustrative amounts. Your vault shows its onchain balances.</p></div>
         <div className="control-copy"><h2 id="control-title">You choose the call.<br /><em>You keep control.</em></h2><p>Set how much you want to put into open follows. Close a position when you're ready, and withdraw the cash that's available.</p><dl><div><dt>Your account signs each trade.</dt><dd>A trader's call doesn't give them access to your funds.</dd></div><div><dt>Every settlement has a receipt.</dt><dd>Check the proceeds, fee and payout against the transaction.</dd></div></dl></div>
       </section>
-      <section className="questions-section" id="questions" aria-labelledby="questions-title"><div><h2 id="questions-title">A few things<br />worth knowing.</h2><p>More detail is in the <a href="#/docs">documentation</a>.</p></div><div className="questions-list">{QUESTIONS.map(question => <details key={question.q}><summary>{question.q}<span aria-hidden="true" className="question-toggle"/></summary><p>{question.a}</p></details>)}</div></section>
+      <section className="questions-section" id="questions" aria-labelledby="questions-title"><div><h2 id="questions-title">A few things<br />worth knowing.</h2><p>More detail is in the <a href="/docs">documentation</a>.</p></div><div className="questions-list">{QUESTIONS.map(question => <details key={question.q}><summary>{question.q}<span aria-hidden="true" className="question-toggle"/></summary><p>{question.a}</p></details>)}</div></section>
     </main>
     <Footer landing/>
   </div>;

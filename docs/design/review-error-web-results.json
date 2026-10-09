@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-09T20:11:20.566Z",
+  "date": "2026-10-09T20:39:33.171Z",
   "fixtureOnly": true,
   "transactionWrites": 0,
   "runtimeErrors": [],
@@ -10,6 +10,7 @@
     "no gas"
   ],
   "themeChecks": [],
+  "routeChecks": [],
   "screens": [
     {
       "name": "landing-1440",

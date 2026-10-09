@@ -63,6 +63,7 @@ const page=await context.newPage();
 const errors:string[]=[];page.on('pageerror',(e:any)=>errors.push(e.message));
 const shots:any[]=[];
 const themeChecks:any[]=[];
+const routeChecks:string[]=[];
 async function checkPalette(theme:string){
  const ratios=await page.evaluate(()=>{
   const style=getComputedStyle(document.querySelector('.workspace-surface')!);
@@ -74,12 +75,14 @@ async function checkPalette(theme:string){
  if(ratios.some((v:any)=>v.ratio<4.5))throw Error(theme+' palette contrast failed: '+JSON.stringify(ratios.filter((v:any)=>v.ratio<4.5)));
  themeChecks.push({theme,minimumTextContrast:Math.min(...ratios.map((v:any)=>v.ratio))});
 }
-async function snap(name:string){await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(150);const styled=await page.evaluate(()=>getComputedStyle(document.body).backgroundColor==='rgb(244, 238, 229)');if(!styled)throw new Error(name+': stylesheet did not apply');const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/${name}.png`,fullPage:true});shots.push({name,overflow});}
+async function appearance(theme:string){const toggle=page.getByRole('button',{name:'Dark mode',exact:true});if((await toggle.getAttribute('aria-pressed')==='true')!==(theme==='dark'))await toggle.click();}
+async function privatePage(path:string){await page.goto('http://127.0.0.1:5173'+path);await page.getByRole('button',{name:'Local account 3'}).click();await page.waitForURL('**'+path);}
+async function snap(name:string){await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(150);const styled=await page.evaluate(()=>getComputedStyle(document.body).backgroundColor==='rgb(244, 238, 229)');if(!styled)throw new Error(name+': stylesheet did not apply');const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error(name+': horizontal overflow');await page.screenshot({path:`docs/design/screens/${failureOnly ? "routing-error-v2" : "routing-v2"}-${name}.png`,fullPage:true});shots.push({name,overflow});}
 for(const width of [1440,390,320]){
   mode='normal';await page.setViewportSize({width,height:900});await page.goto('http://127.0.0.1:5173/');await page.getByRole('heading',{name:'Good calls. Shared upside.'}).waitFor();await snap(`landing-${width}`);
   if(await page.getByRole('button',{name:'Pause motion'}).count())throw Error('Removed motion control returned');
   await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Continue with passkey'}).waitFor();await snap(`onboarding-${width}`);
-  await page.getByRole('button',{name:'Local account 3'}).click();await page.locator('.call').first().waitFor();await snap(`calls-${width}`);
+  await page.getByRole('button',{name:'Local account 3'}).click();await page.locator('.call').first().waitFor();if(new URL(page.url()).pathname!=='/dashboard/calls')throw Error('Sign-in did not reach calls URL');await snap(`calls-${width}`);
   if(await page.locator('.tabs').evaluate(el=>getComputedStyle(el).position)!=='static')throw Error('Web nav is still floating');
   const beforeReview=writes;await page.getByRole('button',{name:'Follow $50',exact:true}).first().click();await page.getByRole('dialog').waitFor();await snap(`trade-review-${width}`);
   if(failureOnly){mode='confirmation-refused';await page.getByRole('button',{name:'Confirm follow',exact:true}).click();await page.getByRole('dialog').getByRole('alert').waitFor();await snap(`review-error-${width}`);mode='normal';}
@@ -91,8 +94,8 @@ for(const width of [1440,390,320]){
   if(!await page.locator('.account-menu').evaluate((el:any)=>el.open))throw Error('Wallet did not open its menu');
   await page.keyboard.press('Escape');if(await page.locator('.account-menu').evaluate((el:any)=>el.open))throw Error('Account menu did not close with Escape');
   await page.getByLabel('Open account menu').click();await page.locator('.ticker').click();if(await page.locator('.account-menu').evaluate((el:any)=>el.open))throw Error('Account menu did not close outside');
-  if(width!==320)for(const theme of ['light','ivory','dark','forest']){
-   await page.getByLabel('Appearance',{exact:true}).selectOption(theme);await checkPalette(theme);
+  if(width!==320)for(const theme of ['light','dark']){
+   await appearance(theme);await checkPalette(theme);
    for(const destination of ['Calls','Create','Vault','Record','Profile','Funding']){
     await page.getByRole('navigation',{name:'Workspace',exact:true}).getByRole('button',{name:destination,exact:true}).click();
     if(destination==='Calls'){await page.locator('.call').first().waitFor();if(!await page.locator('.trader-name').first().innerText())throw Error('Caller name missing');}
@@ -107,15 +110,15 @@ for(const width of [1440,390,320]){
     await snap(`workspace-${theme}-${destination.toLowerCase()}-${width}`);
    }
   }
-  if(width===1440){await page.getByRole('button',{name:'Calls',exact:true}).click();await page.getByRole('button',{name:'Follow $50',exact:true}).first().click();await page.getByRole('dialog').waitFor();await snap('workspace-forest-trade-review-1440');await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.locator('.call-context').first().getByText('Record & context',{exact:true}).click();await snap('workspace-forest-call-context-1440');}
-  await page.getByLabel('Appearance',{exact:true}).selectOption('light');
+  if(width===1440){await page.getByRole('button',{name:'Calls',exact:true}).click();await page.getByRole('button',{name:'Follow $50',exact:true}).first().click();await page.getByRole('dialog').waitFor();await snap('workspace-dark-trade-review-1440');await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.locator('.call-context').first().getByText('History & details',{exact:true}).click();await snap('workspace-dark-call-context-1440');}
+  await appearance('light');
   if(width===320)for(const destination of ['Profile','Funding']){await page.getByRole('navigation',{name:'Workspace',exact:true}).getByRole('button',{name:destination,exact:true}).click();await page.locator(destination==='Profile'?'.profile-grid':'.funding-grid').waitFor();await snap(`workspace-light-${destination.toLowerCase()}-${width}`);}
   await page.getByRole('button',{name:'Create',exact:true}).click();await page.getByRole('heading',{name:'Post a call',exact:true}).waitFor();await snap(`create-${width}`);
   await page.getByLabel('Your fee, % of new realized gains').fill('31');if(!await page.getByRole('button',{name:'Commit call onchain'}).isDisabled())throw new Error('Invalid fee accepted');await page.getByLabel('Your fee, % of new realized gains').fill('20');
   await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();await snap(`vault-${width}`);
-  await page.getByLabel('Open account menu').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Local account 1'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
-  await page.getByLabel('Open account menu').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Local account 3'}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
-  await page.getByRole('button',{name:'Exposure limit',exact:true}).click();await page.getByLabel('Exposure limit (AUSD)').fill('50');if(!await page.getByRole('button',{name:'Save exposure limit'}).isDisabled())throw new Error('Limit below open exposure accepted');await snap(`vault-edit-${width}`);
+  await page.getByLabel('Open account menu').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Local account 1'}).click();await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
+  await page.getByLabel('Open account menu').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.getByRole('button',{name:'Local account 3'}).click();await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getByText('Cash in vault',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Trading limit',exact:true}).click();await page.getByLabel('Trading limit (AUSD)').fill('50');if(!await page.getByRole('button',{name:'Save trading limit'}).isDisabled())throw new Error('Limit below open exposure accepted');await snap(`vault-edit-${width}`);
   await page.getByText('Fund or withdraw your vault',{exact:true}).click();await page.getByLabel('Withdraw available AUSD to your account').fill('999');if(!await page.getByRole('button',{name:'Withdraw to my account'}).isDisabled())throw new Error('Overdraft accepted');await snap(`vault-funding-${width}`);
   await page.getByRole('button',{name:'Record',exact:true}).click();await page.locator('.leader').first().waitFor();await page.getByRole('heading',{name:'Compare the whole record.',exact:true}).waitFor();
   const comparison=page.getByRole('table',{name:'Onchain call history comparison'});
@@ -124,9 +127,9 @@ for(const width of [1440,390,320]){
   const callerOne=page.getByLabel('Caller 1',{exact:true});await callerOne.selectOption({index:1});
   if((await comparison.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Calls posted',exact:true})}).getByRole('cell').allTextContents()).join(',')!=='2,2')throw Error('Caller comparison switch failed');
   await snap(`record-${width}`);await page.locator('.leader').first().click();await page.locator('.profile').waitFor();await snap(`caller-${width}`);
-  await page.goto('http://127.0.0.1:5173/#/call/0');await page.locator('.call').waitFor();await snap(`detail-${width}`);await page.goto('http://127.0.0.1:5173/#/call/999');await page.getByRole('heading',{name:'That call is not on this record.'}).waitFor();await snap(`missing-call-${width}`);
-  for(const route of ['docs','docs/assets','docs/calls','docs/fees','docs/vault','docs/security','privacy','terms']){await page.goto('http://127.0.0.1:5173/#/'+route);await page.locator(route.startsWith('docs')?'.docs-content':'.info-page').waitFor();await snap(`${route.replaceAll("/","-")}-${width}`)}
-  await page.goto('http://127.0.0.1:5173/#/caller/not-a-wallet');await page.getByRole('heading',{name:'This page is off the map.'}).waitFor();await snap(`not-found-${width}`);
+  await privatePage('/dashboard/calls/0');await page.locator('.call').waitFor();await snap(`detail-${width}`);await privatePage('/dashboard/calls/999');await page.getByRole('heading',{name:'That call is not on this record.'}).waitFor();await snap(`missing-call-${width}`);
+  for(const route of ['docs','docs/assets','docs/calls','docs/fees','docs/vault','docs/security','privacy','terms']){await page.goto('http://127.0.0.1:5173/'+route);await page.locator(route.startsWith('docs')?'.docs-content':'.info-page').waitFor();await snap(`${route.replaceAll("/","-")}-${width}`)}
+  await privatePage('/dashboard/traders/not-a-wallet');await page.getByRole('heading',{name:'This page is off the map.'}).waitFor();await snap(`not-found-${width}`);
 }
 await page.setViewportSize({width:390,height:844});
 for(const state of failureOnly?[]:['empty','stale','error','new-vault','loading']){
@@ -138,7 +141,38 @@ for(const state of failureOnly?[]:['empty','stale','error','new-vault','loading'
  if(state==='new-vault'){await page.locator('.call').first().waitFor();await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getByRole('heading',{name:'Your vault',exact:true}).waitFor()}
  await snap(`state-${state}`);
 }
-if(!failureOnly){mode='normal';await page.goto('http://127.0.0.1:5173/#/docs/fees');await page.getByLabel('Appearance',{exact:true}).selectOption('forest');await page.reload();await page.locator('.docs-content').waitFor();if(await page.getByLabel('Appearance',{exact:true}).inputValue()!=='forest')throw Error('Appearance did not survive reload');await snap('workspace-forest-docs-persisted-390');for(const route of ['privacy','terms']){await page.goto('http://127.0.0.1:5173/#/'+route);await page.locator('.info-page').waitFor();await snap(`workspace-forest-${route}-390`);}await page.getByLabel('Appearance',{exact:true}).selectOption('light');}
+if(!failureOnly){
+ mode='normal';await privatePage('/dashboard/calls');await appearance('dark');await page.reload();await page.getByRole('button',{name:'Local account 3'}).click();await page.locator('.call').first().waitFor();if(await page.getByRole('button',{name:'Dark mode',exact:true}).getAttribute('aria-pressed')!=='true')throw Error('Appearance did not survive reload');await snap('workspace-dark-persisted-390');
+ for(const route of ['docs/fees','privacy','terms']){await page.goto('http://127.0.0.1:5173/'+route);await page.locator(route.startsWith('docs')?'.docs-content':'.info-page').waitFor();await snap(`public-${route.replaceAll('/','-')}-390`);if(await page.locator('.dashboard-shell').count())throw Error('Public help/legal pages contain private dashboard chrome');}
+}
+
+if(!failureOnly){
+ mode='normal';await page.setViewportSize({width:1440,height:1000});
+ const protectedRoutes=['/dashboard','/dashboard/calls','/dashboard/create','/dashboard/vault','/dashboard/record','/dashboard/profile','/dashboard/funding','/dashboard/calls/0',`/dashboard/traders/${ADA}`];
+ for(const path of protectedRoutes){
+  await page.goto('http://127.0.0.1:5173'+path);await page.waitForURL('**/signin?next=*');await page.getByRole('button',{name:'Continue with passkey'}).waitFor();
+  if(await page.locator('.dashboard-shell').count())throw Error('Unauthenticated dashboard exposed: '+path);
+  await page.getByRole('button',{name:'Local account 3'}).click();const expected=path==='/dashboard'?'/dashboard/calls':path;await page.waitForURL('**'+expected);await page.locator('.dashboard-shell').waitFor();routeChecks.push('Sign-in returns to '+expected);
+ }
+ for(const [name,path] of [['Calls','calls'],['Create','create'],['Vault','vault'],['Record','record'],['Profile','profile'],['Funding','funding']]){
+  await page.getByRole('navigation',{name:'Workspace',exact:true}).getByRole('button',{name,exact:true}).click();await page.waitForURL('**/dashboard/'+path);
+  if(await page.getByRole('navigation',{name:'Workspace',exact:true}).getByRole('button',{name,exact:true}).getAttribute('aria-current')!=='page')throw Error('Active section is incorrect: '+name);
+  if((await page.locator('body').innerText()).includes('\u2014'))throw Error('Em dash remains on '+name);routeChecks.push('Section URL and active nav: '+path);
+ }
+ await page.getByLabel('Open account menu').click();await page.getByRole('button',{name:'Edit profile',exact:true}).click();await page.waitForURL('**/dashboard/profile');
+ await page.getByRole('link',{name:'View your public record'}).click();await page.waitForURL('**/dashboard/traders/*');await page.locator('.profile').waitFor();routeChecks.push('Account menu and public record links');
+ await page.getByRole('navigation',{name:'Workspace',exact:true}).getByRole('button',{name:'Calls',exact:true}).click();await page.locator('.call').first().waitFor();await page.locator('.call').first().getByRole('link',{name:/^Call #/}).click();await page.waitForURL('**/dashboard/calls/*');await page.getByRole('button',{name:'Back to calls',exact:true}).click();await page.waitForURL('**/dashboard/calls');routeChecks.push('Call detail and return');
+ await page.getByRole('link',{name:'Help & documentation',exact:true}).first().click();await page.locator('.docs-content').waitFor();if(await page.locator('.dashboard-shell').count())throw Error('Help still uses private dashboard chrome');await page.getByRole('link',{name:'Back to dashboard',exact:true}).click();await page.waitForURL('**/dashboard/calls');routeChecks.push('Public help and dashboard return');
+ await page.getByRole('button',{name:'Create',exact:true}).click();await page.getByRole('button',{name:'Record',exact:true}).click();await page.getByRole('button',{name:'Vault',exact:true}).click();
+ await page.getByLabel('Open account menu').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.waitForURL('**/signin');if(await page.locator('.dashboard-shell').count())throw Error('Sign-out left the dashboard open');
+ await page.goBack();await page.waitForURL('**/signin?next=*');if(await page.locator('.dashboard-shell').count())throw Error('Back button bypassed sign-out');routeChecks.push('Sign-out and browser-back guard');await snap('signed-out-history-1440');
+ await page.goto('http://127.0.0.1:5173/#/call/0');await page.getByRole('button',{name:'Local account 3'}).click();await page.waitForURL('**/dashboard/calls/0');await page.locator('.call').waitFor();routeChecks.push('Legacy shared call link');
+ await page.goto('http://127.0.0.1:5173/signin?next=https%3A%2F%2Fexample.com');await page.getByRole('button',{name:'Local account 3'}).click();await page.waitForURL('**/dashboard/calls');routeChecks.push('External login redirect rejected');
+ await page.getByRole('button',{name:'Upside home',exact:true}).click();await page.waitForURL('http://127.0.0.1:5173/');await page.getByRole('button',{name:'Open Upside',exact:true}).click();await page.waitForURL('**/dashboard/calls');routeChecks.push('Home and signed-in landing return');
+ for(const path of ['/docs','/docs/assets','/docs/calls','/docs/fees','/docs/vault','/docs/security','/privacy','/terms']){
+  await page.goto('http://127.0.0.1:5173'+path);await page.locator(path.startsWith('/docs')?'.docs-content':'.info-page').waitFor();if((await page.locator('body').innerText()).includes('\u2014'))throw Error('Em dash remains on '+path);routeChecks.push('Public resource '+path);
+ }
+}
 const reviewGuards=await page.evaluate(async()=>{
   const {confirmFollow}=await import('/src/lib/upside.ts');
   const owner='0x1111111111111111111111111111111111111111';
@@ -153,5 +187,5 @@ const reviewGuards=await page.evaluate(async()=>{
 if(errors.length)throw new Error('Runtime errors: '+errors.join('; '));
 if(writes)throw new Error('Unexpected write attempts: '+writes);
 if(failureOnly&&confirmationRefusals===0)throw Error('Confirmation failure path was not exercised');
-writeFileSync(failureOnly?'docs/design/review-error-web-results.json':'docs/design/ui-qa-results.json',JSON.stringify({date:new Date().toISOString(),fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,confirmationRefusals,reviewGuards,themeChecks,screens:shots},null,2));
+writeFileSync(failureOnly?'docs/design/review-error-web-results.json':'docs/design/ui-qa-results.json',JSON.stringify({date:new Date().toISOString(),fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,confirmationRefusals,reviewGuards,themeChecks,routeChecks,screens:shots},null,2));
 console.log(JSON.stringify({screens:shots.length,runtimeErrors:errors,transactionWrites:writes}));await browser.close();

@@ -1,5 +1,7 @@
 # Upside trading workspace
 
+This report describes the earlier four-theme iteration. The current design and routing assessment is in [Dashboard routing and experience review](dashboard-routing-and-ux-review.md).
+
 9 October 2026
 
 The website uses a persistent desktop workspace with six destinations: Calls, Create, Vault, Record, Profile and Funding. Calls is the trading entry point; profile changes and deposits have their own destinations rather than competing with the feed. On narrower browser screens the navigation becomes a horizontal, scrollable row. The native application's navigation remains separate.

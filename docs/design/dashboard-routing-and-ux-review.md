@@ -1,0 +1,46 @@
+# Dashboard routing and experience review
+
+9 October 2026
+
+## Current structure
+
+The public site has the landing page, sign-in, Help, Privacy and Terms. The six trading destinations sit under `/dashboard`: `/dashboard/calls`, `/dashboard/create`, `/dashboard/vault`, `/dashboard/record`, `/dashboard/profile` and `/dashboard/funding`. `/dashboard` opens Calls. Call details use `/dashboard/calls/:id`; trader histories use `/dashboard/traders/:address`.
+
+Dashboard access requires an active signing session. Opening a protected link goes to sign-in and preserves its intended destination. Signing in returns to that page. Reloading requires the passkey again; signing material is not saved to bypass authentication. Browser Back after sign-out cannot restore an active dashboard. Legacy shared hash links are converted to the equivalent clean path.
+
+This is an interface gate, not a claim that public blockchain records have become private. Contracts still enforce ownership and trading rules. Help explains public activity and the limitations of this test deployment.
+
+## Brand consistency
+
+The default uses the landing page's warm paper, cream, olive and terracotta palette. The previous cool light palette and the Ivory/Forest choices are removed. Optional Dark uses the landing's deep green, warm foreground and related terracotta status colors. A compact two-state control replaces the four-choice selector. The older saved four-theme preference is ignored; the current two-state preference is saved separately. Space Grotesk remains the typeface.
+
+Privacy and Terms are public footer resources. They do not appear in the dashboard sidebar. Help remains available. Desktop navigation and the native application's navigation remain separate.
+
+## Newcomer experience
+
+Calls begins with a brief explanation of what a call means and what following does. Price levels and call scores are separate from actual follower results. The overview says “Committed to trades” rather than unexplained exposure. Create explains target and stop levels, and verification copy describes the consequence rather than a gate attestation. Help describes passkeys, account funding, vault funding, execution and fees in order.
+
+Funding keeps MON for account network fees separate from AUSD in the trading vault. It shows both addresses and retains the test-asset disclosure. Transaction review retains costs, limits, estimated fills and the fact that targets and stops do not automatically sell. Public-name edits remain possible; previously posted calls and outcomes are permanent.
+
+Existing passkeys can be selected on a new browser. Users are not forced to create another account because the local credential reference is absent. Account switching and sign-out end the prior signing session. Clicking the account opens its menu and does not sign out.
+
+## Assessment
+
+| Area | Assessment |
+| --- | --- |
+| Navigation | Each destination has a direct URL, active state and a defined return path. Detail pages keep their parent destination selected. |
+| Account safety | The dashboard renders only with a session. Sign-out removes that session and ends signing. Passkeys remain with their provider. |
+| Content hierarchy | Trading views emphasize identity, market, price levels and the next action. Supporting context expands separately. |
+| Beginner clarity | Calls and Help introduce the workflow; funding addresses are distinguished. Network and asset facts stay where they affect a decision. |
+| Appearance | One default brand palette and one related dark palette replace four unrelated choices. Text-token contrast is checked against the workspace surfaces. |
+| Links | Local tests exercise six destinations, call and trader links, public Help, home, legacy URLs, deep links and sign-out history. Hosted tests check public resources and protected routes. |
+| Validation | The automated review covers forms, insufficient limits, overdraft prevention, loading, stale prices, failures and canceled/refused confirmations. Fixture transactions are blocked. |
+| Remaining release evidence | Physical Android/iPhone passkey behavior and real transaction confirmation remain device checks. Automated browser layout and navigation tests do not replace these. |
+
+No additional top-level tabs are needed now. A separate Activity tab would duplicate the Vault's history and settlement receipts. If activity later spans multiple accounts, venues or agents, reconsider it using those actual workflows.
+
+## Evidence
+
+Current results are recorded in `ui-qa-results.json`, `review-error-web-results.json` and `hosted-read-only-results.json`. The current screenshot series uses the `routing-v2-` prefix to avoid Windows locks on earlier preview images. Older four-theme screenshots and the original workspace report describe the previous iteration, not the current design.
+
+The final local review passed 102 screen captures and 30 routing checks with no runtime errors and no transaction writes. A separate confirmation-refusal run passed 15 captures. Minimum tested text-token contrast was 4.60:1 for Light and 8.19:1 for Dark. Lint, TypeScript and the production build passed. These results verify the enumerated flows and color combinations, rather than claiming that every device or future market condition has been tested.

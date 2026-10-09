@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync,writeFileSync} from 'node:fs';
 const {chromium}=createRequire(import.meta.url)('C:/Users/Harrie/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+import {createPublicClient,http} from '../../app/node_modules/viem/_esm/index.js';
+import {CallBookAbi} from '../../app/src/abi.ts';
+const deployment=JSON.parse(readFileSync('contracts/deployments/10143.json','utf8'));
 const proof=JSON.parse(readFileSync('docs/design/hosted-testnet-results.json','utf8'));
 const api='https://keeper.38.49.210.22.sslip.io';
 let history:any;
@@ -27,34 +30,26 @@ try{
   assert.equal(await page.locator('#landing-main > section').count(),6);
   assert.equal(await page.locator('.proof-timeline a').count(),4);
   await page.getByRole('button',{name:'Explore the calls',exact:true}).click();
-  await page.locator('.call').first().waitFor({timeout:45_000});
-  assert.equal(await page.locator('.environment-strip').count(),0);
-  assert.equal(await page.locator('.tabs').evaluate(el=>getComputedStyle(el).position),'static');
-  await page.setViewportSize({width:1440,height:1000});
-  for(const theme of ['light','ivory','dark','forest']){
-    await page.getByLabel('Appearance',{exact:true}).selectOption(theme);
-    assert.equal(await page.locator('.workspace-surface').getAttribute('data-workspace-theme'),theme);
-    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-    await page.screenshot({path:`docs/design/screens/hosted-workspace-${theme}-1440.png`,fullPage:true});
-  }
-  assert.match(await page.locator('.trader-name').first().innerText(),/^@|^Trader /);
-  await page.reload();await page.getByRole('button',{name:'Explore the calls',exact:true}).click();await page.locator('.call').first().waitFor({timeout:45_000});
-  assert.equal(await page.getByLabel('Appearance',{exact:true}).inputValue(),'forest');
-  await page.getByLabel('Appearance',{exact:true}).selectOption('light');
-  await page.setViewportSize({width:390,height:844});
-  await page.getByRole('button',{name:'Record',exact:true}).click();
-  await page.locator('.caller-comparison').waitFor({timeout:45_000});
-  assert.equal(await page.locator('.comparison-table tbody tr').count(),8);
-  await page.goto('https://upside-monad.vercel.app/#/docs/fees');
-  await page.locator('.docs-content').waitFor();
-  assert.match(await page.locator('.docs-content').innerText(),/open position losses are excluded/i);
-  await page.getByRole('button',{name:'Sign in',exact:true}).click();
-  await page.getByRole('button',{name:'Continue with passkey',exact:true}).waitFor();
+  await page.waitForURL('**/signin?next=*');await page.getByRole('button',{name:'Continue with passkey',exact:true}).waitFor();
+  assert.equal(await page.locator('.dashboard-shell').count(),0);
+  assert.equal(await page.getByRole('button',{name:/Local account/}).count(),0);
   assert.equal(await page.locator('.onboard li').count(),0);
-  assert.doesNotMatch(await page.locator('.onboard').innerText(),/chain 10143|demo venue|your account controls|your account/i);
   await page.screenshot({path:'docs/design/screens/hosted-sign-in-390.png',fullPage:true});
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  for(const path of ['/dashboard','/dashboard/calls','/dashboard/create','/dashboard/vault','/dashboard/record','/dashboard/profile','/dashboard/funding','/dashboard/calls/11']){
+    const response=await page.goto('https://upside-monad.vercel.app'+path);assert.equal(response?.status(),200);
+    await page.waitForURL('**/signin?next=*');await page.getByRole('button',{name:'Continue with passkey',exact:true}).waitFor();assert.equal(await page.locator('.dashboard-shell').count(),0);
+  }
+  for(const path of ['/docs','/docs/assets','/docs/calls','/docs/fees','/docs/vault','/docs/security','/privacy','/terms']){
+    const response=await page.goto('https://upside-monad.vercel.app'+path);assert.equal(response?.status(),200);
+    await page.locator(path.startsWith('/docs')?'.docs-content':'.info-page').waitFor();assert.equal(await page.locator('.dashboard-shell').count(),0);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    assert.equal((await page.locator('body').innerText()).includes('\u2014'),false);
+  }
+  await page.goto('https://upside-monad.vercel.app/#/call/11');await page.waitForURL('**/signin?next=*');assert.equal(new URL(page.url()).searchParams.get('next'),'/dashboard/calls/11');
+  await page.goto('https://upside-monad.vercel.app/docs/fees');await page.locator('.docs-content').waitFor();assert.match(await page.locator('.docs-content').innerText(),/open position losses are excluded/i);
+  const client=createPublicClient({transport:http('https://testnet-rpc.monad.xyz')});
+  const actualCall=await client.readContract({address:deployment.callBook,abi:CallBookAbi,functionName:'getCall',args:[BigInt(proof.callId)]});assert.equal(actualCall.caller.toLowerCase(),proof.caller.toLowerCase());
   assert.deepEqual(errors,[]);
-  writeFileSync('docs/design/hosted-read-only-results.json',JSON.stringify({date:new Date().toISOString(),url:'https://upside-monad.vercel.app',actualHostedReceipt:true,completeHistory:true,matchingTransaction:true,landingArtwork:true,mainSections:6,proofTransactions:4,callerComparison:true,browseTestnetCalls:true,guideDisclosure:true,horizontalOverflow:false,runtimeErrors:errors,scope:'Read-only hosted browser and keeper check; no phone authentication or trading'},null,2));
-  console.log('Hosted receipt, original artwork, testnet browsing and guide checks passed.');
+  writeFileSync('docs/design/hosted-read-only-results.json',JSON.stringify({date:new Date().toISOString(),url:'https://upside-monad.vercel.app',actualHostedReceipt:true,completeHistory:true,matchingTransaction:true,actualTestnetCall:true,landingArtwork:true,mainSections:6,proofTransactions:4,dashboardAuthenticationGate:true,cleanDirectPaths:true,legacyCallLink:true,publicResources:true,productionDevAccountsAbsent:true,guideDisclosure:true,horizontalOverflow:false,runtimeErrors:errors,scope:'Read-only hosted gate, public resources, RPC and keeper checks. Signing and dashboard interactions tested locally with fixtures; hardware passkeys remain separate.'},null,2));
+  console.log('Hosted authentication gates, direct links, public help and real testnet reads passed.');
 }finally{await browser.close();}

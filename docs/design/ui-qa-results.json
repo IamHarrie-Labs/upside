@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-09T20:10:48.252Z",
+  "date": "2026-10-09T20:43:14.071Z",
   "fixtureOnly": true,
   "transactionWrites": 0,
   "runtimeErrors": [],
@@ -12,36 +12,52 @@
   "themeChecks": [
     {
       "theme": "light",
-      "minimumTextContrast": 5.389476345360754
-    },
-    {
-      "theme": "ivory",
       "minimumTextContrast": 4.597764090824803
     },
     {
       "theme": "dark",
-      "minimumTextContrast": 7.384641560367121
-    },
-    {
-      "theme": "forest",
-      "minimumTextContrast": 7.1831223342935075
+      "minimumTextContrast": 8.193001734719216
     },
     {
       "theme": "light",
-      "minimumTextContrast": 5.389476345360754
-    },
-    {
-      "theme": "ivory",
       "minimumTextContrast": 4.597764090824803
     },
     {
       "theme": "dark",
-      "minimumTextContrast": 7.384641560367121
-    },
-    {
-      "theme": "forest",
-      "minimumTextContrast": 7.1831223342935075
+      "minimumTextContrast": 8.193001734719216
     }
+  ],
+  "routeChecks": [
+    "Sign-in returns to /dashboard/calls",
+    "Sign-in returns to /dashboard/calls",
+    "Sign-in returns to /dashboard/create",
+    "Sign-in returns to /dashboard/vault",
+    "Sign-in returns to /dashboard/record",
+    "Sign-in returns to /dashboard/profile",
+    "Sign-in returns to /dashboard/funding",
+    "Sign-in returns to /dashboard/calls/0",
+    "Sign-in returns to /dashboard/traders/0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+    "Section URL and active nav: calls",
+    "Section URL and active nav: create",
+    "Section URL and active nav: vault",
+    "Section URL and active nav: record",
+    "Section URL and active nav: profile",
+    "Section URL and active nav: funding",
+    "Account menu and public record links",
+    "Call detail and return",
+    "Public help and dashboard return",
+    "Sign-out and browser-back guard",
+    "Legacy shared call link",
+    "External login redirect rejected",
+    "Home and signed-in landing return",
+    "Public resource /docs",
+    "Public resource /docs/assets",
+    "Public resource /docs/calls",
+    "Public resource /docs/fees",
+    "Public resource /docs/vault",
+    "Public resource /docs/security",
+    "Public resource /privacy",
+    "Public resource /terms"
   ],
   "screens": [
     {
@@ -85,30 +101,6 @@
       "overflow": false
     },
     {
-      "name": "workspace-ivory-calls-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-ivory-create-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-ivory-vault-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-ivory-record-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-ivory-profile-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-ivory-funding-1440",
-      "overflow": false
-    },
-    {
       "name": "workspace-dark-calls-1440",
       "overflow": false
     },
@@ -133,35 +125,11 @@
       "overflow": false
     },
     {
-      "name": "workspace-forest-calls-1440",
+      "name": "workspace-dark-trade-review-1440",
       "overflow": false
     },
     {
-      "name": "workspace-forest-create-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-vault-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-record-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-profile-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-funding-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-trade-review-1440",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-call-context-1440",
+      "name": "workspace-dark-call-context-1440",
       "overflow": false
     },
     {
@@ -273,30 +241,6 @@
       "overflow": false
     },
     {
-      "name": "workspace-ivory-calls-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-ivory-create-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-ivory-vault-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-ivory-record-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-ivory-profile-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-ivory-funding-390",
-      "overflow": false
-    },
-    {
       "name": "workspace-dark-calls-390",
       "overflow": false
     },
@@ -318,30 +262,6 @@
     },
     {
       "name": "workspace-dark-funding-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-calls-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-create-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-vault-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-record-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-profile-390",
-      "overflow": false
-    },
-    {
-      "name": "workspace-forest-funding-390",
       "overflow": false
     },
     {
@@ -529,15 +449,23 @@
       "overflow": false
     },
     {
-      "name": "workspace-forest-docs-persisted-390",
+      "name": "workspace-dark-persisted-390",
       "overflow": false
     },
     {
-      "name": "workspace-forest-privacy-390",
+      "name": "public-docs-fees-390",
       "overflow": false
     },
     {
-      "name": "workspace-forest-terms-390",
+      "name": "public-privacy-390",
+      "overflow": false
+    },
+    {
+      "name": "public-terms-390",
+      "overflow": false
+    },
+    {
+      "name": "signed-out-history-1440",
       "overflow": false
     }
   ]

@@ -24,5 +24,5 @@ const pages: Record<string, { title: string; intro: string; sections: Section[] 
 };
 export default function InfoPage({ name }: { name: string }) {
   const page = pages[name];
-  return <article className="info-page"><a className="text-link" href="#/">Back to calls</a><p className="eyebrow">{name === "guide" ? "Using Upside" : name === "privacy" ? "Your privacy" : "Terms of use"}</p><h1>{page.title}</h1><p className="info-intro">{page.intro}</p>{page.sections.map(s => <section key={s.title}><h2>{s.title}</h2><p>{s.text}</p></section>)}</article>;
+  return <article className="info-page"><a className="text-link" href="/">Back to Upside</a><p className="eyebrow">{name === "guide" ? "Using Upside" : name === "privacy" ? "Your privacy" : "Terms of use"}</p><h1>{page.title}</h1><p className="info-intro">{page.intro}</p>{page.sections.map(s => <section key={s.title}><h2>{s.title}</h2><p>{s.text}</p></section>)}</article>;
 }

@@ -1,7 +1,7 @@
 export type DashboardTab = "feed" | "post" | "portfolio" | "board" | "profile" | "funding";
-export type Theme = "light" | "ivory" | "dark" | "forest";
-export const THEMES: [Theme, string][] = [["light", "Light"], ["ivory", "Ivory"], ["dark", "Dark"], ["forest", "Forest"]];
+export type Theme = "light" | "dark";
+export const THEMES: [Theme, string][] = [["light", "Light"], ["dark", "Dark"]];
 export function initialTheme(): Theme {
-  try { const value = localStorage.getItem("upside.workspace.theme"); if (THEMES.some(([key]) => key === value)) return value as Theme; } catch { /* Storage is optional. */ }
+  try { if (localStorage.getItem("upside.workspace.appearance.v2") === "dark") return "dark"; } catch { /* Storage is optional. */ }
   return "light";
 }
