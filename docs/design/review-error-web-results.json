@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-08",
+  "fixtureOnly": true,
+  "transactionWrites": 0,
+  "runtimeErrors": [],
+  "confirmationRefusals": 6,
+  "reviewGuards": [
+    "changed account",
+    "expired quote",
+    "no gas"
+  ],
+  "screens": [
+    {
+      "name": "landing-1440",
+      "overflow": false
+    },
+    {
+      "name": "onboarding-1440",
+      "overflow": false
+    },
+    {
+      "name": "calls-1440",
+      "overflow": false
+    },
+    {
+      "name": "trade-review-1440",
+      "overflow": false
+    },
+    {
+      "name": "review-error-1440",
+      "overflow": false
+    },
+    {
+      "name": "landing-390",
+      "overflow": false
+    },
+    {
+      "name": "onboarding-390",
+      "overflow": false
+    },
+    {
+      "name": "calls-390",
+      "overflow": false
+    },
+    {
+      "name": "trade-review-390",
+      "overflow": false
+    },
+    {
+      "name": "review-error-390",
+      "overflow": false
+    },
+    {
+      "name": "landing-320",
+      "overflow": false
+    },
+    {
+      "name": "onboarding-320",
+      "overflow": false
+    },
+    {
+      "name": "calls-320",
+      "overflow": false
+    },
+    {
+      "name": "trade-review-320",
+      "overflow": false
+    },
+    {
+      "name": "review-error-320",
+      "overflow": false
+    }
+  ]
+}

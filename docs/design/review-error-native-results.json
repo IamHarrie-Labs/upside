@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-09T08:34:08.2009612Z",
+  "fixtureOnly": true,
+  "platform": "Expo web (not a physical phone)",
+  "runtimeErrors": [],
+  "transactionWrites": 0,
+  "confirmationRefusals": 4,
+  "screens": [
+    {
+      "name": "onboarding-390",
+      "overflow": false
+    },
+    {
+      "name": "calls-390",
+      "overflow": false
+    },
+    {
+      "name": "trade-review-390",
+      "overflow": false
+    },
+    {
+      "name": "review-error-390",
+      "overflow": false
+    },
+    {
+      "name": "onboarding-768",
+      "overflow": false
+    },
+    {
+      "name": "calls-768",
+      "overflow": false
+    },
+    {
+      "name": "trade-review-768",
+      "overflow": false
+    },
+    {
+      "name": "review-error-768",
+      "overflow": false
+    }
+  ]
+}

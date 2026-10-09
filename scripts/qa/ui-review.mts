@@ -9,7 +9,7 @@ const ADA='0x70997970c51812dc3a010c7d01b50e0d17dc79c8';
 const SYBIL='0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc';
 const VAULT='0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const now=Math.floor(Date.now()/1000);
-let mode='normal'; let writes=0;
+let mode='normal'; let writes=0;let confirmationRefusals=0;const failureOnly=process.env.UPSIDE_REVIEW_FAILURE_ONLY==='1';
 const call=(id:number)=>({caller:id%2?SYBIL:ADA,base:VAULT,quote:VAULT,side:0,feeBps:2000,verifiedAtPost:id%2===0,scored:id>=2,postedAt:now-4000+id*100,expiry:id>=2?now-30:now+3600,entryMid:35000n,targetMid:36500n,stopMid:34000n,exitMid:id>=2?35500n:0n,returnBps:id===2?142n:id===3?-210n:0n});
 const position=(id:number)=>({callId:BigInt(id),caller:id%2?SYBIL:ADA,base:VAULT,baseAmount:1500n*10n**18n,cost:50000000n,open:id<2});
 function rpc(req:any) {
@@ -42,6 +42,7 @@ function rpc(req:any) {
     }
     return encodeFunctionResult({abi:[f],functionName:name,result} as any);
   }
+  if(mode==='confirmation-refused'){confirmationRefusals++;throw Error('Approval refused in confirmation QA');}
   writes++;throw new Error('Transactions are deliberately blocked in UI QA');
 }
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
@@ -66,7 +67,9 @@ for(const width of [1440,390,320]){
   if(width===1440){await page.getByRole('button',{name:'Resume motion'}).click();await page.getByRole('button',{name:'Pause motion'}).waitFor();}
   await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Create account with a passkey'}).waitFor();await snap(`onboarding-${width}`);
   await page.getByRole('button',{name:'Femi (follower)'}).click();await page.locator('.call').first().waitFor();await snap(`calls-${width}`);
-  const beforeReview=writes;await page.getByRole('button',{name:'Follow $50',exact:true}).first().click();await page.getByRole('dialog').waitFor();await snap(`trade-review-${width}`);await page.getByRole('button',{name:'Cancel',exact:true}).click();if(writes!==beforeReview)throw Error('Canceled review sent a transaction');
+  const beforeReview=writes;await page.getByRole('button',{name:'Follow $50',exact:true}).first().click();await page.getByRole('dialog').waitFor();await snap(`trade-review-${width}`);
+  if(failureOnly){mode='confirmation-refused';await page.getByRole('button',{name:'Confirm follow',exact:true}).click();await page.getByRole('dialog').getByRole('alert').waitFor();await snap(`review-error-${width}`);mode='normal';}
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();if(writes!==beforeReview)throw Error('Canceled review sent a transaction');if(failureOnly)continue;
   await page.getByRole('button',{name:'Live',exact:true}).click();if(await page.locator('.call').count()!==2)throw new Error('Live filter failed');
   await page.getByRole('button',{name:'Scored',exact:true}).click();if(await page.locator('.call').count()!==2)throw new Error('Scored filter failed');
   await page.getByRole('button',{name:'All calls',exact:true}).click();await page.getByRole('searchbox').fill('not-present');await page.getByRole('heading',{name:'Nothing in this view yet.'}).waitFor();await page.getByRole('button',{name:'Show all calls'}).click();
@@ -83,7 +86,7 @@ for(const width of [1440,390,320]){
   await page.goto('http://127.0.0.1:5173/#/caller/not-a-wallet');await page.getByRole('heading',{name:'This page is off the map.'}).waitFor();await snap(`not-found-${width}`);
 }
 await page.setViewportSize({width:390,height:844});
-for(const state of ['empty','stale','error','new-vault','loading']){
+for(const state of failureOnly?[]:['empty','stale','error','new-vault','loading']){
  mode=state;await page.goto('http://127.0.0.1:5173/');await page.getByRole('button',{name:'Open Upside'}).click();await page.getByRole('button',{name:'Femi (follower)'}).click();
  if(state==='loading')await page.getByRole('status',{name:'Loading the onchain record'}).waitFor();
  if(state==='empty')await page.getByRole('heading',{name:'The next call is still unwritten.'}).waitFor();
@@ -105,5 +108,6 @@ const reviewGuards=await page.evaluate(async()=>{
 });
 if(errors.length)throw new Error('Runtime errors: '+errors.join('; '));
 if(writes)throw new Error('Unexpected write attempts: '+writes);
-writeFileSync('docs/design/ui-qa-results.json',JSON.stringify({date:'2026-10-08',fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,reviewGuards,screens:shots},null,2));
+if(failureOnly&&confirmationRefusals===0)throw Error('Confirmation failure path was not exercised');
+writeFileSync(failureOnly?'docs/design/review-error-web-results.json':'docs/design/ui-qa-results.json',JSON.stringify({date:'2026-10-08',fixtureOnly:true,transactionWrites:writes,runtimeErrors:errors,confirmationRefusals,reviewGuards,screens:shots},null,2));
 console.log(JSON.stringify({screens:shots.length,runtimeErrors:errors,transactionWrites:writes}));await browser.close();

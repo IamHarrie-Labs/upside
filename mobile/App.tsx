@@ -518,7 +518,7 @@ function Feed(props: {
 
   return (
     <View style={{ gap: 10 }}>
-      {review && session && <NativeTradeReview call={review.call} quote={review.quote} busy={busy} error={reviewError} cancel={() => {if(!busy) setReview(null);}} confirm={() => run(`Following call #${review.call.id} with $${fmtQuote(review.quote.amount)}`, async () => {const hash=await confirmFollow(session,review.quote);setReview(null);return hash;})} />}
+      {review && session && <NativeTradeReview call={review.call} quote={review.quote} busy={busy} error={reviewError} cancel={() => {if(!busy) setReview(null);}} confirm={() => run(`Following call #${review.call.id} with $${fmtQuote(review.quote.amount)}`, async () => {try{const hash=await confirmFollow(session,review.quote);setReview(null);return hash;}catch(e){setReviewError(describeError(e));throw e;}})} />}
       {!!reviewError && <Text accessibilityRole="alert" style={s.notice}>{reviewError}</Text>}
       <View style={{ flexDirection: "row", gap: 8 }}>
         {(["all", "live", "scored"] as const).map(f => <Pressable key={f} accessibilityRole="button" accessibilityState={{ selected: filter === f }} onPress={() => setFilter(f)} style={[s.pill, filter === f && s.pillOn]}><Text style={{ color: filter === f ? C.accent : C.ink }}>{({ all: "All calls", live: "Live", scored: "Scored" })[f]}</Text></Pressable>)}
