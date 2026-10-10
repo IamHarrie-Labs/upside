@@ -1,9 +1,9 @@
 {
-  "date": "2026-10-08",
+  "date": "2026-10-10T09:32:28.128Z",
   "chainId": 31337,
   "realLocalTransactions": true,
   "realFundsUsed": false,
-  "postedCalls": 1,
+  "postedCalls": 2,
   "followAUSD": 50,
   "closeProceedsAUSD": 60,
   "totalPerformanceFeeAUSD": 2,

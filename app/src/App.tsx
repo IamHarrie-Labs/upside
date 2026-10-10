@@ -319,6 +319,7 @@ function Onboard({ onSession, onBack }: { onSession: (s: Session) => void; onBac
       <div className="card">
         <button className="primary" disabled={busy} onClick={() => start(hasPasskey() ? signInWithPasskey : () => createPasskeyAccount("Upside user"))}>Continue with passkey</button>
         {!hasPasskey() && <button className="back account-create" disabled={busy} onClick={() => start(signInWithPasskey)}>Already have an account? Use your existing passkey</button>}
+        {hasPasskey() && <button className="back account-create" disabled={busy} onClick={() => start(() => signInWithPasskey(true))}>Choose another existing passkey</button>}
         {hasPasskey() && <button className="text-link account-create" disabled={busy} onClick={() => start(() => createPasskeyAccount("Upside user"))}>Create a different account</button>}
         <p className="fine">A passkey lets you sign in with your device. Use the same passkey each time to return to your account.</p>
         {busy && <p role="status" className="fine">Waiting for your passkey provider…</p>}

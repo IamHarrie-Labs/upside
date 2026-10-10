@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-10T09:36:51.754Z",
+  "chainId": 31337,
+  "realLocalTransactions": true,
+  "realFundsUsed": false,
+  "checks": [
+    "Landing anchor links reach existing sections",
+    "Profile changes persist onchain and update account name",
+    "Trading limit saves onchain",
+    "Both funding addresses copy correctly",
+    "Funding faucet and withdrawal match actual token balances"
+  ],
+  "runtimeErrors": []
+}

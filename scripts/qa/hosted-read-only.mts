@@ -34,7 +34,7 @@ try{
   assert.equal(await page.locator('.dashboard-shell').count(),0);
   assert.equal(await page.getByRole('button',{name:/Local account/}).count(),0);
   assert.equal(await page.locator('.onboard li').count(),0);
-  await page.screenshot({path:'docs/design/screens/hosted-sign-in-390.png',fullPage:true});
+  await page.screenshot({path:`docs/design/screens/${process.env.UPSIDE_QA_PREFIX ?? 'hosted'}-sign-in-390.png`,fullPage:true});
   for(const path of ['/dashboard','/dashboard/calls','/dashboard/create','/dashboard/vault','/dashboard/record','/dashboard/profile','/dashboard/funding','/dashboard/calls/11']){
     const response=await page.goto('https://upside-monad.vercel.app'+path);assert.equal(response?.status(),200);
     await page.waitForURL('**/signin?next=*');await page.getByRole('button',{name:'Continue with passkey',exact:true}).waitFor();assert.equal(await page.locator('.dashboard-shell').count(),0);

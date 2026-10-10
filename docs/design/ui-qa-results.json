@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-09T20:43:14.071Z",
+  "date": "2026-10-10T09:31:15.526Z",
   "fixtureOnly": true,
   "transactionWrites": 0,
   "runtimeErrors": [],
@@ -48,6 +48,7 @@
     "Public help and dashboard return",
     "Sign-out and browser-back guard",
     "Legacy shared call link",
+    "Generated mobile-compatible share link",
     "External login redirect rejected",
     "Home and signed-in landing return",
     "Public resource /docs",

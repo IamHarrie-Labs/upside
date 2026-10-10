@@ -11,13 +11,13 @@ await page.evaluate(()=>document.fonts.ready);
 if(await page.locator('#landing-main > section').count()!==6)throw Error('Expected six main sections');
 if(/[↗→↓←]/.test(await page.locator('.landing').innerText()))throw Error('Decorative arrows remain');
 if(!await page.evaluate(()=>document.fonts.check('500 18px "Space Grotesk"')&&getComputedStyle(document.body).fontFamily.includes('Space Grotesk')))throw Error('Grotesk not loaded');
-await page.screenshot({path:'docs/design/screens/grotesk-hero-desktop.png'});
+await page.screenshot({path:'docs/design/screens/submission-landing-hero-desktop.png'});
 const how=await page.locator('#how-it-works').evaluate(el=>el.getBoundingClientRect().top+scrollY);
 const scrollTo=async(y:number)=>{await page.evaluate(y=>window.scrollTo({top:y,behavior:'instant'}),y);await page.waitForTimeout(100)};
 await scrollTo(how+70);const firstTop=await page.locator('.section-intro').evaluate(el=>el.getBoundingClientRect().top);
 await scrollTo(how+320);const secondTop=await page.locator('.section-intro').evaluate(el=>el.getBoundingClientRect().top);
 if(Math.abs(firstTop-96)>2||Math.abs(secondTop-96)>2)throw Error('Heading did not stay pinned: '+firstTop+', '+secondTop);
-await page.screenshot({path:'docs/design/screens/grotesk-how-pinned.png'});
+await page.screenshot({path:'docs/design/screens/submission-landing-how-pinned.png'});
 await page.locator('[data-step="2"]').scrollIntoViewIfNeeded();await page.waitForFunction(()=>document.querySelector('[data-step="2"]')?.classList.contains('active-step'));
 const bottom=await page.locator('#how-it-works').evaluate(el=>el.getBoundingClientRect().bottom+scrollY);
 await scrollTo(bottom+80);if(await page.locator('.section-intro').evaluate(el=>el.getBoundingClientRect().bottom)>0)throw Error('Sticky heading escaped its section');
@@ -31,19 +31,19 @@ for(const stage of [0,1,2]){
 }
 if(await page.locator('.proof-timeline a').count()!==4)throw Error('Missing proof transactions');
 if(await page.locator('.fee-story').evaluate(el=>getComputedStyle(el).backgroundColor)!=='rgb(25, 43, 37)')throw Error('Dark fee section missing');
-await page.screenshot({path:'docs/design/screens/grotesk-fees.png'});
-await page.locator('#proof').scrollIntoViewIfNeeded();await page.screenshot({path:'docs/design/screens/landing-proof-desktop.png'});
+await page.screenshot({path:'docs/design/screens/submission-landing-fees.png'});
+await page.locator('#proof').scrollIntoViewIfNeeded();await page.screenshot({path:'docs/design/screens/submission-proof-desktop.png'});
 await page.locator('.vault-example').scrollIntoViewIfNeeded();await page.waitForFunction(()=>document.querySelector('.vault-example')?.classList.contains('is-in-view'));
-await page.screenshot({path:'docs/design/screens/grotesk-vault.png'});
+await page.screenshot({path:'docs/design/screens/submission-landing-vault.png'});
 const question=page.locator('.questions-list summary').first();await question.focus();await page.keyboard.press('Enter');
 if(!await page.locator('.questions-list details').first().evaluate(el=>el.open))throw Error('FAQ did not open');
-await page.screenshot({path:'docs/design/screens/grotesk-questions.png'});
+await page.screenshot({path:'docs/design/screens/submission-landing-questions.png'});
 await page.keyboard.press('Enter');if(await page.locator('.questions-list details').first().evaluate(el=>el.open))throw Error('FAQ did not close');
 if(await page.getByRole('button',{name:'Pause motion'}).count())throw Error('Unwanted motion control');
 await page.emulateMedia({reducedMotion:'reduce'});
 if(await page.locator('.receipt-stamp').evaluate(el=>getComputedStyle(el).animationName)!=='none')throw Error('Reduced motion ignored');
 if(await page.locator('.cloud-depth').evaluate(el=>getComputedStyle(el).transform)!=='none')throw Error('Reduced-motion cloud depth still active');
-for(const width of [320,390,768,1024]){await page.setViewportSize({width,height:844});await scrollTo(0);if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Overflow at '+width);if(width<=390){if(await page.locator('.section-intro').evaluate(el=>getComputedStyle(el).position)!=='static')throw Error('Sticky copy blocks phone content');await page.screenshot({path:'docs/design/screens/grotesk-hero-'+width+'.png'});}}
+for(const width of [320,390,768,1024]){await page.setViewportSize({width,height:844});await scrollTo(0);if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Overflow at '+width);if(width<=390){if(await page.locator('.section-intro').evaluate(el=>getComputedStyle(el).position)!=='static')throw Error('Sticky copy blocks phone content');await page.screenshot({path:'docs/design/screens/submission-landing-hero-'+width+'.png'});}}
 if(errors.length)throw Error(errors.join('; '));
 writeFileSync('docs/design/landing-interaction-results.json',JSON.stringify({date:new Date().toISOString(),mainSections:6,groteskLoaded:true,decorativeArrows:0,pinnedHeading:{firstTop,secondTop,releasesAtSectionEnd:true},thirdStepActive:true,feeStages:[0,0,2],proofTransactions:4,keyboardFAQ:true,finiteHeroEntrance:true,reducedMotion:true,phoneFlow:true,darkFeeSection:true,viewportWidths:[320,390,768,1024,1440],runtimeErrors:errors},null,2));
 await browser.close();console.log('Grotesk, six sections, receipt progression, proof, sticky reading, FAQ and motion checks passed.');

@@ -14,6 +14,8 @@ node scripts/qa/contrast.cjs
 
 The UI suites intercept chain and keeper reads with labelled fixtures and reject transaction writes. They cover routes, phone layouts, errors, empties, stale prices, validation, and recovery. Results and screenshots are saved in `docs/design/`. Expo web exercises React Native rendering in a browser, not native device authentication.
 
+`passkey-flow.mts` uses simulated WebAuthn responses through the real account derivation code to verify cancellation, unsupported PRF, remembered-credential recovery and repeat sign-in. Set `UPSIDE_WEB_URL=https://upside-monad.vercel.app` to exercise the deployed bundle with chain writes blocked. This does not replace physical-phone authentication. `account-actions.mts` runs after the local transaction scenarios and verifies actual profile edits, trading limits, clipboard addresses and funding balances on chain 31337. `UPSIDE_QA_PREFIX` gives the UI/hosted suites a fresh screenshot prefix when prior captures are open in image viewers.
+
 The landing interaction suite verifies actual Space Grotesk loading, six main sections, removal of decorative arrows, sticky heading bounds, third-step progression, fee arithmetic at all three reading stages, four proof links, FAQ keyboard controls and motion preferences. Its screenshots show the pinned reading state in addition to normal page layouts. The web fixture suite checks caller comparison, including scored losses and switching the selected caller.
 
 The local end-to-end scripts require a **fresh** Anvil chain on port 8547 and the demo deployment from `scripts/setup-local.sh`. They use public Anvil keys, explicitly require chain 31337, and broadcast local transactions:

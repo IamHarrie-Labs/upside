@@ -56,7 +56,7 @@ export async function createPasskeyAccount(name: string): Promise<Session> {
   return sessionFromPrf(res.prfOutput, name);
 }
 
-export async function signInWithPasskey(): Promise<Session> {
+export async function signInWithPasskey(chooseAnother = false): Promise<Session> {
   let credentialId: string | null = null;
   try {
     credentialId = localStorage.getItem(CRED_KEY);
@@ -65,8 +65,13 @@ export async function signInWithPasskey(): Promise<Session> {
   }
   const res = await getPasskeyPrfOutput({
     rpId: location.hostname,
-    credential: credentialId ? { credentialId } : undefined,
+    credential: credentialId && !chooseAnother ? { credentialId } : undefined,
   });
+  try {
+    localStorage.setItem(CRED_KEY, res.credentialId);
+  } catch {
+    // Discoverable sign-in remains available when storage is blocked.
+  }
   return sessionFromPrf(res.prfOutput, "Passkey account");
 }
 
@@ -74,6 +79,12 @@ export function describeError(e: unknown): string {
   if (isMeraError(e)) {
     if (e.code === "PRF_UNAVAILABLE")
       return "This passkey provider can't derive keys (PRF). On desktop Chrome, save the passkey to Google Password Manager, or use your phone.";
+    if (e.code === "PASSKEY_OPERATION_FAILED") {
+      const cause = e.cause as { name?: string } | undefined;
+      if (cause?.name === "NotAllowedError" || cause?.name === "AbortError")
+        return "Sign-in was cancelled or timed out. Try again, or choose another existing passkey.";
+      return "Your device could not complete passkey sign-in. Try again in your browser, or choose another existing passkey. Your account has not changed.";
+    }
     return `${e.code}: ${e.message}`;
   }
   const msg = (e as Error)?.message ?? String(e);

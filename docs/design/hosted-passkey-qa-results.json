@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-10T09:37:41.471Z",
+  "url": "https://upside-monad.vercel.app",
+  "checks": [
+    "Cancellation preserves sign-in and permits retry",
+    "Unsupported PRF cannot create an account or remember a credential",
+    "Stale credential can be replaced through discoverable sign-in; selected reference saved",
+    "Same PRF restores the same signing account after sign-out"
+  ],
+  "runtimeErrors": [],
+  "transactionWrites": 0,
+  "scope": "Simulated WebAuthn credential responses through real Mera derivation and session code. No physical authenticator or transaction broadcast."
+}
