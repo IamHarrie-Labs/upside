@@ -1,127 +1,371 @@
-# Upside
+<p align="center">
+  <img src="app/public/art/cabin-expressive-v4.png" alt="Upside: travellers looking out of an aircraft cabin above the clouds" width="100%">
+</p>
 
-**Trading calls you only pay for when you profit.** Built on Monad for Metropolis 2026 (Track 03: Social, Attention & Culture).
+<h1 align="center">
+  <img src="app/public/favicon.svg" alt="" width="40" align="center">&nbsp;Upside
+</h1>
 
-Paid signal groups charge whether you win or lose, and their track records are screenshots. On Upside:
+<p align="center">
+  <b>Good calls. Shared upside.</b><br>
+  Follow a trader's public call through your own vault on Monad.<br>
+  They earn a share of your <i>realized gains</i>, and only after your earlier losses with them are recovered.
+</p>
 
-1. **Every call is committed onchain before the move.** It can't be edited, backdated or deleted, and it expires.
-2. **Callers are paid from new realized gains.** Each follower trades through their own vault. Closing a position first recovers earlier realized losses with that caller, then charges the call's agreed rate above the previous realized peak. Open losses, network gas and earlier performance fees are excluded; paid fees are not refunded.
-3. **Scores come from market prices, not followers.** A call is scored from the mid when posted to the mid when scored after expiry, losers included. Follower count and reviews are not score inputs; this does not make reputation manipulation impossible.
-4. **Only attested callers rank and earn.** The contract checks a current gate attestation. Demo deployments use test attestations; the intended Cleanverse A-Pass API integration still needs credential-backed verification.
+<p align="center">
+  <a href="https://upside-monad.vercel.app"><img alt="Live app" src="https://img.shields.io/badge/live%20app-upside--monad.vercel.app-242820?style=flat-square"></a>
+  <img alt="Monad testnet" src="https://img.shields.io/badge/Monad-testnet%2010143-836EF9?style=flat-square">
+  <img alt="Solidity" src="https://img.shields.io/badge/Solidity-0.8.28-363636?style=flat-square&logo=solidity">
+  <img alt="Foundry tests" src="https://img.shields.io/badge/forge%20tests-21%20passing-2f7d4f?style=flat-square">
+  <img alt="Expo" src="https://img.shields.io/badge/Expo-SDK%2057-000020?style=flat-square&logo=expo">
+  <img alt="Metropolis 2026" src="https://img.shields.io/badge/Monad%20Metropolis-2026-b45a3c?style=flat-square">
+</p>
 
-The interface has an original paper, ink and copper identity across web and Expo. See the [brand guide](brand/README.md), [page-by-page review and evidence](docs/design/README.md), and [QA instructions](scripts/qa/README.md).
+<p align="center">
+  <a href="https://upside-monad.vercel.app">Live app</a> ·
+  <a href="https://expo.dev/artifacts/eas/-_pC1cYvQNbeGbrps_Rn_YqDIFKPP29WP1P3pCGYB5s.apk">Android APK</a> ·
+  <a href="docs/demo/round-trip-local.webm">Demo recording</a> ·
+  <a href="docs/submission.md">Submission</a> ·
+  <a href="mm-plugin/README.md">MetaMask plugin</a>
+</p>
 
-The web and Expo flows prepare a quote without sending transactions, present the amounts, minimum output, exposure, fee boundaries and setup actions, then require confirmation. Closed-position receipts show actual proceeds, loss carry-forward, caller/protocol payouts and the transaction. Incomplete history is labelled as indexing.
+---
 
-See [priority work and remaining release checks](docs/priority-work-status.md), [hosted testnet transaction proof](docs/design/hosted-testnet-results.json), [keeper and exit trust boundaries](docs/keeper-score-exit-decision.md), [phone test plan](docs/phone-test.md), and [submission draft](docs/submission.md). The [local demo recording](docs/demo/round-trip-local.webm) uses actual Anvil transactions and test tokens. Hardware passkeys, actual Agent Wallet signing, funded Nansen settlement and user interviews remain unverified.
+## Contents
 
-## What's here
+- [The problem](#the-problem)
+- [How Upside works](#how-upside-works)
+- [Screenshots](#screenshots)
+- [Try it now](#try-it-now)
+- [How the money moves](#how-the-money-moves)
+- [Architecture](#architecture)
+- [Smart contracts](#smart-contracts)
+- [Apps and services](#apps-and-services)
+- [Sponsor integrations](#sponsor-integrations)
+- [Run it locally](#run-it-locally)
+- [Deploy](#deploy)
+- [Verification and evidence](#verification-and-evidence)
+- [Trust assumptions and known limits](#trust-assumptions-and-known-limits)
+- [Repository layout](#repository-layout)
 
-| Folder | What it is |
+---
+
+## The problem
+
+Paid trading signals charge whether you win or lose. Track records are screenshots: losers get deleted, winners get reposted, and follower counts can be bought. A subscriber pays up front and carries all of the risk.
+
+## How Upside works
+
+| | |
 | --- | --- |
-| `contracts/` | Foundry project: `CallBook`, `FollowVault`, `VaultFactory`, `UpsideConfig`, `AttestedGate`, `KeeperPriceSource`, plus testnet-only `demo/` contracts. 21 tests, including three review cases documenting current limitations. |
-| `app/` | Desktop trading dashboard and responsive website (Vite + React + viem). Passkey accounts via [Mera](https://mera.category.xyz). Also hosts the passkey association files. |
-| `mobile/` | Native iOS/Android app (Expo SDK 57) sharing the same contract logic; EAS APK profile configured. Physical-device passkeys and the signed build remain release checks. See `mobile/README.md`. |
-| `mm-plugin/` | MetaMask Agent Wallet plugin (`mm upside …`): an AI agent with an ERC-8004 identity follows verified callers within your rules, your vault's onchain cap and your Agent Wallet policy, and pays for Nansen intel over x402. See `mm-plugin/README.md`. |
-| `keeper/` | Keeps the order-book mid fresh onchain, scores expired calls, and attests verified callers. |
-| `indexer/` | Envio HyperIndex config, schema and handlers for the feed, caller records and settlements. |
-| `scripts/` | ABI export and the one-command local setup. |
+| **1. Calls are committed before the move** | A caller posts a call on Monad: pair, direction, target, stop, fee rate and horizon. The entry is the market mid at that moment. Calls can't be edited, backdated or deleted, and every one expires and is scored, losers included. |
+| **2. You follow from your own vault** | Each follower gets a personal vault (a minimal clone). Follows and closes swap through allowlisted routers inside that vault, with an onchain exposure cap that you set. Funds never sit with the caller. |
+| **3. Callers are paid from realized gains** | When you close, the vault settles against your running result *with that caller*. Earlier closed losses are recovered first, and the fee applies only to new gains above your previous peak (a per-caller high-water mark). Still down with them? They earn nothing. |
+| **4. Scores come from prices, not popularity** | A call's score is the move in the market mid from posting to scoring. Follower count, follow volume and reviews are not inputs, so a farm of fake followers can't buy a record. |
+| **5. Only attested callers earn** | Fees go only to callers with a current attestation in `AttestedGate` (designed for a Cleanverse A-Pass). Unverified callers can post, and their record is public, but they earn $0. |
+
+## Screenshots
+
+<table>
+  <tr>
+    <td colspan="2"><img src="docs/design/screens/grotesk-hero-desktop.png" alt="Landing page: Good calls. Shared upside."></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/design/screens/workspace-ivory-calls-1440.png" alt="Calls workspace with vault cash, exposure and live calls"><br><sub><b>Calls workspace.</b> Vault cash, open exposure against your cap, live and scored calls, verified and unverified callers.</sub></td>
+    <td width="50%"><img src="docs/design/screens/workspace-forest-trade-review-1440.png" alt="Review your follow dialog before signing"><br><sub><b>Review before signing.</b> Amount, minimum received, exposure after, venue, price tolerance and the exact fee rule. Cancel sends nothing.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/design/screens/local-real-receipt.png" alt="Settlement receipt showing principal, proceeds, fee split"><br><sub><b>Settlement receipt.</b> 50 → 60 AUSD: 10 above the previous peak, 20% fee = 2 AUSD (1.8 to the caller, 0.2 protocol). Read from the vault's <code>Closed</code> event.</sub></td>
+    <td width="50%">
+      <table>
+        <tr>
+          <td><img src="docs/design/screens/native-onboarding-390.png" alt="Mobile onboarding"></td>
+          <td><img src="docs/design/screens/native-calls-390.png" alt="Mobile calls feed"></td>
+        </tr>
+      </table>
+      <sub><b>Native app (Expo).</b> Passkey onboarding and the calls feed with records, fees and follow sizes.</sub>
+    </td>
+  </tr>
+</table>
+
+More screens, at 1440, 390 and 320 px and in four themes, are in [`docs/design/screens`](docs/design/screens).
+
+## Try it now
+
+| | |
+| --- | --- |
+| **Web app** | **https://upside-monad.vercel.app**. Browse calls without an account, or create one with a passkey: no seed phrase, and the account is derived on your device with Mera. |
+| **Android** | [Signed preview APK](https://expo.dev/artifacts/eas/-_pC1cYvQNbeGbrps_Rn_YqDIFKPP29WP1P3pCGYB5s.apk) ([build details](https://expo.dev/accounts/iamharrie/projects/upside/builds/250f354b-80aa-4dc6-8f82-7b1f5c01fa2a), [test sheet](docs/phone-test.md)) |
+| **Network** | Monad testnet (chain `10143`). Test AUSD, a demo router and keeper-generated prices. This is real onchain execution with test assets, not a live market. |
+| **Keeper API** | `https://keeper.38.49.210.22.sslip.io` (`/flow`, `/receipts`, `/poke`, `/perpl/context`, `/nansen`) |
+
+The testnet venue is seeded with three demo personas, so the feed, leaderboard and receipts show real activity:
+
+| Persona | Role | Address |
+| --- | --- | --- |
+| `@ada` | Attested caller. Short calls already scored and longer calls still open; her record is whatever the market did. | [`0xE902…de03`](https://testnet.monadvision.com/address/0xE902aDdcB27e3a94e03956CD640B9844918ede03) |
+| `@sybil_farm` | Unverified caller. One call with seven fake follower wallets and $700 behind it, which changes neither its score nor its earnings ($0). | [`0x47Ab…7dE2`](https://testnet.monadvision.com/address/0x47Ab979DDC3C8b3808b2a15c5705BAF5754D7dE2) |
+| `@femi` | Follower. Closed a small loss on one of Ada's calls, so Ada earned nothing, and holds a position on another. | [`0x2783…1260`](https://testnet.monadvision.com/address/0x2783A70056f52dBff0Bf28FFE9227e16986D1260) |
+
+**Recorded hosted round trip (call 11):** [follow](https://testnet.monadvision.com/tx/0xba660f9fc12533021c598dc10b49d2d743a1cb0e88394fe7618affb05b52f631) → [close](https://testnet.monadvision.com/tx/0x8db57557cfd52bc27bbd641714efc35e7310207b408600de3cf3a478fc648c94) → [withdraw](https://testnet.monadvision.com/tx/0x78e8f54ddd6a5c6955907cb6701dc15fa76848af759c4f73b3a633685640aec5). It closed at a one-raw-unit loss, so the fee was zero. Full record: [`hosted-testnet-results.json`](docs/design/hosted-testnet-results.json).
 
 ## How the money moves
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Caller
+    actor Follower
+    participant CB as CallBook
+    participant PS as Price source (keeper)
+    participant V as Follower's FollowVault
+    participant R as Router (Kuru Flow / DemoRouter)
+
+    Caller->>CB: postCall(pair, target, stop, feeBps, horizon)
+    CB->>PS: midPrice() becomes the entry, committed onchain
+    Follower->>V: follow(callId, amount, router, calldata, minOut)
+    V->>R: swap AUSD to MON (allowlisted router, measured by balance)
+    Note over V: exposure cap checked against original cost
+    Follower->>V: close(positionId, router, calldata, minOut)
+    V->>R: swap MON to AUSD
+    V->>V: pnl updates the net result with this caller<br/>fee = rate × (net − high-water mark), if above it
+    V-->>Caller: caller share of the fee (attested callers only)
+    V-->>V: protocol share (10% of the fee) to treasury
+    PS->>CB: after expiry, the keeper scores the call (exit mid, return in bps)
 ```
-caller ──postCall──▶ CallBook (entry mid from price source, expiry)
-follower ──follow──▶ FollowVault ──swap──▶ router (Kuru Flow on mainnet; DemoRouter on testnet)
-follower ──close───▶ FollowVault ──swap──▶ router
-                         └─ pnl → netPnl[caller]; fee = feeBps × (net − highWater) if positive and caller verified
-                              ├─ caller fee → caller
-                              └─ protocol cut (10% of fee) → treasury
-keeper ──scoreCall──▶ CallBook (exit mid, return in bps, caller record)
+
+**Worked example (from the local end-to-end test):**
+
+| Step | Trade | Net with caller | Previous peak | Fee |
+| --- | --- | ---: | ---: | ---: |
+| 1 | Follow 50 AUSD, close for 60 | +10 | 0 | **2.00** at 20% (1.80 caller, 0.20 protocol) |
+| 2 | Next follow closes at a loss | below +10 | +10 | **0** |
+| 3 | Partial recovery, still under the peak | below +10 | +10 | **0** |
+
+Open losses and gas aren't counted until a position closes, and fees already paid are not refunded.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Clients
+        W[Web app<br/>Vite + React + viem]
+        M[Native app<br/>Expo SDK 57]
+        A[AI agent<br/>MetaMask Agent Wallet<br/>+ mm-plugin-upside]
+    end
+    subgraph Monad
+        CB[CallBook]
+        VF[VaultFactory] --> FV[FollowVault clones]
+        CFG[UpsideConfig]
+        G[AttestedGate]
+        PS[KeeperPriceSource]
+        H[Handles]
+        ID[ERC-8004 IdentityRegistry]
+    end
+    K[Keeper<br/>Docker on a VPS]
+    X[(Kuru Flow · Perpl · Nansen x402)]
+
+    W & M -->|passkey-signed tx · Mera| CB & FV
+    A -->|policy-gated tx| CB & FV
+    A -->|register / read| ID
+    K -->|push mid, score, attest| PS & CB & G
+    W & M & A -->|/flow /receipts /poke| K
+    K <--> X
+    FV --> CFG
+    CB --> G & PS
 ```
 
-Protections, each covered by a test:
+## Smart contracts
 
-- **Losses come first:** the high-water mark is tracked per follower–caller pair (`test_highWaterMark_lossesRecoveredFirst`).
-- **No dodging the fee:** a vault can only swap through allowlisted routers, and both fills must land within `maxSlippageBps` of the mid. That blocks routing sale proceeds to another address (`test_redirectingProceedsReverts`).
-- **Base tokens stay put:** tokens backing an open position can't be withdrawn, so a follower can't exit outside the vault (`test_lockedBaseCannotBeWithdrawn`).
-- **Exposure limit:** each vault refuses follows beyond its own limit (`test_exposureLimit`).
-- **Fake followers don't count:** scores read only market mids (`test_fakeFollowersDoNotMoveScore`).
-- **Unverified callers earn $0:** the high-water mark still advances for them, so nothing is charged retroactively if they get verified later (`test_unverifiedCallerEarnsNothing`).
-- **Liquid pairs only:** calls can only be posted on allowlisted pairs.
+Foundry, Solidity 0.8.28, OpenZeppelin 5.1. Source in [`contracts/src`](contracts/src).
 
-## Run it locally (5 minutes)
+| Contract | Role |
+| --- | --- |
+| `CallBook` | Posts calls on allowlisted pairs (fee ≤ 30%), records the entry mid, scores after expiry, keeps each caller's record (posted, scored, wins, summed return). |
+| `VaultFactory` | Deterministic per-owner EIP-1167 clones of `FollowVault`, with a creation-time exposure cap. |
+| `FollowVault` | Follows and closes through allowlisted routers, measures proceeds by balance difference, enforces slippage against the mid and the exposure cap, and settles fees with a per-caller high-water mark. |
+| `UpsideConfig` | Router allowlist, settlement token, slippage limit, treasury and protocol share. |
+| `AttestedGate` | Time-bounded caller attestations (Cleanverse A-Pass in API mode; mock mode on demo venues only). |
+| `KeeperPriceSource` | Keeper-pushed mids with a staleness limit; `CallBook` accepts any `IPriceSource`. |
+| `Handles` | Unique public handles (`@ada`) for accounts. |
+| `demo/DemoRouter`, `demo/DemoToken` | Testnet-only router that fills at the mid, and faucet tokens. |
 
-Requires Node 20+ and [Foundry](https://getfoundry.sh).
+**Protections, each covered by a test** ([`Upside.t.sol`](contracts/test/Upside.t.sol), 21 tests in total):
+
+| Property | Test |
+| --- | --- |
+| Earlier losses are recovered before any fee | `test_highWaterMark_lossesRecoveredFirst` |
+| Sale proceeds can't be routed elsewhere to dodge the fee | `test_redirectingProceedsReverts` |
+| Base tokens backing an open position can't be withdrawn | `test_lockedBaseCannotBeWithdrawn` |
+| A vault refuses follows beyond its own cap | `test_exposureLimit` |
+| Fake followers don't move a call's score | `test_fakeFollowersDoNotMoveScore` |
+| Unverified callers earn $0 and aren't charged retroactively | `test_unverifiedCallerEarnsNothing` |
+
+Three further tests document current limitations rather than hide them: delayed scoring, stale prices blocking exits, and fees taken while another position is at an unrealized loss.
+
+**Monad testnet deployment** ([`contracts/deployments/10143.json`](contracts/deployments/10143.json)):
+
+| Contract | Address |
+| --- | --- |
+| CallBook | [`0x618861b1935bc2C2dB6d7F75cA6F3dfC81aac317`](https://testnet.monadvision.com/address/0x618861b1935bc2C2dB6d7F75cA6F3dfC81aac317) |
+| VaultFactory | [`0x056426DE47B68b55D9049F373a5bF72436D8ab49`](https://testnet.monadvision.com/address/0x056426DE47B68b55D9049F373a5bF72436D8ab49) |
+| AttestedGate | [`0x4894539218Fa5D838Bef29B7658f959aFB63F99b`](https://testnet.monadvision.com/address/0x4894539218Fa5D838Bef29B7658f959aFB63F99b) |
+| KeeperPriceSource | [`0x1255E1b9bc0351ea4527aE54dF182aec39f9A941`](https://testnet.monadvision.com/address/0x1255E1b9bc0351ea4527aE54dF182aec39f9A941) |
+| UpsideConfig | [`0x3Ff4b179E8389D02C3df9fa37822C230984d54d1`](https://testnet.monadvision.com/address/0x3Ff4b179E8389D02C3df9fa37822C230984d54d1) |
+| Handles | [`0x069453f5c4Fa2e112B40de44E3F8Fab9AD08c561`](https://testnet.monadvision.com/address/0x069453f5c4Fa2e112B40de44E3F8Fab9AD08c561) |
+
+## Apps and services
+
+### Web app — [`app/`](app)
+Vite, React and viem. It has a public landing page, documentation, and a passkey-gated trading workspace (Calls, Create, Vault, Record, Profile, Funding) in four themes.
+- Every write is prepared read-only, shown in a review sheet, and sent only after confirmation. Expired quotes, a changed account and missing gas are refused before signing.
+- On Monad, a refresh's contract reads go through Multicall3, so each viewer stays well under public RPC rate limits.
+
+### Native app — [`mobile/`](mobile)
+Expo SDK 57 for iOS and Android. It shares the web app's contract logic and adds native passkeys (`react-native-passkey` with Mera), separate onboarding and dock navigation. A signed APK is built with EAS, and passkey association files are served from the web domain.
+
+### MetaMask Agent Wallet plugin — [`mm-plugin/`](mm-plugin)
+`mm upside …` lets an AI agent follow attested callers within limits you set. A follow happens only if all four of these allow it:
+1. the caller's onchain record;
+2. your rules: attested only, minimum scored calls, win rate, maximum fee, call freshness, per-call size and daily budget;
+3. the vault's onchain exposure cap;
+4. your Agent Wallet policy, which can ask you to approve.
+
+```
+mm upside calls | caller <addr> | vault | deposit | follow <id> | close <id> | autopilot
+mm upside agent register | agent show <id>   # ERC-8004 identity that publishes the agent's mandate
+mm upside intel <addr>                       # Nansen Smart Money check, paid over x402
+```
+Details: [`mm-plugin/README.md`](mm-plugin/README.md) and the agent skill [`SKILL.md`](mm-plugin/skills/upside/SKILL.md).
+
+### Keeper — [`keeper/`](keeper)
+A Node service that runs in Docker behind Caddy ([`deploy/`](deploy)). It:
+- pushes prices on demand, while apps are open and before scoring;
+- scores calls after expiry and attests callers;
+- indexes follows and settlement receipts in 100-block chunks, because public RPCs cap `eth_getLogs`;
+- proxies Kuru Flow quotes, Perpl market context and Nansen labels.
+
+Its gas is metered against a daily cap, so a public `/poke` endpoint can't drain it.
+
+### Indexer — [`indexer/`](indexer)
+Envio HyperIndex v3 config, schema and handlers for calls, caller records, vaults, follows and settlements. Vaults are registered dynamically from `VaultCreated`.
+
+## Sponsor integrations
+
+Each row says what is built and what has actually been proven.
+
+| Integration | What Upside does with it | Status |
+| --- | --- | --- |
+| **Monad** | Contracts, passkey accounts and agent flows on Monad testnet; Multicall3 batching | Live on testnet with a recorded hosted round trip |
+| **Kuru** | Kuru Flow is the mainnet execution venue; its quotes provide the mid | Mainnet-fork round trip with live Kuru Flow calldata (bought 322.2 WMON for 10 AUSD, sold for 9.993) |
+| **Agora (AUSD)** | Settlement asset for vaults, fees and payouts | Contracts parameterised on AUSD; testnet uses a 6-decimal stand-in |
+| **Mera** | Passkey PRF → BIP-44 account → viem signing session, on web and native | Working on web; Android association published; physical-device test pending |
+| **MetaMask** | Agent Wallet plugin, agent skill and policy-gated writes | Installs in `mm` 7.0.0; core flows tested locally; live Guard Mode recording pending |
+| **ERC-8004** | Agent identity whose registration publishes its mandate | Verified against the official registry on a Monad testnet fork |
+| **x402 / Nansen** | Smart Money checks paid in USDC on Monad, with price, network and daily budget guards | Payment signed and verified up to Nansen's facilitator; funded settlement pending |
+| **Perpl** | "Skin in the game" badge: is the caller long or short MON on Perpl right now? | Read live from Perpl mainnet positions |
+| **Envio** | Indexer for the feed, records and settlements | Implemented; not yet running on a hosted indexer |
+| **Cleanverse** | `AttestedGate` driven by A-Pass status | API adapter written; demo uses mock attestations |
+
+## Run it locally
+
+Requires Node 22+ and [Foundry](https://getfoundry.sh).
 
 ```bash
-# 0. contract dependencies (first time only)
+# contract dependencies (first time)
 cd contracts && forge install foundry-rs/forge-std OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git && cd ..
 
 # 1. local chain
 anvil --port 8547
 
-# 2. in another terminal: deploy demo contracts, export ABIs, verify the demo caller "Ada"
+# 2. deploy demo contracts, export ABIs, attest the demo caller, set handles
 bash scripts/setup-local.sh
 
 # 3. keeper (Anvil's public test key #0)
-cd keeper && npm install && KEEPER_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 INTERVAL_MS=3000 npm start
+cd keeper && npm install && KEEPER_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 npm start
 
-# 4. app
-cd app && npm install && npm run dev   # http://localhost:5173
+# 4. web app at http://localhost:5173
+cd app && npm install && npm run dev
 ```
 
-On a local chain, the sign-in screen offers three demo accounts: **Ada** (verified caller), **Sybil Farm** (unverified caller) and **Femi** (follower). Post a 2-minute call as Ada, follow it as Femi, then close. The keeper scores the call when it expires.
+On the local chain the sign-in screen offers three demo accounts: **Ada** (attested caller), **Sybil Farm** (unverified) and **Femi** (follower). Post a 2-minute call as Ada, follow it as Femi, close it, and watch the keeper score it.
 
-Tests: `cd contracts && forge test`.
+| Check | Command |
+| --- | --- |
+| Contract tests | `cd contracts && forge test` |
+| Plugin end-to-end on Anvil | `cd mm-plugin && npm run test:local` |
+| ERC-8004 + x402 checks | `cd mm-plugin && npx tsx scripts/identity-x402-test.ts` (needs a Monad testnet fork on `:8549`) |
+| Mainnet-fork Kuru round trip | `cd keeper && CHAIN_ID=31338 RPC_URL=http://127.0.0.1:8548 KEEPER_KEY=<anvil key> npx tsx src/fork-test.ts` |
+| UI and QA suites | see [`scripts/qa/README.md`](scripts/qa/README.md) |
 
-## Deploy to Monad testnet
+## Deploy
+
+**Testnet contracts.** Use a fresh deployer wallet funded with testnet MON. The key is read from your environment and never committed.
 
 ```bash
-cd contracts
-DEMO=true forge script script/Deploy.s.sol --rpc-url monad_testnet --broadcast --private-key $DEPLOYER_KEY
-cd .. && node scripts/export-abi.mjs
-cd keeper && RPC_URL=https://testnet-rpc.monad.xyz CHAIN_ID=10143 KEEPER_KEY=$DEPLOYER_KEY npm start
-cd ../app && VITE_CHAIN_ID=10143 npm run dev
+DEPLOYER_KEY=0x... bash scripts/deploy-testnet.sh
+node scripts/sync-mobile.mjs     # ABIs and addresses for web, mobile and the MetaMask plugin
 ```
 
-**Live:** web app https://upside-monad.vercel.app · keeper API https://keeper.38.49.210.22.sslip.io (Docker + Caddy on a VPS; `deploy/deploy-keeper.sh`).
-
-**Live on Monad testnet** (chain 10143): CallBook `0x618861b1935bc2C2dB6d7F75cA6F3dfC81aac317`, VaultFactory `0x056426DE47B68b55D9049F373a5bF72436D8ab49`, AttestedGate `0x4894539218Fa5D838Bef29B7658f959aFB63F99b`, KeeperPriceSource `0x1255E1b9bc0351ea4527aE54dF182aec39f9A941`. All addresses are in `contracts/deployments/10143.json`.
-
-The keeper pushes prices on demand, because each push costs gas (about 0.005 MON on testnet). It pushes every `PUSH_MS` (30s) while an app or the MetaMask plugin has pinged `POST /poke` in the last 5 minutes, and otherwise only right before scoring an expired call. With nobody using Upside it sends nothing. `ALWAYS_ON=1` restores constant pushing. `MAX_DAILY_MON` (default 1) caps the gas spent on these activity pushes per UTC day; pushes needed to score expired calls always go through. On testnet the demo price walks by elapsed time, so a call that expires while nobody is watching still sees a realistic move.
-
-Testnet uses demo tokens and a `DemoRouter` that fills at the keeper's mid, so the full loop can be shown without testnet liquidity. Fund the deployer with testnet MON first. Passkeys need HTTPS or `localhost`; for phones, deploy the built `app/dist` to any HTTPS host.
-
-## Mainnet fork check (real Kuru liquidity, no real money)
+**Keeper** (Docker + Caddy on any VPS). The key is stored only in a root-readable env file on the server.
 
 ```bash
-anvil --fork-url https://rpc.monad.xyz --chain-id 31338 --port 8548
-cd contracts && DEMO=false SETTLEMENT_TOKEN=0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a   BASE_TOKEN=0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A ROUTER=0xb3e6778480b2E488385E8205eA05E20060B813cb   forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8548 --broadcast --slow --private-key <anvil key 0>
-cd .. && node scripts/export-abi.mjs
-cd keeper && CHAIN_ID=31338 RPC_URL=http://127.0.0.1:8548 KEEPER_KEY=<anvil key 0> npx tsx src/fork-test.ts
+VPS=root@<host> SSH_KEY=~/.ssh/<key> KEEPER_HOST=keeper.<domain> \
+ALLOWED_ORIGIN=https://<web-app-domain> bash deploy/deploy-keeper.sh
 ```
 
-## Mainnet
+**Web app** (any static host; production uses Vercel):
 
-`DEMO=false` with `SETTLEMENT_TOKEN` (AUSD `0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a`), `BASE_TOKEN` and `ROUTER` (`0xb3e6778480b2E488385E8205eA05E20060B813cb`, the Kuru Flow router). Base token WMON is `0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A`. The keeper then prices from Kuru quotes and serves a quote proxy on `:8788` (Kuru Flow needs a JWT per address, 1 request/second); set `VITE_KEEPER_API` (web) / `EXPO_PUBLIC_KEEPER_API` (mobile) to its public URL. The same API serves Perpl's market context; `VITE_PERPL_NETWORK` / `EXPO_PUBLIC_PERPL_NETWORK` choose which Perpl exchange the badge reads (defaults to the deployment's chain).
+```bash
+cd app && VITE_CHAIN_ID=10143 VITE_KEEPER_API=https://keeper.<domain> npm run build   # serve app/dist
+```
 
-## Sponsor integrations
+**Mainnet.** Deploy with `DEMO=false`, AUSD as `SETTLEMENT_TOKEN`, WMON as `BASE_TOKEN` and the Kuru Flow router `0xb3e6778480b2E488385E8205eA05E20060B813cb`. The keeper then prices from Kuru quotes and serves the quote proxy.
 
-| Sponsor | Where | Status |
-| --- | --- | --- |
-| **Agora (AUSD)** | Settlement token for every vault, fee and payout | Contracts parameterised on AUSD; demo uses a 6-decimal stand-in |
-| **Kuru** | Spot execution via Kuru Flow quotes (router `0xb3e6778480b2E488385E8205eA05E20060B813cb`); mid used for scoring | **Verified on a mainnet fork:** a FollowVault bought 322.2 WMON for 10 AUSD and sold back for 9.993 AUSD with live Kuru Flow calldata (`keeper/src/fork-test.ts`). Testnet uses DemoRouter. |
-| **Mera (Monad Foundation)** | Passkey sign-up and sign-in; PRF output → BIP-44 account → `toViemAccount` signing session | Implemented (`app/src/lib/account.ts`) |
-| **Cleanverse** | `AttestedGate`: the keeper attests callers with an active A-Pass (`keeper/src/attest.ts`, `CLEANVERSE_MODE=api`) | API path written, untested without credentials; `mock` mode for demos |
-| **Envio** | `indexer/` (HyperIndex v3): calls, caller records, vaults, follows and settlements; vaults registered dynamically from `VaultCreated` | Written for v3; `node scripts/indexer-config.mjs <chainId>` fills addresses. Not yet run: the Envio CLI has no native Windows build, so run it in WSL or Envio's hosted service |
-| **Perpl** | "Skin in the game" badge on every call and caller profile: whether the caller holds MON on Perpl right now, long or short, entry and P&L, flagged when it's the opposite of their public call. Market metadata from Perpl's public API (`/api/v1/pub/context`, via the keeper because it lacks CORS); positions read from Perpl's Exchange contract (`getAccountByAddr`, `getPosition`) | **Verified against Perpl mainnet:** real long and short MON positions render in both apps (`app/src/lib/perpl.ts`) |
-| **Nansen** | Caller intelligence: a "Nansen · Smart Trader" chip on calls and the full label list on caller profiles. The keeper either uses `NANSEN_API_KEY` (`/api/v1/profiler/address/labels`, chain `monad`) or pays per call with **USDC on Monad via x402** (`NANSEN_PAY=1`; `/api/v1/smart-money/dex-trades` on Monad, $0.05, refreshed every `NANSEN_REFRESH_MIN`) | x402 flow verified up to settlement on Monad: Nansen's 402 terms accept `eip155:143` USDC, the keeper signs, and Monad's facilitator verifies (rejected only for zero balance in the test wallet). Fund the paying wallet with a few cents of USDC on Monad, or set an API key. UI checked with local-only mock labels (`NANSEN_MOCK`) |
-| **MetaMask** | Agent Wallet plugin `mm-plugin-upside`: `mm upside calls / caller / vault / deposit / follow / close / autopilot`, plus an agent skill (`mm-plugin/skills/upside/SKILL.md`). An agent can follow a call only when four layers allow it: the caller's onchain record, the user's rules (verified, record, fee, freshness, per-call size, daily budget), the vault's onchain exposure cap, and the Agent Wallet policy. Writes go through `ctx.walletExecutor` with a human-readable intent. **ERC-8004:** `mm upside agent register / show` publishes the agent's mandate in the official IdentityRegistry on Monad (`register(string)` with a base64 data URI, id from `Registered`; `ownerOf`, `tokenURI`, `getAgentWallet`). **x402:** `mm upside intel` and `--smart-money-only` pay Nansen $0.05 USDC on Monad, with the EIP-712 authorization signed by the Agent Wallet (`x402HTTPClient` + `registerExactEvmScheme`) | Installs into `mm` 7.0.0; read commands run there against live chain data. Autopilot verified on Anvil (13 checks). ERC-8004 registration verified against the real registry on a Monad testnet fork; x402 verified up to Nansen's facilitator (rejected only for an empty test wallet). Signing through a real Agent Wallet needs the user's `mm login` |
+## Verification and evidence
 
-## Known limits (honest list)
+| Document | What it covers |
+| --- | --- |
+| [`docs/submission.md`](docs/submission.md) | Submission text and the integration claims table |
+| [`docs/priority-work-status.md`](docs/priority-work-status.md) | What was built, tested and still pending |
+| [`docs/design/README.md`](docs/design/README.md) | Page-by-page design review and QA evidence (web and native) |
+| [`docs/design/hosted-testnet-results.json`](docs/design/hosted-testnet-results.json) | Hosted testnet round trip, with transaction hashes |
+| [`docs/keeper-score-exit-decision.md`](docs/keeper-score-exit-decision.md) | Keeper, scoring and exit trust boundaries |
+| [`docs/phone-test.md`](docs/phone-test.md) | Android/iPhone install and acceptance sheet |
+| [`docs/demo/`](docs/demo) | Video script, shot list and a local recording |
+| [`brand/README.md`](brand/README.md) | Identity, type, colour tokens and artwork provenance |
 
-- **Prices are keeper-posted.** `KeeperPriceSource` takes the mid from a keeper with a 10-minute staleness limit. A Kuru orderbook adapter can replace it, since `CallBook` accepts any `IPriceSource`.
-- **Scoring runs when the keeper calls it.** Scoring happens at the first `scoreCall` after expiry, which is anyone's to send. The keeper scores within seconds.
-- **The fee rate follows the closing call.** `feeBps` applies per closing call, while net and the high-water mark are tracked per caller.
-- **Spot and long only.** Shorts and perps (Perpl) come later.
-- **Not audited.** Hackathon code.
+## Trust assumptions and known limits
+
+This is a hackathon prototype and **has not been audited**.
+
+- **Prices are keeper-posted.** `KeeperPriceSource` trusts a keeper with a 10-minute staleness limit. A stale price blocks exits until it's refreshed. Any `IPriceSource`, such as a Kuru order-book adapter, can replace it.
+- **Scoring happens after expiry, when someone scores.** The keeper scores within seconds, but the exit is the mid at scoring time, not a historical observation at expiry.
+- **Administrator configuration is trusted.** That covers the router allowlist, attesters, treasury and protocol share.
+- **The fee rule is per caller.** Fees use realized results and the closing call's rate. Open losses and gas are excluded, and fees already paid aren't refunded.
+- **Agent budgets are local.** The plugin's daily allowance lives in the client. Only the vault's exposure cap is enforced onchain.
+- **Spot and long only** for vault follows.
+- **Reputation isn't Sybil-proof.** Scores ignore followers, but nothing proves a caller is one person beyond their attestation.
+
+## Repository layout
+
+```
+upside/
+├── contracts/     Foundry: CallBook, FollowVault, VaultFactory, UpsideConfig, AttestedGate,
+│                  KeeperPriceSource, Handles, demo/ (testnet router + tokens), 21 tests
+├── app/           Web app: landing, docs, passkey-gated workspace (Vite + React + viem)
+├── mobile/        Native app (Expo SDK 57), shares contract logic with the web app
+├── mm-plugin/     MetaMask Agent Wallet plugin + agent skill (ERC-8004, x402)
+├── keeper/        Price pushes, scoring, attestations, receipts index, sponsor proxies
+├── indexer/       Envio HyperIndex config, schema and handlers
+├── deploy/        Keeper Dockerfile, Caddy site, VPS deploy script
+├── scripts/       Local setup, testnet deploy, ABI/address sync, QA suites
+├── brand/         Identity guide and tokens
+└── docs/          Submission, reviews, evidence, phone tests, demo materials
+```
+
+---
+
+<p align="center">
+  Built for <b>Monad Metropolis 2026</b> · Track 03: Social, Attention &amp; Culture
+</p>
