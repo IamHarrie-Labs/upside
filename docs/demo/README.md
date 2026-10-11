@@ -1,5 +1,7 @@
 # Demo and rehearsal
 
+**Recording script:** [`script.md`](script.md), a scene-by-scene 3-minute script with narration, on-screen actions, captions and a pre-recording checklist.
+
 `round-trip-local.webm` is a real browser recording of the local transaction QA flow. It is a fallback execution recording, without narration. It uses public Anvil test accounts, a demo venue and deliberately controlled prices. Do not label it hosted market performance or a physical mobile test.
 
 ## Three-minute narration and shot list
