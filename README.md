@@ -19,6 +19,7 @@
   <img alt="Foundry tests" src="https://img.shields.io/badge/forge%20tests-21%20passing-2f7d4f?style=flat-square">
   <img alt="Expo" src="https://img.shields.io/badge/Expo-SDK%2057-000020?style=flat-square&logo=expo">
   <img alt="Metropolis 2026" src="https://img.shields.io/badge/Monad%20Metropolis-2026-b45a3c?style=flat-square">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-5a5a5a?style=flat-square"></a>
 </p>
 
 <p align="center">
@@ -47,6 +48,7 @@
 - [Verification and evidence](#verification-and-evidence)
 - [Trust assumptions and known limits](#trust-assumptions-and-known-limits)
 - [Repository layout](#repository-layout)
+- [License](#license)
 
 ---
 
@@ -363,6 +365,10 @@ upside/
 ├── brand/         Identity guide and tokens
 └── docs/          Submission, reviews, evidence, phone tests, demo materials
 ```
+
+## License
+
+[MIT](LICENSE) © 2026 Harrie (IamHarrie-Labs). Third-party fonts and artwork keep their own licenses: Space Grotesk is under the SIL Open Font License ([`app/public/fonts/OFL.txt`](app/public/fonts/OFL.txt)), and artwork provenance is in [`app/public/art/README.md`](app/public/art/README.md).
 
 ---
 
