@@ -6,7 +6,7 @@ import { asCommandError, chainIdFrom, chainInput, walletHost } from "../../../ho
 import { amountFrom, mandateOf, ruleInputs, rulesFrom } from "../../../rules.js";
 
 const inputs = {
-  name: { type: InputFieldType.Text, flag: "name", message: "Agent name, e.g. \"Ada follower\"", required: true, prompt: true },
+  name: { type: InputFieldType.Text, flag: "name", message: "Agent name, e.g. \"Sarah follower\"", required: true, prompt: true },
   description: { type: InputFieldType.Text, flag: "description", message: "Optional description (one is generated from the mandate)", required: false, prompt: false },
   perCall: { type: InputFieldType.Text, flag: "per-call", message: "Mandate: AUSD per followed call (default 10)", required: false, prompt: false },
   dailyBudget: { type: InputFieldType.Text, flag: "daily-budget", message: "Mandate: most AUSD in new follows per day (default 50)", required: false, prompt: false },
@@ -20,7 +20,7 @@ export default class UpsideAgentRegister extends PluginCommand<Result> {
   static override description =
     "Register this wallet's Upside follow agent as an ERC-8004 identity on Monad, publishing its mandate (rules, per-call size, daily budget, vault) in the agent URI so anyone can check it.";
   static override examples = [
-    '<%= config.bin %> upside agent register --name "Ada follower" --per-call 10 --daily-budget 50 --min-scored 5',
+    '<%= config.bin %> upside agent register --name "Sarah follower" --per-call 10 --daily-budget 50 --min-scored 5',
   ];
   static override flags = schemaToFlags(inputs);
   static override args = schemaToArgs(inputs);

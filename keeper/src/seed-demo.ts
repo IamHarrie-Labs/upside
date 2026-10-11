@@ -1,13 +1,13 @@
 // Seeds a demo venue (testnet) with the three demo personas, so the feed, leaderboard and portfolio have
 // something real to show:
-//   @ada         verified caller: a few short calls that get scored now, plus open calls for the coming days
+//   @sarah         verified caller: a few short calls that get scored now, plus open calls for the coming days
 //   @sybil_farm  unverified caller: one call with a pile of fake followers from fresh wallets
-//   @femi        follower: follows one of Ada's short calls and closes it after expiry (fee or "still down"),
-//                and holds an open position on one of Ada's longer calls
+//   @femi        follower: follows one of Sarah's short calls and closes it after expiry (fee or "still down"),
+//                and holds an open position on one of Sarah's longer calls
 // Outcomes come from the keeper's simulated market; nothing is staged.
 //
 // Persona keys are created once and saved to ../.env.demo (git-ignored; testnet only). The deployer
-// (KEEPER_KEY) funds them with testnet MON and attests Ada (mock Cleanverse).
+// (KEEPER_KEY) funds them with testnet MON and attests Sarah (mock Cleanverse).
 //
 //   CHAIN_ID=10143 RPC_URL=https://testnet-rpc.monad.xyz KEEPER_KEY=... KEEPER_API=https://... npx tsx src/seed-demo.ts
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -63,13 +63,13 @@ const persona = (key: string) => {
   const account = privateKeyToAccount(key as Hex);
   return { account, wallet: createWalletClient({ chain, transport: rpcTransport(), account }) };
 };
-// SEED_FINISH=1 skips to the last step after an interrupted run: wait for Ada's short calls (SEED_SHORT, default
+// SEED_FINISH=1 skips to the last step after an interrupted run: wait for Sarah's short calls (SEED_SHORT, default
 // "0,1,2,3") to be scored, then Femi closes her position on the first one (FEMI_POSITION, default 0).
 const FINISH = process.env.SEED_FINISH === "1";
-const ada = persona(saved.ADA_KEY);
+const sarah = persona(saved.ADA_KEY);
 const sybil = persona(saved.SYBIL_KEY);
 const femi = persona(saved.FEMI_KEY);
-console.log(`personas: ada ${ada.account.address} · sybil_farm ${sybil.account.address} · femi ${femi.account.address}`);
+console.log(`personas: sarah ${sarah.account.address} · sybil_farm ${sybil.account.address} · femi ${femi.account.address}`);
 
 // Keep the keeper pushing prices (and scoring) while we work.
 const poke = () => (KEEPER_API ? fetch(`${KEEPER_API}/poke`, { method: "POST" }).catch(() => {}) : Promise.resolve());
@@ -173,33 +173,33 @@ if (FINISH) {
   femiShort = Number(process.env.FEMI_POSITION ?? 0);
 } else {
 console.log("1/6 funding personas with testnet MON");
-await fund(ada.account.address, "0.4");
+await fund(sarah.account.address, "0.4");
 await fund(femi.account.address, "0.4");
 await fund(sybil.account.address, "0.3");
 
-console.log("2/6 verifying Ada (mock Cleanverse A-Pass, 30 days) and setting handles");
-const adaVerified = await publicClient.readContract({ address: d.gate, abi: AttestedGateAbi, functionName: "isVerified", args: [ada.account.address] });
+console.log("2/6 verifying Sarah (mock Cleanverse A-Pass, 30 days) and setting handles");
+const adaVerified = await publicClient.readContract({ address: d.gate, abi: AttestedGateAbi, functionName: "isVerified", args: [sarah.account.address] });
 if (!adaVerified)
   await wait(
     await walletClient.writeContract({
       address: d.gate,
       abi: AttestedGateAbi,
       functionName: "attest",
-      args: [ada.account.address, BigInt(Math.floor(Date.now() / 1000) + 30 * 86_400), `0x${"00".repeat(31)}01`],
+      args: [sarah.account.address, BigInt(Math.floor(Date.now() / 1000) + 30 * 86_400), `0x${"00".repeat(31)}01`],
     }),
   );
-await setHandle(ada, "ada");
+await setHandle(sarah, "sarah");
 await setHandle(sybil, "sybil_farm");
 await setHandle(femi, "femi");
 
-console.log("3/6 Ada posts short calls (scored in minutes) and open calls for the coming days");
-for (const h of [180, 240, 300, 360]) short.push(await post(ada, h, 1500, 2, 2));
-const open24h = await post(ada, 24 * 3600, 1500, 6, 4);
-const open3d = await post(ada, 3 * 86_400, 2000, 12, 6);
-const open6h = await post(ada, 6 * 3600, 1000, 3, 2);
+console.log("3/6 Sarah posts short calls (scored in minutes) and open calls for the coming days");
+for (const h of [180, 240, 300, 360]) short.push(await post(sarah, h, 1500, 2, 2));
+const open24h = await post(sarah, 24 * 3600, 1500, 6, 4);
+const open3d = await post(sarah, 3 * 86_400, 2000, 12, 6);
+const open6h = await post(sarah, 6 * 3600, 1000, 3, 2);
 console.log(`   short #${short.join(", #")} · open #${open6h} (6h), #${open24h} (24h), #${open3d} (3d)`);
 
-console.log("4/6 Femi follows Ada's first short call and her 24h call");
+console.log("4/6 Femi follows Sarah's first short call and her 24h call");
 femiVault = await vaultFor(femi, "500", "500");
 femiShort = await follow(femi, femiVault, short[0], "100");
 const femiLong = await follow(femi, femiVault, open24h, "50");
@@ -217,7 +217,7 @@ for (let i = 0; i < FAKE_FOLLOWERS; i++) {
 console.log(`\n   call #${sybilCall}: ${FAKE_FOLLOWERS} wallets, $${FAKE_FOLLOWERS * 100} behind it`);
 }
 
-console.log("6/6 waiting for Ada's short calls to be scored, then Femi closes");
+console.log("6/6 waiting for Sarah's short calls to be scored, then Femi closes");
 const deadline = Date.now() + 20 * 60_000;
 for (;;) {
   const calls = await Promise.all(short.map(getCall));
@@ -225,19 +225,19 @@ for (;;) {
   if (Date.now() > deadline) throw new Error("scoring timed out: is the keeper running?");
   await sleep(10_000);
 }
-const before: any = await publicClient.readContract({ address: femiVault, abi: FollowVaultAbi, functionName: "netPnl", args: [ada.account.address] });
+const before: any = await publicClient.readContract({ address: femiVault, abi: FollowVaultAbi, functionName: "netPnl", args: [sarah.account.address] });
 await close(femi, femiVault, femiShort);
-const net: bigint = (await publicClient.readContract({ address: femiVault, abi: FollowVaultAbi, functionName: "netPnl", args: [ada.account.address] })) as bigint;
-const hwm: bigint = (await publicClient.readContract({ address: femiVault, abi: FollowVaultAbi, functionName: "highWater", args: [ada.account.address] })) as bigint;
+const net: bigint = (await publicClient.readContract({ address: femiVault, abi: FollowVaultAbi, functionName: "netPnl", args: [sarah.account.address] })) as bigint;
+const hwm: bigint = (await publicClient.readContract({ address: femiVault, abi: FollowVaultAbi, functionName: "highWater", args: [sarah.account.address] })) as bigint;
 
 clearInterval(poker);
 const scored = await Promise.all(short.map(getCall));
-const rec = (await publicClient.readContract({ address: d.callBook, abi: CallBookAbi, functionName: "records", args: [ada.account.address] })) as readonly [bigint, number, number, number];
+const rec = (await publicClient.readContract({ address: d.callBook, abi: CallBookAbi, functionName: "records", args: [sarah.account.address] })) as readonly [bigint, number, number, number];
 const end = await publicClient.getBalance({ address: walletClient.account.address });
 console.log("\nDone.");
-console.log(`@ada: ${rec[3]}/${rec[2]} wins; short calls: ${scored.map((c, i) => `#${short[i]} ${(Number(c.returnBps) / 100).toFixed(2)}%`).join(", ")}`);
+console.log(`@sarah: ${rec[3]}/${rec[2]} wins; short calls: ${scored.map((c, i) => `#${short[i]} ${(Number(c.returnBps) / 100).toFixed(2)}%`).join(", ")}`);
 console.log(
-  `@femi closed #${femiShort}: net P&L with @ada ${(Number(net) / 1e6).toFixed(2)} AUSD (was ${(Number(before) / 1e6).toFixed(2)}), ` +
-    (net > 0n && hwm > 0n ? "caller fee paid from the gain" : "still down or flat: @ada earns nothing"),
+  `@femi closed #${femiShort}: net P&L with @sarah ${(Number(net) / 1e6).toFixed(2)} AUSD (was ${(Number(before) / 1e6).toFixed(2)}), ` +
+    (net > 0n && hwm > 0n ? "caller fee paid from the gain" : "still down or flat: @sarah earns nothing"),
 );
 console.log(`deployer spent ${formatEther(start - end)} MON (funding + attest)`);

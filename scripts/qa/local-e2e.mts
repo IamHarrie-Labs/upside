@@ -8,7 +8,7 @@ const d=JSON.parse(readFileSync('contracts/deployments/31337.json','utf8'));
 if(d.chainId!==31337)throw new Error('Local chain only.');
 const chain=defineChain({id:31337,name:'Local QA',nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:[process.env.UPSIDE_RPC_URL ?? 'http://127.0.0.1:8547']}}});
 const owner=privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
-const ada=privateKeyToAccount('0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d');
+const sarah=privateKeyToAccount('0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d');
 const femi=privateKeyToAccount('0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6');
 const pub=createPublicClient({chain,transport:http()});
 const wallet=(account:any)=>createWalletClient({account,chain,transport:http()});
@@ -16,8 +16,8 @@ const send=async(account:any,address:any,abi:any,name:string,args:any[])=>{const
 const read=(address:any,abi:any,name:string,args:any[]=[])=>pub.readContract({address,abi,functionName:name,args} as any);
 const callId=Number(await read(d.callBook,CallBookAbi,'callCount'));
 const block=await pub.getBlock();
-await send(owner,d.gate,AttestedGateAbi,'attest',[ada.address,block.timestamp+2592000n,'0x'+'11'.repeat(32)]);
-await send(ada,d.handles,HandlesAbi,'setHandle',['ada']);await send(femi,d.handles,HandlesAbi,'setHandle',['femi']);
+await send(owner,d.gate,AttestedGateAbi,'attest',[sarah.address,block.timestamp+2592000n,'0x'+'11'.repeat(32)]);
+await send(sarah,d.handles,HandlesAbi,'setHandle',['sarah']);await send(femi,d.handles,HandlesAbi,'setHandle',['femi']);
 await send(owner,d.priceSource,KeeperPriceSourceAbi,'push',[d.base,d.settlement,2000000n]);
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
 const context=await browser.newContext({viewport:{width:1280,height:900},...(process.env.UPSIDE_RECORD ? {recordVideo:{dir:'docs/demo/raw',size:{width:1280,height:900}}}: {})});const page=await context.newPage();const pause=async()=>{if(process.env.UPSIDE_RECORD)await page.waitForTimeout(3000);};const errors:string[]=[];page.on('pageerror',(e:any)=>errors.push(e.message));
@@ -32,7 +32,7 @@ await page.getByRole('button',{name:'Vault',exact:true}).click();await page.getB
 await page.getByRole('button',{name:'Close and settle'}).click();await page.getByRole('status').filter({hasText:'Closing follow #0. Done.'}).waitFor();
 
 const actualCash=await read(d.settlement,DemoTokenAbi,'balanceOf',[vault]);
-const callerPayout=await read(d.settlement,DemoTokenAbi,'balanceOf',[ada.address]);
+const callerPayout=await read(d.settlement,DemoTokenAbi,'balanceOf',[sarah.address]);
 if(actualCash!==508000000n||callerPayout!==1800000n)throw new Error('Unexpected settlement balances');
 await page.getByText(`Call #${callId} · settlement receipt`,{exact:false}).click();await pause();await page.screenshot({path:'docs/design/screens/submission-real-receipt.png',fullPage:true});await page.getByText('Fund or withdraw your vault',{exact:true}).click();await page.getByLabel('Withdraw available AUSD to your account').fill('5');await page.getByRole('button',{name:'Withdraw to my account'}).click();await page.getByRole('status').filter({hasText:'Withdrawing available cash. Done.'}).waitFor();
 const withdrawn=await read(d.settlement,DemoTokenAbi,'balanceOf',[femi.address]);if(withdrawn!==5000000n)throw new Error('Withdrawal not received');

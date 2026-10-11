@@ -73,11 +73,11 @@ Paid trading signals charge whether you win or lose. Track records are screensho
     <td colspan="2"><img src="docs/design/screens/grotesk-hero-desktop.png" alt="Landing page: Good calls. Shared upside."></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/design/screens/workspace-ivory-calls-1440.png" alt="Calls workspace with vault cash, exposure and live calls"><br><sub><b>Calls workspace.</b> Vault cash, open exposure against your cap, live and scored calls, verified and unverified callers.</sub></td>
-    <td width="50%"><img src="docs/design/screens/workspace-forest-trade-review-1440.png" alt="Review your follow dialog before signing"><br><sub><b>Review before signing.</b> Amount, minimum received, exposure after, venue, price tolerance and the exact fee rule. Cancel sends nothing.</sub></td>
+    <td width="50%"><img src="docs/images/calls-workspace.png" alt="Calls workspace with vault cash, exposure and live calls"><br><sub><b>Calls workspace.</b> Vault cash, open exposure against your cap, live and scored calls, verified and unverified callers.</sub></td>
+    <td width="50%"><img src="docs/images/trade-review.png" alt="Review your follow dialog before signing"><br><sub><b>Review before signing.</b> Amount, minimum received, exposure after, venue, price tolerance and the exact fee rule. Cancel sends nothing.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/design/screens/local-real-receipt.png" alt="Settlement receipt showing principal, proceeds, fee split"><br><sub><b>Settlement receipt.</b> 50 → 60 AUSD: 10 above the previous peak, 20% fee = 2 AUSD (1.8 to the caller, 0.2 protocol). Read from the vault's <code>Closed</code> event.</sub></td>
+    <td width="50%"><img src="docs/images/settlement-receipt.png" alt="Settlement receipt showing principal, proceeds, fee split"><br><sub><b>Settlement receipt.</b> 50 → 60 AUSD: 10 above the previous peak, 20% fee = 2 AUSD (1.8 to the caller, 0.2 protocol). Read from the vault's <code>Closed</code> event.</sub></td>
     <td width="50%">
       <table>
         <tr>
@@ -105,9 +105,9 @@ The testnet venue is seeded with three demo personas, so the feed, leaderboard a
 
 | Persona | Role | Address |
 | --- | --- | --- |
-| `@ada` | Attested caller. Short calls already scored and longer calls still open; her record is whatever the market did. | [`0xE902…de03`](https://testnet.monadvision.com/address/0xE902aDdcB27e3a94e03956CD640B9844918ede03) |
+| `@sarah` | Attested caller. Seven scored calls, losses included; her record is whatever the market did. | [`0xE902…de03`](https://testnet.monadvision.com/address/0xE902aDdcB27e3a94e03956CD640B9844918ede03) |
 | `@sybil_farm` | Unverified caller. One call with seven fake follower wallets and $700 behind it, which changes neither its score nor its earnings ($0). | [`0x47Ab…7dE2`](https://testnet.monadvision.com/address/0x47Ab979DDC3C8b3808b2a15c5705BAF5754D7dE2) |
-| `@femi` | Follower. Closed a small loss on one of Ada's calls, so Ada earned nothing, and holds a position on another. | [`0x2783…1260`](https://testnet.monadvision.com/address/0x2783A70056f52dBff0Bf28FFE9227e16986D1260) |
+| `@femi` | Follower. Closed a small loss on one of Sarah's calls, so Sarah earned nothing, and holds a position on another. | [`0x2783…1260`](https://testnet.monadvision.com/address/0x2783A70056f52dBff0Bf28FFE9227e16986D1260) |
 
 **Recorded hosted round trip (call 11):** [follow](https://testnet.monadvision.com/tx/0xba660f9fc12533021c598dc10b49d2d743a1cb0e88394fe7618affb05b52f631) → [close](https://testnet.monadvision.com/tx/0x8db57557cfd52bc27bbd641714efc35e7310207b408600de3cf3a478fc648c94) → [withdraw](https://testnet.monadvision.com/tx/0x78e8f54ddd6a5c6955907cb6701dc15fa76848af759c4f73b3a633685640aec5). It closed at a one-raw-unit loss, so the fee was zero. Full record: [`hosted-testnet-results.json`](docs/design/hosted-testnet-results.json).
 
@@ -189,7 +189,7 @@ Foundry, Solidity 0.8.28, OpenZeppelin 5.1. Source in [`contracts/src`](contract
 | `UpsideConfig` | Router allowlist, settlement token, slippage limit, treasury and protocol share. |
 | `AttestedGate` | Time-bounded caller attestations (Cleanverse A-Pass in API mode; mock mode on demo venues only). |
 | `KeeperPriceSource` | Keeper-pushed mids with a staleness limit; `CallBook` accepts any `IPriceSource`. |
-| `Handles` | Unique public handles (`@ada`) for accounts. |
+| `Handles` | Unique public handles (`@sarah`) for accounts. |
 | `demo/DemoRouter`, `demo/DemoToken` | Testnet-only router that fills at the mid, and faucet tokens. |
 
 **Protections, each covered by a test** ([`Upside.t.sol`](contracts/test/Upside.t.sol), 21 tests in total):
@@ -290,7 +290,7 @@ cd keeper && npm install && KEEPER_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb47
 cd app && npm install && npm run dev
 ```
 
-On the local chain the sign-in screen offers three demo accounts: **Ada** (attested caller), **Sybil Farm** (unverified) and **Femi** (follower). Post a 2-minute call as Ada, follow it as Femi, close it, and watch the keeper score it.
+On the local chain the sign-in screen offers three demo accounts: **Sarah** (attested caller), **Sybil Farm** (unverified) and **Femi** (follower). Post a 2-minute call as Sarah, follow it as Femi, close it, and watch the keeper score it.
 
 | Check | Command |
 | --- | --- |

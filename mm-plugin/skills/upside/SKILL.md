@@ -98,6 +98,6 @@ Rule flags, shared by `follow` and `autopilot`:
 User: "Put 10 AUSD behind the best verified caller on testnet, nothing above a 15% fee."
 
 1. `mm upside calls --json` → choose open calls from verified callers with `feeBps` ≤ 1500.
-2. `mm upside caller 0x… --json` → "Ada: 7 wins from 9 scored calls, average +2.1%, verified."
+2. `mm upside caller 0x… --json` → "Sarah: 7 wins from 9 scored calls, average +2.1%, verified."
 3. `mm upside follow 12 --amount 10 --max-fee-pct 15 --dry-run --json` → passes.
 4. Confirm with the user, then run the same command without `--dry-run`.

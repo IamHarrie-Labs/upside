@@ -26,7 +26,7 @@ mm upside deposit --amount 50            create and fund your vault (testnet: mi
 mm upside follow <callId> --amount 10    follow one call, if it passes your rules
 mm upside close <positionId>             sell back to AUSD
 mm upside autopilot --per-call 10 --daily-budget 50 [--watch] [--dry-run] [--smart-money-only]
-mm upside agent register --name "Ada follower" --per-call 10 --daily-budget 50    ERC-8004 identity + mandate
+mm upside agent register --name "Sarah follower" --per-call 10 --daily-budget 50    ERC-8004 identity + mandate
 mm upside agent show <agentId>           owner, agent wallet, decoded registration and mandate
 mm upside intel <address>                Nansen Smart Money check, paid $0.05 USDC on Monad via x402
 ```

@@ -15,16 +15,16 @@ contract HandlesTest is Test {
 
     function test_setAndRename() public {
         vm.prank(a);
-        h.setHandle("ada");
-        assertEq(h.handleOf(a), "ada");
-        assertEq(h.ownerOf(keccak256("ada")), a);
+        h.setHandle("sarah");
+        assertEq(h.handleOf(a), "sarah");
+        assertEq(h.ownerOf(keccak256("sarah")), a);
 
         vm.prank(a);
         h.setHandle("ada_calls");
-        assertEq(h.ownerOf(keccak256("ada")), address(0)); // released
+        assertEq(h.ownerOf(keccak256("sarah")), address(0)); // released
         vm.prank(b);
-        h.setHandle("ada"); // now free
-        assertEq(h.handleOf(b), "ada");
+        h.setHandle("sarah"); // now free
+        assertEq(h.handleOf(b), "sarah");
     }
 
     function test_uniqueness() public {
@@ -40,9 +40,9 @@ contract HandlesTest is Test {
         vm.expectRevert(Handles.BadHandle.selector);
         h.setHandle("ab");
         vm.expectRevert(Handles.BadHandle.selector);
-        h.setHandle("Ada");
+        h.setHandle("Sarah");
         vm.expectRevert(Handles.BadHandle.selector);
-        h.setHandle("ada-x");
+        h.setHandle("sarah-x");
         vm.expectRevert(Handles.BadHandle.selector);
         h.setHandle("abcdefghijklmnopqrstu");
         vm.stopPrank();

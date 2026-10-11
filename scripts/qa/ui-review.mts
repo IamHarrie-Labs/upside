@@ -5,13 +5,13 @@ import * as abis from '../../app/src/abi.ts';
 const require = createRequire(import.meta.url);
 const { chromium } = require('C:/Users/Harrie/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const abi = Object.values(abis).flat();
-const ADA='0x70997970c51812dc3a010c7d01b50e0d17dc79c8';
+const SARAH='0x70997970c51812dc3a010c7d01b50e0d17dc79c8';
 const SYBIL='0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc';
 const VAULT='0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const now=Math.floor(Date.now()/1000);
 let mode='normal'; let writes=0;let confirmationRefusals=0;const failureOnly=process.env.UPSIDE_REVIEW_FAILURE_ONLY==='1';const routeOnly=process.env.UPSIDE_ROUTE_ONLY==='1';
-const call=(id:number)=>({caller:id%2?SYBIL:ADA,base:VAULT,quote:VAULT,side:0,feeBps:2000,verifiedAtPost:id%2===0,scored:id>=2,postedAt:now-4000+id*100,expiry:id>=2?now-30:now+3600,entryMid:35000n,targetMid:36500n,stopMid:34000n,exitMid:id>=2?35500n:0n,returnBps:id===2?142n:id===3?-210n:0n});
-const position=(id:number)=>({callId:BigInt(id),caller:id%2?SYBIL:ADA,base:VAULT,baseAmount:1500n*10n**18n,cost:50000000n,open:id<2});
+const call=(id:number)=>({caller:id%2?SYBIL:SARAH,base:VAULT,quote:VAULT,side:0,feeBps:2000,verifiedAtPost:id%2===0,scored:id>=2,postedAt:now-4000+id*100,expiry:id>=2?now-30:now+3600,entryMid:35000n,targetMid:36500n,stopMid:34000n,exitMid:id>=2?35500n:0n,returnBps:id===2?142n:id===3?-210n:0n});
+const position=(id:number)=>({callId:BigInt(id),caller:id%2?SYBIL:SARAH,base:VAULT,baseAmount:1500n*10n**18n,cost:50000000n,open:id<2});
 function rpc(req:any) {
   if(req.method==='eth_getLogs')return [];
   if(req.method==='eth_blockNumber')return '0x1';
@@ -27,9 +27,9 @@ function rpc(req:any) {
       case 'midPrice':if(mode==='stale')throw new Error('Stale price'); result=35000n;break;
       case 'callCount':result=mode==='empty'?0n:4n;break;
       case 'getCall':result=call(Number(args[0]));break;
-      case 'records':result=args[0].toLowerCase()===ADA?[142n,2,1,1]:[-210n,2,1,0];break;
-      case 'isVerified':result=args[0].toLowerCase()===ADA;break;
-      case 'handleOf':result=args[0].toLowerCase()===ADA?'ada':args[0].toLowerCase()===SYBIL?'sybil_farm':'femi';break;
+      case 'records':result=args[0].toLowerCase()===SARAH?[142n,2,1,1]:[-210n,2,1,0];break;
+      case 'isVerified':result=args[0].toLowerCase()===SARAH;break;
+      case 'handleOf':result=args[0].toLowerCase()===SARAH?'sarah':args[0].toLowerCase()===SYBIL?'sybil_farm':'femi';break;
       case 'vaultOf':result=mode==='new-vault'?zeroAddress:VAULT;break;
       case 'positionCount':result=3n;break;
       case 'maxExposure':result=500000000n;break;
@@ -148,7 +148,7 @@ if(!failureOnly&&!routeOnly){
 
 if(!failureOnly){
  mode='normal';await page.setViewportSize({width:1440,height:1000});
- const protectedRoutes=['/dashboard','/dashboard/calls','/dashboard/create','/dashboard/vault','/dashboard/record','/dashboard/profile','/dashboard/funding','/dashboard/calls/0',`/dashboard/traders/${ADA}`];
+ const protectedRoutes=['/dashboard','/dashboard/calls','/dashboard/create','/dashboard/vault','/dashboard/record','/dashboard/profile','/dashboard/funding','/dashboard/calls/0',`/dashboard/traders/${SARAH}`];
  for(const path of protectedRoutes){
   await page.goto('http://127.0.0.1:5173'+path);await page.waitForURL('**/signin?next=*');await page.getByRole('button',{name:'Continue with passkey'}).waitFor();
   if(await page.locator('.dashboard-shell').count())throw Error('Unauthenticated dashboard exposed: '+path);

@@ -94,7 +94,7 @@ export function describeError(e: unknown): string {
 
 /** Anvil's well-known public test keys. Only offered when the app points at a local chain. */
 export const DEV_ACCOUNTS = [
-  { label: "Ada (verified caller)", key: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" },
+  { label: "Sarah (verified caller)", key: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" },
   { label: "Sybil Farm (unverified)", key: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a" },
   { label: "Femi (follower)", key: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6" },
 ] as const;
