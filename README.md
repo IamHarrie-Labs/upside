@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://upside-monad.vercel.app"><img alt="Live app" src="https://img.shields.io/badge/live%20app-upside--monad.vercel.app-242820?style=flat-square"></a>
+  <a href="https://onlyupside.xyz"><img alt="Live app" src="https://img.shields.io/badge/live%20app-onlyupside.xyz-242820?style=flat-square"></a>
   <img alt="Monad testnet" src="https://img.shields.io/badge/Monad-testnet%2010143-836EF9?style=flat-square">
   <img alt="Solidity" src="https://img.shields.io/badge/Solidity-0.8.28-363636?style=flat-square&logo=solidity">
   <img alt="Foundry tests" src="https://img.shields.io/badge/forge%20tests-21%20passing-2f7d4f?style=flat-square">
@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <a href="https://upside-monad.vercel.app">Live app</a> ·
+  <a href="https://onlyupside.xyz">Live app</a> ·
   <a href="https://expo.dev/artifacts/eas/-_pC1cYvQNbeGbrps_Rn_YqDIFKPP29WP1P3pCGYB5s.apk">Android APK</a> ·
   <a href="docs/demo/round-trip-local.webm">Demo recording</a> ·
   <a href="docs/submission.md">Submission</a> ·
@@ -96,7 +96,7 @@ More screens, at 1440, 390 and 320 px and in four themes, are in [`docs/design/s
 
 | | |
 | --- | --- |
-| **Web app** | **https://upside-monad.vercel.app**. Browse calls without an account, or create one with a passkey: no seed phrase, and the account is derived on your device with Mera. |
+| **Web app** | **https://onlyupside.xyz** (redirects to `upside-monad.vercel.app`, the passkey domain). Browse calls without an account, or create one with a passkey: no seed phrase, and the account is derived on your device with Mera. |
 | **Android** | [Signed preview APK](https://expo.dev/artifacts/eas/-_pC1cYvQNbeGbrps_Rn_YqDIFKPP29WP1P3pCGYB5s.apk) ([build details](https://expo.dev/accounts/iamharrie/projects/upside/builds/250f354b-80aa-4dc6-8f82-7b1f5c01fa2a), [test sheet](docs/phone-test.md)) |
 | **Network** | Monad testnet (chain `10143`). Test AUSD, a demo router and keeper-generated prices. This is real onchain execution with test assets, not a live market. |
 | **Keeper API** | `https://keeper.38.49.210.22.sslip.io` (`/flow`, `/receipts`, `/poke`, `/perpl/context`, `/nansen`) |

@@ -12,7 +12,7 @@ A follower reads the record, chooses a long spot call and amount, reviews execut
 
 ## Working build
 
-Web preview: https://upside-monad.vercel.app/
+Web preview: https://onlyupside.xyz (redirects to https://upside-monad.vercel.app/, the stable passkey domain)
 
 Network: Monad testnet, 10143. Assets: test AUSD and demo base token; venue: DemoRouter; prices: keeper-generated demo prices. The hosted demonstration is a real chain execution with test assets, **not a live market trade**.
 

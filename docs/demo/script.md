@@ -113,7 +113,7 @@ Show the output: the agent's ERC-8004 id, then *followed @sarah…* and *skipped
 
 **End card:**
 ```
-upside-monad.vercel.app
+onlyupside.xyz
 github.com/IamHarrie-Labs/upside
 Monad Metropolis 2026 · Track 03
 ```
