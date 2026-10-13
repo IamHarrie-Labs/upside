@@ -1,10 +1,23 @@
 # Envio HyperIndex config for Upside.
 # Envio HyperIndex v3. Fill the addresses from contracts/deployments/<chainId>.json after deploying, then:
 #   npm install && npx envio codegen && npx envio dev   (Linux/macOS/WSL; the CLI has no native Windows build)
+# Hosted: see deploy/deploy-indexer.sh (Postgres + Hasura + indexer as Docker containers).
 name: upside
+field_selection:
+  transaction_fields:
+    - hash
 chains:
   - id: 10143
     start_block: 68624497
+    # Public Monad RPC as the data source (no Envio account needed). Monad caps eth_getLogs at 100 blocks and
+    # ~15 requests/s per IP. With an ENVIO_API_TOKEN, delete this block to use HyperSync (much faster).
+    rpc:
+      - url: https://testnet-rpc.monad.xyz
+        for: sync
+        initial_block_interval: 100
+        interval_ceiling: 100
+        backoff_millis: 2000
+        query_timeout_millis: 20000
     contracts:
       - name: CallBook
         address: ["0x618861b1935bc2C2dB6d7F75cA6F3dfC81aac317"]

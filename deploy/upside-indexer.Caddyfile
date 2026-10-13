@@ -1,0 +1,17 @@
+# Upside indexer: public, read-only GraphQL (Hasura) at /v1/graphql. Copied to /etc/caddy/sites/.
+# The Hasura console and metadata API are not exposed. INDEXER_HOST is substituted by deploy-indexer.sh.
+INDEXER_HOST {
+  encode zstd gzip
+  header {
+    -Server
+    X-Content-Type-Options nosniff
+    Access-Control-Allow-Origin *
+  }
+  @graphql path /v1/graphql /healthz
+  handle @graphql {
+    reverse_proxy 127.0.0.1:8090
+  }
+  handle {
+    respond "Upside indexer: POST GraphQL queries to /v1/graphql" 200
+  }
+}
