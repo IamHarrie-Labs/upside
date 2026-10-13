@@ -250,7 +250,11 @@ A Node service that runs in Docker behind Caddy ([`deploy/`](deploy)). It:
 Its gas is metered against a daily cap, so a public `/poke` endpoint can't drain it.
 
 ### Indexer — [`indexer/`](indexer)
-Envio HyperIndex v3 config, schema and handlers for calls, caller records, vaults, follows and settlements. Vaults are registered dynamically from `VaultCreated`.
+Envio HyperIndex v3 indexer for calls, caller records, vaults, follows and settlements. Vaults are registered dynamically from `VaultCreated`. It runs on the VPS (Postgres + Hasura + indexer as Docker containers, [`deploy/deploy-indexer.sh`](deploy/deploy-indexer.sh)) and serves a public, read-only GraphQL API:
+
+```bash
+curl https://indexer.38.49.210.22.sslip.io/v1/graphql -H 'content-type: application/json'   -d '{"query":"{ Caller(order_by:{posted:desc}) { id posted scored wins sumReturnBps } }"}'
+```
 
 ## Sponsor integrations
 
@@ -266,7 +270,7 @@ Each row says what is built and what has actually been proven.
 | **ERC-8004** | Agent identity whose registration publishes its mandate | Verified against the official registry on a Monad testnet fork |
 | **x402 / Nansen** | Smart Money checks paid in USDC on Monad, with price, network and daily budget guards | Payment signed and verified up to Nansen's facilitator; funded settlement pending |
 | **Perpl** | "Skin in the game" badge: is the caller long or short MON on Perpl right now? | Read live from Perpl mainnet positions |
-| **Envio** | Indexer for the feed, records and settlements | Implemented; not yet running on a hosted indexer |
+| **Envio** | HyperIndex indexer for the feed, records, vaults and settlements, with a public GraphQL API | **Running:** full testnet history indexed from the deploy block; caller records and vault count match the chain exactly, and new calls appear within seconds |
 | **Cleanverse** | `AttestedGate` driven by A-Pass status | API adapter written; demo uses mock attestations |
 
 ## Run it locally

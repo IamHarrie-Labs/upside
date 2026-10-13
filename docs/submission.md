@@ -36,7 +36,7 @@ Solidity call book, per-owner deterministic clone vaults, original-cost exposure
 | ERC-8004 | Registration/read implementation and documented fork test | Fresh live identity proof; identity is not policy enforcement |
 | x402 / Nansen | Payment challenge/signing path; new deterministic refusal/cache/budget tests | Successful funded payment settlement or authenticated live labels |
 | Perpl | Read-only live position context | Does not execute an Upside Perpl trade |
-| Envio | Indexer configuration/schema/handlers | Running query and product consumption |
+| Envio | HyperIndex indexer running on the VPS with a public read-only GraphQL API (`https://indexer.38.49.210.22.sslip.io/v1/graphql`); full testnet history indexed and matching onchain records | Apps still read the keeper's `/flow`; switching the feed to the indexer is next |
 | Cleanverse | Gate/API adapter; explicit demo-only mock mode | Credential-backed A-Pass verification |
 
 ## Track and judging story
