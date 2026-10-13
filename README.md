@@ -236,7 +236,7 @@ Expo SDK 57 for iOS and Android. It shares the web app's contract logic and adds
 ```
 mm upside calls | caller <addr> | vault | deposit | follow <id> | close <id> | autopilot
 mm upside agent register | agent show <id>   # ERC-8004 identity that publishes the agent's mandate
-mm upside intel <addr>                       # Nansen Smart Money check, paid over x402
+mm upside intel --max-price 0.05 <addr>      # Nansen Smart Money check, paid over x402
 ```
 Details: [`mm-plugin/README.md`](mm-plugin/README.md) and the agent skill [`SKILL.md`](mm-plugin/skills/upside/SKILL.md).
 
