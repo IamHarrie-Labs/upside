@@ -19,19 +19,31 @@ const mode = verificationMode(process.env.CLEANVERSE_MODE, deployment.chainId, d
 
 type APass = { status: string; expiresAt: number; reference: string };
 
-/** Reads the caller's A-Pass from Cleanverse. Endpoint path follows the public API v3 integrations. */
+/**
+ * Reads the caller's CVI (A-Pass) from Cleanverse: POST {base}/query_apass with {chain, address}, plain JSON,
+ * authenticated by the `api-id` header (docs.cleanverse.com → Common Queries → Query CVI). Sandbox base:
+ * https://uatapi.cleanverse.com/api/cooperate. Cleanverse must also allowlist the calling IP.
+ * Response: { code: "0000", data: { status: 1 (active) | 2 (frozen), expirationTime, cvRecordId, tier, ... } }.
+ */
 async function queryAPass(address: Address): Promise<APass | null> {
-  const base = process.env.CLEANVERSE_BASE_URL;
+  const base = process.env.CLEANVERSE_BASE_URL ?? "https://uatapi.cleanverse.com/api/cooperate";
   const id = process.env.CLEANVERSE_API_ID;
-  const key = process.env.CLEANVERSE_API_KEY;
-  if (!base || !id || !key) throw new Error("Set CLEANVERSE_BASE_URL, CLEANVERSE_API_ID, CLEANVERSE_API_KEY");
-  const res = await fetch(`${base}/apass/query?wallet=${address}`, {
-    headers: { "x-api-id": id, "x-api-key": key },
+  if (!id) throw new Error("Set CLEANVERSE_API_ID (and ask Cleanverse to allowlist this IP)");
+  const res = await fetch(`${base}/query_apass`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "api-id": id, "X-Request-ID": crypto.randomUUID() },
+    body: JSON.stringify({ chain: process.env.CLEANVERSE_CHAIN ?? "monad", address }),
   });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Cleanverse ${res.status}: ${await res.text()}`);
-  const body = await res.json();
-  return { status: body.status, expiresAt: Number(body.expireTime ?? body.expiresAt), reference: body.id ?? "" };
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Cleanverse ${res.status}: ${text.slice(0, 200)}`);
+  const body = JSON.parse(text);
+  if (body.code !== "0000" || !body.data) return null; // no CVI for this address (or request rejected)
+  const d = body.data;
+  return {
+    status: Number(d.status) === 1 ? "active" : "frozen",
+    expiresAt: Number(d.expirationTime),
+    reference: String(d.cvRecordId ?? ""),
+  };
 }
 
 let until: bigint;

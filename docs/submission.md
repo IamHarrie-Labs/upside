@@ -37,7 +37,7 @@ Solidity call book, per-owner deterministic clone vaults, original-cost exposure
 | x402 / Nansen | Payment challenge/signing path; new deterministic refusal/cache/budget tests | Successful funded payment settlement or authenticated live labels |
 | Perpl | Read-only live position context | Does not execute an Upside Perpl trade |
 | Envio | HyperIndex indexer running on the VPS with a public read-only GraphQL API (`https://indexer.38.49.210.22.sslip.io/v1/graphql`); full testnet history indexed and matching onchain records | Apps still read the keeper's `/flow`; switching the feed to the indexer is next |
-| Cleanverse | Gate/API adapter; explicit demo-only mock mode | Credential-backed A-Pass verification |
+| Cleanverse | Gate plus a `query_apass` adapter written to Cleanverse's documented API (sandbox base URL, `api-id` header, Monad chain slug, status/expiry parsing); explicit demo-only mock mode | Sandbox credentials return HTTP 403 (expired or IP not allowlisted); live CVI checks need Cleanverse to re-enable access |
 
 ## Track and judging story
 

@@ -271,7 +271,7 @@ Each row says what is built and what has actually been proven.
 | **x402 / Nansen** | Smart Money checks paid in USDC on Monad, with price, network and daily budget guards | Payment signed and verified up to Nansen's facilitator; funded settlement pending |
 | **Perpl** | "Skin in the game" badge: is the caller long or short MON on Perpl right now? | Read live from Perpl mainnet positions |
 | **Envio** | HyperIndex indexer for the feed, records, vaults and settlements, with a public GraphQL API | **Running:** full testnet history indexed from the deploy block; caller records and vault count match the chain exactly, and new calls appear within seconds |
-| **Cleanverse** | `AttestedGate` driven by A-Pass status | API adapter written; demo uses mock attestations |
+| **Cleanverse** | `AttestedGate` driven by CVI (A-Pass) status: the keeper calls Cleanverse's `query_apass` (chain `monad`) and attests only active, unexpired CVIs | Adapter built to Cleanverse's documented API (sandbox `uatapi.cleanverse.com/api/cooperate`, `api-id` auth). Our sandbox credentials currently get HTTP 403 until Cleanverse re-enables them and allowlists our IP, so the demo uses explicitly labelled mock attestations |
 
 ## Run it locally
 
