@@ -6,8 +6,8 @@
       "android": { "buildType": "apk" },
       "env": {
         "EXPO_PUBLIC_CHAIN_ID": "10143",
-        "EXPO_PUBLIC_RP_ID": "upside-monad.vercel.app",
-        "EXPO_PUBLIC_WEB_URL": "https://upside-monad.vercel.app",
+        "EXPO_PUBLIC_RP_ID": "onlyupside.xyz",
+        "EXPO_PUBLIC_WEB_URL": "https://onlyupside.xyz",
         "EXPO_PUBLIC_KEEPER_API": "https://keeper.38.49.210.22.sslip.io"
       }
     },
@@ -16,8 +16,8 @@
       "android": { "buildType": "apk" },
       "env": {
         "EXPO_PUBLIC_CHAIN_ID": "143",
-        "EXPO_PUBLIC_RP_ID": "upside-monad.vercel.app",
-        "EXPO_PUBLIC_WEB_URL": "https://upside-monad.vercel.app",
+        "EXPO_PUBLIC_RP_ID": "onlyupside.xyz",
+        "EXPO_PUBLIC_WEB_URL": "https://onlyupside.xyz",
         "EXPO_PUBLIC_KEEPER_API": "https://keeper.38.49.210.22.sslip.io"
       }
     }

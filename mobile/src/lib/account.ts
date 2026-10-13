@@ -14,7 +14,8 @@ import { chain, RP_ID } from "../env";
 import { getItem, setItem } from "./storage";
 import { webAuthnClient } from "./webauthn";
 
-const CRED_KEY = "upside.passkey.credentialId";
+// Preserve the original key on its original RP. Never apply that reference to a new domain.
+const CRED_KEY = RP_ID === "upside-monad.vercel.app" ? "upside.passkey.credentialId" : `upside.passkey.${RP_ID}.credentialId`;
 
 export type Session = {
   account: LocalAccount;
@@ -58,12 +59,12 @@ export async function createPasskeyAccount(name: string): Promise<Session> {
   return sessionFromPrf(res.prfOutput, name);
 }
 
-export async function signInWithPasskey(): Promise<Session> {
+export async function signInWithPasskey(chooseAnother = false): Promise<Session> {
   requireRp();
   const credentialId = await getItem(CRED_KEY);
   const res = await getPasskeyPrfOutput({
     rpId: RP_ID,
-    credential: credentialId ? { credentialId } : undefined,
+    credential: credentialId && !chooseAnother ? { credentialId } : undefined,
     webAuthnClient,
   });
   await setItem(CRED_KEY, res.credentialId);

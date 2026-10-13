@@ -11,6 +11,7 @@ import { kuruQuote } from "./kuru.js";
 import { nansenFor, nansenMode } from "./nansen.js";
 import { flowSnapshot } from "./flow.js";
 import {receiptsFor} from "./receipts.js";
+import {corsOrigin} from "./cors.js";
 
 const PORT = Number(process.env.PROXY_PORT ?? 8788);
 const allowed = new Set([deployment.base.toLowerCase(), deployment.settlement.toLowerCase()]);
@@ -40,9 +41,13 @@ async function perplContext(net: string): Promise<string> {
 
 export function startApi(hooks: { onPoke?: () => void; status?: () => Record<string, unknown> } = {}) {
   createServer(async (req, res) => {
-    res.setHeader("access-control-allow-origin", process.env.ALLOWED_ORIGIN ?? "*");
+    const origin = corsOrigin(req.headers.origin, process.env.ALLOWED_ORIGIN);
+    res.setHeader("vary", "Origin");
+    if (origin) res.setHeader("access-control-allow-origin", origin);
+    res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
     res.setHeader("access-control-allow-headers", "content-type");
     res.setHeader("content-type", "application/json");
+    if (req.headers.origin && !origin) { res.statusCode = 403; return res.end(JSON.stringify({message:"Browser origin is not allowed"})); }
     if (req.method === "OPTIONS") return res.end();
     let url:URL;
     try{url=new URL(req.url??"/","http://x");}catch{res.statusCode=400;return res.end(JSON.stringify({message:"Invalid request URL"}));}

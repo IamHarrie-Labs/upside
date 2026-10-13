@@ -322,6 +322,8 @@ function Onboard({ onSession, onBack }: { onSession: (s: Session) => void; onBac
         {hasPasskey() && <button className="back account-create" disabled={busy} onClick={() => start(() => signInWithPasskey(true))}>Choose another existing passkey</button>}
         {hasPasskey() && <button className="text-link account-create" disabled={busy} onClick={() => start(() => createPasskeyAccount("Upside user"))}>Create a different account</button>}
         <p className="fine">A passkey lets you sign in with your device. Use the same passkey each time to return to your account.</p>
+        {location.hostname === "onlyupside.xyz" && <p className="fine">Previously signed in on our old address? <a href={`https://upside-monad.vercel.app/signin?next=${encodeURIComponent(returnPath())}`}>Use your original account</a>. Creating a new passkey here opens a separate account; funds and positions do not move.</p>}
+        {location.hostname === "upside-monad.vercel.app" && <p className="fine">This address still supports your original passkey. New to Upside? <a href="https://onlyupside.xyz/signin">Start on onlyupside.xyz</a>.</p>}
         {busy && <p role="status" className="fine">Waiting for your passkey provider…</p>}
         {err && <p className="error" role="alert">{err}</p>}
       </div>
