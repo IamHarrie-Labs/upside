@@ -32,8 +32,8 @@ Solidity call book, per-owner deterministic clone vaults, original-cost exposure
 | Kuru | Execution adapter and previously documented mainnet-fork round trip | New consented live market execution and exact bounty eligibility |
 | Agora / AUSD | Real AUSD route parameterization; preview uses test stand-in | Real-token mobile flow |
 | Mera | Passkey derivation/signing in web/native; genuine Android certificate association published; signed Expo preview completed; custom-domain replacement completed | Android/iPhone hardware test; physical passkey and real-token mobile flow still unverified |
-| MetaMask | Plugin builds; local core workflow tested | Actual Agent Wallet Guard Mode approval/refusal recording |
-| ERC-8004 | Registration/read implementation and documented fork test | Fresh live identity proof; identity is not policy enforcement |
+| MetaMask | Plugin installed in a real Agent Wallet (Guard mode). Live autopilot followed @sarah and refused @sybil_farm on testnet data; a mainnet write was held for email approval, approved and sent ([tx](https://monadvision.com/tx/0x0eff6e0564becb130933f98a453b3156d549c19b9cd016a9640a670bfe467b1e)) | Agent Wallet doesn't relay Monad testnet transactions, so live vault deposits/follows need the mainnet deployment |
+| ERC-8004 | Agent #10406 registered on Monad mainnet's official IdentityRegistry from the Agent Wallet ([tx](https://monadvision.com/tx/0x0eff6e0564becb130933f98a453b3156d549c19b9cd016a9640a670bfe467b1e)); mandate decodes on read | Identity describes the mandate; it doesn't enforce it (the vault cap and wallet policy do) |
 | x402 / Nansen | Payment challenge/signing path; new deterministic refusal/cache/budget tests | Successful funded payment settlement or authenticated live labels |
 | Perpl | Read-only live position context | Does not execute an Upside Perpl trade |
 | Envio | HyperIndex indexer running on the VPS with a public read-only GraphQL API (`https://indexer.38.49.210.22.sslip.io/v1/graphql`); full testnet history indexed and matching onchain records | Apps still read the keeper's `/flow`; switching the feed to the indexer is next |
