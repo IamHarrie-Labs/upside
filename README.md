@@ -266,7 +266,7 @@ Each row says what is built and what has actually been proven.
 | **Kuru** | Kuru Flow is the mainnet execution venue; its quotes provide the mid | Mainnet-fork round trip with live Kuru Flow calldata (bought 322.2 WMON for 10 AUSD, sold for 9.993) |
 | **Agora (AUSD)** | Settlement asset for vaults, fees and payouts | Contracts parameterised on AUSD; testnet uses a 6-decimal stand-in |
 | **Mera** | Passkey PRF → BIP-44 account → viem signing session, on web and native | Working on web; Android association published; physical-device test pending |
-| **MetaMask** | Agent Wallet plugin, agent skill and policy-gated writes | Installs in `mm` 7.0.0; core flows tested locally; live Guard Mode recording pending |
+| **MetaMask** | Agent Wallet plugin, agent skill and policy-gated writes | **Live on a real Agent Wallet (Guard mode):** the autopilot read Monad testnet and followed @sarah's call while refusing @sybil_farm's (fee above limit, unverified, too few scored calls). MetaMask's Agent Wallet doesn't relay Monad *testnet* transactions (`relaySupported: false`), so live writes run on Monad mainnet; `agent register` on mainnet was prepared and policy-checked and needs ~0.125 MON of gas |
 | **ERC-8004** | Agent identity whose registration publishes its mandate | Verified against the official registry on a Monad testnet fork |
 | **x402 / Nansen** | Smart Money checks paid in USDC on Monad, with price, network and daily budget guards | Payment signed and verified up to Nansen's facilitator; funded settlement pending |
 | **Perpl** | "Skin in the game" badge: is the caller long or short MON on Perpl right now? | Read live from Perpl mainnet positions |

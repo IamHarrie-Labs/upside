@@ -32,9 +32,9 @@ export default class UpsideAgentRegister extends PluginCommand<Result> {
       const perCall = amountFrom(i.perCall, "per-call", "10");
       const dailyBudget = amountFrom(i.dailyBudget, "daily-budget", "50");
       const mandate = mandateOf(rulesFrom(i, perCall), dailyBudget);
-      const h = await walletHost(this.ctx, io, this.pluginCommandId, chainIdFrom(i.chainId));
+      const h = await walletHost(this.ctx, io, this.pluginCommandId, chainIdFrom(i.chainId), undefined, { requireDeployment: false });
       h.agentId = null; // registering a new identity, not acting as an existing one
-      const vault = await getVault(h, h.account);
+      const vault = h.d ? await getVault(h, h.account) : null; // no Upside deployment on this chain yet
       const base = { name: String(i.name), description: i.description ? String(i.description) : undefined, chainId: h.chainId, owner: h.account, vault, mandate };
 
       const reg = await registerAgent(h, registrationFile(base));

@@ -510,7 +510,25 @@ async function lockedAutopilotPass(
   let spent = BigInt(state.spent[day] ?? "0");
 
   const vault = await getVault(h, h.account);
-  if (!vault) return [{ kind: "stopped", reason: "No Upside vault yet. Run `mm upside deposit` first." }];
+  if (!vault) {
+    if (!opts.dryRun) return [{ kind: "stopped", reason: "No Upside vault yet. Run `mm upside deposit` first." }];
+    // Dry run without a vault: evaluate every open call as if a new vault held enough AUSD, so the agent's
+    // rules can be checked before anything is deposited. Nothing is signed or sent.
+    const open = (await getCalls(h, { limit: 50 })).filter((c) => c.open).reverse();
+    const recs = await getCallerRecords(h, open.map((c) => c.caller));
+    let planned = 0n;
+    for (const c of open) {
+      const reasons = checkCall(c, recs.get(c.caller.toLowerCase() as Address), opts.rules);
+      if (planned + opts.rules.perCall > opts.dailyBudget) reasons.push(`daily budget reached (${fmtQuote(planned)} of ${fmtQuote(opts.dailyBudget)} AUSD)`);
+      if (reasons.length) actions.push({ kind: "skipped", callId: c.id, caller: c.caller, reasons });
+      else {
+        actions.push({ kind: "followed", callId: c.id, caller: c.caller, amount: fmtQuote(opts.rules.perCall), positionId: null });
+        planned += opts.rules.perCall;
+      }
+    }
+    actions.push({ kind: "stopped", reason: "Dry run without a vault: evaluated as if a new vault held enough AUSD. Run `mm upside deposit` before a real follow." });
+    return actions;
+  }
   let vs = await getVaultState(h, vault);
   if (state.pending) return [{kind:"stopped",reason:"An earlier trade has unresolved spend reserved. Reconcile its receipt before clearing pending state; no new follow will be sent."}];
   // Reconcile actual Followed events, including follows made outside this process. Bounded catch-up resumes

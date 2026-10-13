@@ -89,8 +89,16 @@ export async function walletHost(
   commandId: string,
   chainId: number,
   keeperApi?: string,
+  opts: { requireDeployment?: boolean } = {},
 ): Promise<Host> {
-  const d = deploymentFor(chainId);
+  // Identity-only commands (agent register) can run where Upside isn't deployed, e.g. Monad mainnet.
+  let d: Host["d"];
+  try {
+    d = deploymentFor(chainId);
+  } catch (e) {
+    if (opts.requireDeployment !== false) throw e;
+    d = null as unknown as Host["d"];
+  }
   const read = await hostReader(ctx, chainId);
   const account = selectedAddress(ctx);
   const executor: any = await ctx.walletExecutor(io, commandId, { emitStepNotices: true });
