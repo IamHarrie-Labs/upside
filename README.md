@@ -24,7 +24,7 @@
 
 <p align="center">
   <a href="https://onlyupside.xyz">Live app</a> ·
-  <a href="https://expo.dev/artifacts/eas/-_pC1cYvQNbeGbrps_Rn_YqDIFKPP29WP1P3pCGYB5s.apk">Android APK</a> ·
+  <a href="https://expo.dev/artifacts/eas/iAQs6TYQNS023RhtCFu97wbGSmXsYB10jNZF0pBSqOs.apk">Android APK</a> ·
   <a href="docs/demo/round-trip-local.webm">Demo recording</a> ·
   <a href="docs/submission.md">Submission</a> ·
   <a href="mm-plugin/README.md">MetaMask plugin</a>
@@ -96,8 +96,8 @@ More screens, at 1440, 390 and 320 px and in four themes, are in [`docs/design/s
 
 | | |
 | --- | --- |
-| **Web app** | **https://onlyupside.xyz** (redirects to `upside-monad.vercel.app`, the passkey domain). Browse calls without an account, or create one with a passkey: no seed phrase, and the account is derived on your device with Mera. |
-| **Android** | [Signed preview APK](https://expo.dev/artifacts/eas/-_pC1cYvQNbeGbrps_Rn_YqDIFKPP29WP1P3pCGYB5s.apk) ([build details](https://expo.dev/accounts/iamharrie/projects/upside/builds/250f354b-80aa-4dc6-8f82-7b1f5c01fa2a), [test sheet](docs/phone-test.md)) |
+| **Web app** | **https://onlyupside.xyz** (primary website; original accounts remain accessible on `upside-monad.vercel.app`). Read the documentation, then sign in or create an account with a passkey: no seed phrase, and the account is derived on your device with Mera. |
+| **Android** | [Signed preview APK](https://expo.dev/artifacts/eas/iAQs6TYQNS023RhtCFu97wbGSmXsYB10jNZF0pBSqOs.apk) ([build details](https://expo.dev/accounts/iamharrie/projects/upside/builds/4c90a59c-b38c-43ab-a1f3-4db5c58b8871), [test sheet](docs/phone-test.md)) |
 | **Network** | Monad testnet (chain `10143`). Test AUSD, a demo router and keeper-generated prices. This is real onchain execution with test assets, not a live market. |
 | **Keeper API** | `https://keeper.38.49.210.22.sslip.io` (`/flow`, `/receipts`, `/poke`, `/perpl/context`, `/nansen`) |
 

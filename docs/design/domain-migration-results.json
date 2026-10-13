@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-13T11:11:32.599Z",
+  "checks": [
+    "https://onlyupside.xyz: direct service, genuine Android association, honest Apple placeholder and keeper preflight",
+    "https://upside-monad.vercel.app: direct service, genuine Android association, honest Apple placeholder and keeper preflight",
+    "Unknown browser origin rejected",
+    "Legacy sign-in link preserves original domain and requested destination",
+    "New-account link returns to custom domain"
+  ],
+  "runtimeErrors": [],
+  "hardwarePasskeysVerified": false,
+  "scope": "Real hosting, associations, CORS and browser account links; no credentials created or transactions sent."
+}

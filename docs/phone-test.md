@@ -1,16 +1,16 @@
 # Android and iPhone test sheet
 
-Stable passkey relying-party domain: `upside-monad.vercel.app`. Keep this domain for existing credentials; moving an account to a new relying party is not automatic.
+Primary website and new Android relying-party domain: `onlyupside.xyz`. Existing credentials remain on `upside-monad.vercel.app`; the old website and original APK remain usable. Creating a passkey on the new domain derives a separate account.
 
-Web: https://upside-monad.vercel.app/
+Web: https://onlyupside.xyz/; original accounts: https://upside-monad.vercel.app/signin
 
 Keeper: https://keeper.38.49.210.22.sslip.io
 
-Native Android: Expo `preview` profile selects chain 10143, the same domain and keeper. The signed APK is ready to install. Expo Go cannot validate the native passkey module.
+Native Android: the updated Expo `preview` profile selects chain 10143, onlyupside.xyz and the existing keeper. The signed APK is ready to install. Expo Go cannot validate the native passkey module.
 
 Expo sign-in completed on 8 October. Project: [@iamharrie/upside](https://expo.dev/accounts/iamharrie/projects/upside), ID `285477d2-32f0-4c89-893c-a1f25288b4bd`, saved in `mobile/app.config.ts`. Signing and build evidence will be recorded separately below.
 
-Latest Android preview finished on 9 October: [build 250f354b-80aa-4dc6-8f82-7b1f5c01fa2a](https://expo.dev/accounts/iamharrie/projects/upside/builds/250f354b-80aa-4dc6-8f82-7b1f5c01fa2a), source commit `6efa636`. [Download the signed APK](https://expo.dev/artifacts/eas/-_pC1cYvQNbeGbrps_Rn_YqDIFKPP29WP1P3pCGYB5s.apk). Native compilation completed. This replaces the old welcome with three stages, adds the vector icon dock and safe-area-aware layout, and preserves the signing session across Expo Router navigation. The cabin faces are smaller. The current Cabin logo remains until a replacement is chosen. Cloud compatibility results are recorded in `docs/design/android-build-results.json`.
+Original-domain fallback Android preview finished on 9 October: [build 250f354b-80aa-4dc6-8f82-7b1f5c01fa2a](https://expo.dev/accounts/iamharrie/projects/upside/builds/250f354b-80aa-4dc6-8f82-7b1f5c01fa2a), source commit `6efa636`. [Download the signed APK](https://expo.dev/artifacts/eas/-_pC1cYvQNbeGbrps_Rn_YqDIFKPP29WP1P3pCGYB5s.apk). Native compilation completed. This replaces the old welcome with three stages, adds the vector icon dock and safe-area-aware layout, and preserves the signing session across Expo Router navigation. The cabin faces are smaller. The current Cabin logo remains until a replacement is chosen. Cloud compatibility results are recorded in `docs/design/android-build-results.json`.
 
 Expo reused the remote Android keystore; no private signing material was downloaded. Its public SHA-256 certificate fingerprint is `15:93:64:40:B0:3F:F6:F2:AA:F2:83:91:E5:DD:F5:B3:EC:0E:5B:96:DF:BC:BB:F5:AF:CC:00:78:F8:0B:2C:1B`, recorded from `eas credentials --platform android` and configured in `assetlinks.json`. Build completion and physical authentication remain separate checks.
 
@@ -25,6 +25,8 @@ iPhone can first use Safari on the stable web domain. Native iOS distribution ad
 The Apple association file deliberately lists no native apps until a genuine Apple signing identity is available. It does not claim an unregistered team ID. Both association files are served as JSON over HTTPS.
 
 ## Real device acceptance
+
+13 October replacement build: [onlyupside.xyz Android build](https://expo.dev/accounts/iamharrie/projects/upside/builds/4c90a59c-b38c-43ab-a1f3-4db5c58b8871). Finished. [Download the new APK](https://expo.dev/artifacts/eas/iAQs6TYQNS023RhtCFu97wbGSmXsYB10jNZF0pBSqOs.apk). The earlier download above is the original-domain fallback. The new app retains the old credential reference without using it on the new domain; use its original-account web link to access an old account.
 
 | Check | Android signed APK | iPhone Safari |
 |---|---|---|

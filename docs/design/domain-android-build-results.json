@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-13T11:27:50.3436803Z",
+  "id": "4c90a59c-b38c-43ab-a1f3-4db5c58b8871",
+  "status": "FINISHED",
+  "sourceCommit": "820a9193dd28de4b63c75301bcc31fe8fa009c6f",
+  "version": "0.1.1",
+  "platform": "ANDROID",
+  "profile": "preview",
+  "rpId": "onlyupside.xyz",
+  "url": "https://expo.dev/accounts/iamharrie/projects/upside/builds/4c90a59c-b38c-43ab-a1f3-4db5c58b8871",
+  "apk": "https://expo.dev/artifacts/eas/iAQs6TYQNS023RhtCFu97wbGSmXsYB10jNZF0pBSqOs.apk",
+  "physicalDeviceVerified": false,
+  "legacyWebAccountAccess": true
+}

@@ -1,6 +1,6 @@
 {
-  "date": "2026-10-10T09:37:41.471Z",
-  "url": "https://upside-monad.vercel.app",
+  "date": "2026-10-13T11:10:35.261Z",
+  "url": "https://onlyupside.xyz",
   "checks": [
     "Cancellation preserves sign-in and permits retry",
     "Unsupported PRF cannot create an account or remember a credential",

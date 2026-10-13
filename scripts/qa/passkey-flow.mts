@@ -62,6 +62,6 @@ try {
   assert.equal(await page.evaluate(()=> (window as any).ceremonies.at(-1).restricted),true);
   checks.push('Same PRF restores the same signing account after sign-out');
   assert.deepEqual(errors,[]);assert.equal(writes,0);
-  writeFileSync(baseUrl.includes('vercel.app')?'docs/design/hosted-passkey-qa-results.json':'docs/design/passkey-qa-results.json',JSON.stringify({date:new Date().toISOString(),url:baseUrl,checks,runtimeErrors:errors,transactionWrites:writes,scope:'Simulated WebAuthn credential responses through real Mera derivation and session code. No physical authenticator or transaction broadcast.'},null,2));
+  writeFileSync(!baseUrl.includes('127.0.0.1')?'docs/design/hosted-passkey-qa-results.json':'docs/design/passkey-qa-results.json',JSON.stringify({date:new Date().toISOString(),url:baseUrl,checks,runtimeErrors:errors,transactionWrites:writes,scope:'Simulated WebAuthn credential responses through real Mera derivation and session code. No physical authenticator or transaction broadcast.'},null,2));
   console.log(JSON.stringify({checks,runtimeErrors:errors,transactionWrites:writes}));
 } finally {await browser.close();}

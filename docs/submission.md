@@ -12,7 +12,7 @@ A follower reads the record, chooses a long spot call and amount, reviews execut
 
 ## Working build
 
-Web preview: https://onlyupside.xyz (redirects to https://upside-monad.vercel.app/, the stable passkey domain)
+Web preview: https://onlyupside.xyz (primary website; https://upside-monad.vercel.app/ remains available for existing passkey accounts)
 
 Network: Monad testnet, 10143. Assets: test AUSD and demo base token; venue: DemoRouter; prices: keeper-generated demo prices. The hosted demonstration is a real chain execution with test assets, **not a live market trade**.
 
@@ -31,7 +31,7 @@ Solidity call book, per-owner deterministic clone vaults, original-cost exposure
 | Monad | Hosted testnet post/follow/close/withdraw with explorer receipts | Mainnet production readiness |
 | Kuru | Execution adapter and previously documented mainnet-fork round trip | New consented live market execution and exact bounty eligibility |
 | Agora / AUSD | Real AUSD route parameterization; preview uses test stand-in | Real-token mobile flow |
-| Mera | Passkey derivation/signing in web/native; genuine Android certificate association published; signed Expo preview submitted | Completed cloud build and Android/iPhone hardware test |
+| Mera | Passkey derivation/signing in web/native; genuine Android certificate association published; signed Expo preview completed; custom-domain replacement completed | Android/iPhone hardware test; physical passkey and real-token mobile flow still unverified |
 | MetaMask | Plugin builds; local core workflow tested | Actual Agent Wallet Guard Mode approval/refusal recording |
 | ERC-8004 | Registration/read implementation and documented fork test | Fresh live identity proof; identity is not policy enforcement |
 | x402 / Nansen | Payment challenge/signing path; new deterministic refusal/cache/budget tests | Successful funded payment settlement or authenticated live labels |
@@ -53,4 +53,4 @@ Fees account for realized trading PnL before performance fees and gas. Open loss
 
 ## Fields still requiring human/external completion
 
-Public repository URL (no Git remote configured), team names and contact, final track/bounty selection from the signed-in portal, completed APK and physical-phone results, actual user interviews, successful funded sponsor transactions where claimed, and narrated final video. Android build: https://expo.dev/accounts/iamharrie/projects/upside/builds/df217ebf-6926-4b27-98c7-09a772573924. Portal cutoff and sponsor stacking rules remain to be confirmed. Rehearse and prepare submission by 12 October rather than relying on the ambiguous public deadline.
+Public repository: https://github.com/IamHarrie-Labs/upside; confirm judge access, team names and contact, final track/bounty selection from the signed-in portal, physical-phone results, actual user interviews, successful funded sponsor transactions where claimed, and narrated final video. Android build: https://expo.dev/accounts/iamharrie/projects/upside/builds/4c90a59c-b38c-43ab-a1f3-4db5c58b8871. Portal cutoff and sponsor stacking rules remain to be confirmed. Rehearse and prepare submission by 12 October rather than relying on the ambiguous public deadline.
